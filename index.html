@@ -1,0 +1,2119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#0C0B0F">
+<meta name="format-detection" content="telephone=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>AFTERLIGHT:404ARCHIVE</title>
+<meta name="description" content="A personal archive of niche indie, alternative & pop songs — with meanings, lyrics, and the moods they live in. Curated by JK.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="noteGoldGrad" x1="10%" y1="0%" x2="90%" y2="100%">
+      <stop offset="0%" stop-color="#f7e4b8"/>
+      <stop offset="45%" stop-color="#c8a96e"/>
+      <stop offset="100%" stop-color="#8f6f3e"/>
+    </linearGradient>
+    <symbol id="premNoteIcon" viewBox="0 0 32 32">
+      <ellipse cx="10.2" cy="24.4" rx="6.3" ry="4.7" transform="rotate(-18 10.2 24.4)"/>
+      <path d="M15.4 24.4V5.1c0-.86.53-1.62 1.34-1.92c3.62-1.34 7.62.36 9.02 3.98c1 2.6.24 5.42-1.86 7.06c-.52.4-1.26.06-1.26-.6c0-.28.12-.54.36-.72c1.32-1.02 1.82-2.76 1.2-4.34c-.9-2.32-3.42-3.42-5.7-2.6c-.4.14-.66.52-.66.94v17.5h-2.44z"/>
+    </symbol>
+  </defs>
+</svg>
+<div id="toast-stack" aria-live="polite" aria-atomic="true"></div>
+<div class="notif-optin-banner" id="notif-optin-banner" style="display:none;">
+  <span class="notif-optin-icon">🔔</span>
+  <div class="notif-optin-text">
+    <strong>Turn on notifications?</strong>
+    <span>Get notified when someone messages you, or when a song you submitted is reviewed. You can change this anytime in Site Settings.</span>
+  </div>
+  <div class="notif-optin-actions">
+    <button class="notif-optin-btn primary" onclick="handleNotifOptIn(true)">Enable</button>
+    <button class="notif-optin-btn" onclick="handleNotifOptIn(false)">Not now</button>
+  </div>
+</div>
+<!-- HEADER -->
+<header>
+  <div class="header-left">
+    <div class="auth-bar" id="auth-bar">
+      <button class="auth-btn" id="btn-login">Log In</button>
+      <button class="auth-btn primary" id="btn-signup">Sign Up</button>
+    </div>
+  </div>
+  <a href="#" class="logo header-center" onclick="showPage('home');return false;">
+    <span class="logo-full">AfterLight<span class="colon">:</span><span class="four">404</span></span>
+  </a>
+  <div class="header-right">
+    <div class="notif-bell-wrap" id="notif-bell-wrap" style="display:none;">
+      <button class="notif-bell-btn" onclick="toggleNotifDropdown(event)" aria-label="Notifications">
+        🔔<span class="notif-bell-badge" id="notif-bell-badge" style="display:none;">0</span>
+      </button>
+      <div class="notif-dropdown" id="notif-dropdown">
+        <div class="notif-dropdown-header">
+          <span>Notifications</span>
+          <button class="notif-mark-read-btn" onclick="markAllNotificationsRead()">Mark all read</button>
+        </div>
+        <div class="notif-dropdown-list" id="notif-dropdown-list"></div>
+      </div>
+    </div>
+    <div class="theme-toggle-wrap">
+      <span class="theme-icon">☽</span>
+      <label class="theme-switch">
+        <input type="checkbox" id="theme-checkbox">
+        <span class="theme-track"></span>
+      </label>
+      <span class="theme-icon">☀</span>
+      <button class="theme-mode-btn active-mode" id="sys-btn" title="Follow system preference">sys</button>
+    </div>
+  </div>
+</header>
+<div class="subnav-row" id="desktop-nav-row">
+  <nav id="desktop-nav">
+    <a href="#archive" onclick="goToHomeSection('archive');return false;">Archive</a>
+    <a href="#about" onclick="goToHomeSection('about');return false;">About</a>
+    <a href="#submit" onclick="showPage('submit');return false;">Submit a Song</a>
+    <a href="#social" onclick="showPage('social');return false;">Social</a>
+  </nav>
+</div>
+
+
+<!-- DONATE MODAL -->
+<div class="donate-overlay" id="donate-overlay">
+  <div class="donate-modal">
+    <button class="donate-close" id="close-donate">✕</button>
+    <div class="donate-modal-title">Support JK ♡</div>
+    <p class="donate-modal-sub">
+      AfterLight:404Archive is made with love &amp; zero ads.<br>
+      If it means something to you, buy me a coffee via PayPal.
+    </p>
+    <div class="paypal-input-wrap" id="paypal-setup" style="display:none;">
+      <label>Your PayPal.me username or PayPal email</label>
+      <input class="paypal-input" id="paypal-id-input" type="text" placeholder="paypal.me/yourname  or  you@email.com">
+      <div class="paypal-saved" id="paypal-saved">✓ Saved!</div>
+    </div>
+    <button class="paypal-go-btn" id="paypal-go-btn">♡ &nbsp;Donate via PayPal</button>
+    <p class="paypal-note" id="paypal-note-text">
+      You'll be taken to PayPal to complete your donation securely.<br>
+      Any amount is genuinely appreciated.
+    </p>
+    <p class="paypal-note" style="margin-top:10px;">
+      <span style="color:var(--accent2);cursor:pointer;text-decoration:underline;" id="toggle-paypal-setup">⚙ Creator: connect your PayPal</span>
+    </p>
+  </div>
+</div>
+
+<!-- ── AUTH MODALS ── -->
+
+<!-- USER LOGIN -->
+<div class="auth-overlay" id="user-login-overlay">
+  <div class="auth-modal">
+    <button class="auth-close" onclick="closeAuth()">✕</button>
+    <div class="auth-modal-title">Welcome back</div>
+    <p class="auth-modal-sub">Log in to comment, chat, and submit songs.</p>
+    <div class="form-group">
+      <label>Anonymous Name</label>
+      <input class="form-input" type="text" id="ul-name" placeholder="e.g. midnight_echo, vinyl_ghost">
+      <p class="anon-hint">Pick a creative alias. No real names. Offensive terms are filtered.</p>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input class="form-input" type="password" id="ul-pass" placeholder="••••••••">
+    </div>
+    <button class="form-btn" onclick="handleUserLogin()">Log In</button>
+    <div class="form-divider">or</div>
+    <button class="google-btn" onclick="handleGoogleLogin()">
+      <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Continue with Google
+    </button>
+    <p class="auth-error" id="ul-error"></p>
+    <p class="auth-switch">No account? <a onclick="showSignup()">Sign up</a></p>
+  </div>
+</div>
+
+<!-- USER SIGNUP -->
+<div class="auth-overlay" id="user-signup-overlay">
+  <div class="auth-modal">
+    <button class="auth-close" onclick="closeAuth()">✕</button>
+    <div class="auth-modal-title">Join the archive</div>
+    <p class="auth-modal-sub">Create an account to participate.</p>
+    <div class="form-group">
+      <label>Real Name</label>
+      <input class="form-input" type="text" id="us-realname" placeholder="e.g. Jordan Reyes" autocomplete="name">
+      <p class="anon-hint">Kept private. Never shown publicly — only your anonymous name is visible to others.</p>
+    </div>
+    <div class="form-group">
+      <label>Anonymous Name</label>
+      <input class="form-input" type="text" id="us-name" placeholder="e.g. midnight_echo, vinyl_ghost">
+      <p class="anon-hint">Must be 3–20 chars. Letters, numbers, underscores, hyphens only. No offensive terms.</p>
+    </div>
+    <div class="form-group">
+      <label>Gender</label>
+      <select class="form-input" id="us-gender">
+        <option value="">Select one…</option>
+        <option value="female">Female</option>
+        <option value="male">Male</option>
+        <option value="nonbinary">Non-binary</option>
+        <option value="other">Other</option>
+      </select>
+      <p class="anon-hint">Used to show you a relevant set of profile pictures. Kept private.</p>
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input class="form-input" type="email" id="us-email" placeholder="you@email.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input class="form-input" type="password" id="us-pass" placeholder="••••••••">
+    </div>
+    <div class="form-group">
+      <label>Confirm Password</label>
+      <input class="form-input" type="password" id="us-pass2" placeholder="••••••••">
+    </div>
+    <!-- Honeypot: invisible to real people, but a script that fills every
+         input on the form will fill this too. If it's non-empty on submit,
+         we quietly treat the signup as a bot and drop it. -->
+    <div style="position:absolute;left:-9999px;top:-9999px;height:0;overflow:hidden;" aria-hidden="true">
+      <label for="us-website">Website</label>
+      <input type="text" id="us-website" name="website" tabindex="-1" autocomplete="off">
+    </div>
+    <!-- Cloudflare Turnstile renders here only if the admin enabled it in
+         Admin → Safety & Bots. Hidden/no-op otherwise. -->
+    <div id="turnstile-widget-signup" style="margin:4px 0 12px;">
+    </div>
+    <button class="form-btn" onclick="handleUserSignup()">Create Account</button>
+    <p class="anon-hint" style="text-align:center;margin-top:10px;">Already have a Google-linked account? <a onclick="closeAuth();handleGoogleLogin();" style="cursor:pointer;">Continue with Google</a> from the log in screen instead — signing up always uses email + password.</p>
+    <p class="auth-error" id="us-error"></p>
+    <p class="auth-switch">Already have an account? <a onclick="showLogin()">Log in</a></p>
+  </div>
+</div>
+
+<!-- VERIFY EMAIL — shown right after signup, before the account exists.
+     Not a .auth-overlay on purpose: closeAuth() must never dismiss it, only
+     verifying the code (or explicitly cancelling back to the signup form). -->
+<div class="forced-overlay" id="verify-email-overlay">
+  <div class="auth-modal">
+    <div class="auth-modal-title">Verify your email</div>
+    <p class="auth-modal-sub">We sent a 6-digit code to <strong id="ve-email-display"></strong>. Enter it below to confirm it's really you.</p>
+    <div class="form-group">
+      <label>Verification Code</label>
+      <input class="form-input" type="text" inputmode="numeric" maxlength="6" id="ve-code" placeholder="000000" style="letter-spacing:6px;text-align:center;font-family:var(--mono);font-size:18px;" onkeydown="if(event.key==='Enter'){event.preventDefault();handleVerifyEmail();}">
+    </div>
+    <button class="form-btn" onclick="handleVerifyEmail()">Verify &amp; Continue</button>
+    <p class="auth-error" id="ve-error"></p>
+    <p class="auth-switch"><a onclick="resendVerificationCode()">Resend code</a> &nbsp;·&nbsp; <a onclick="cancelVerification()">Use a different email</a></p>
+  </div>
+</div>
+
+<!-- GOOGLE ALIAS (fallback for "Continue with Google" when Supabase isn't connected — login-only, see submitGoogleAlias) -->
+<div class="auth-overlay" id="google-alias-overlay">
+  <div class="auth-modal">
+    <button class="auth-close" onclick="closeAuth()">✕</button>
+    <div class="auth-modal-title">Continue with Google</div>
+    <p class="auth-modal-sub">Enter the anonymous name of your existing Google-linked account.</p>
+    <div class="form-group">
+      <label>Anonymous Name</label>
+      <input class="form-input" type="text" id="ga-name" placeholder="e.g. midnight_echo, vinyl_ghost" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();submitGoogleAlias();}">
+      <p class="anon-hint">Must match an account you already created — Google can't create a new one.</p>
+    </div>
+    <button class="form-btn" onclick="submitGoogleAlias()">Continue</button>
+    <p class="auth-error" id="ga-error"></p>
+  </div>
+</div>
+
+<!-- FORCED AVATAR PICKER — shown once, right after a new account is created.
+     Not a .auth-overlay on purpose: it must never be dismissed by closeAuth() or
+     a stray backdrop click, only by picking an avatar (or, in the rare case the
+     library is completely empty, the "Skip for now" escape hatch). -->
+<div class="forced-overlay" id="forced-avatar-overlay">
+  <div class="auth-modal">
+    <div class="auth-modal-title">Complete your profile</div>
+    <p class="auth-modal-sub" id="fa-subtitle">Almost there — pick an avatar and tell people a bit about yourself. You can change any of this later from your profile settings.</p>
+
+    <div class="form-group">
+      <label>Profile Picture</label>
+      <div class="forced-avatar-grid" id="forced-avatar-grid" style="margin-bottom:0;"></div>
+    </div>
+
+    <div class="form-group" style="text-align:left;">
+      <label>Username</label>
+      <div id="fa-username-display" style="font-family:var(--mono);font-size:14px;color:var(--accent);padding:2px 0 4px;"></div>
+      <p class="anon-hint">This is the name others see. Change it anytime in Settings.</p>
+    </div>
+
+    <div class="form-group" style="text-align:left;">
+      <label>Bio</label>
+      <textarea class="form-input" id="fa-bio" maxlength="300" placeholder="Tell us a bit about yourself and the artists you love..." style="min-height:80px;resize:vertical;font-family:var(--sans);line-height:1.6;" oninput="document.getElementById('fa-bio-count').textContent=this.value.length"></textarea>
+      <p class="anon-hint"><span id="fa-bio-count">0</span>/300</p>
+    </div>
+
+    <div class="form-group" style="text-align:left;">
+      <label>Pronouns <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+      <select class="form-input" id="fa-pronouns" onchange="document.getElementById('fa-pronouns-custom').style.display = this.value==='custom' ? 'block' : 'none';">
+        <option value="">Prefer not to say</option>
+        <option value="she/her">she/her</option>
+        <option value="he/him">he/him</option>
+        <option value="they/them">they/them</option>
+        <option value="custom">Other / custom</option>
+      </select>
+      <input class="form-input" type="text" id="fa-pronouns-custom" placeholder="e.g. xe/xem" style="display:none;margin-top:8px;">
+    </div>
+
+    <div class="form-group" style="text-align:left;">
+      <label>Favorite Genres / Vibe <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+      <input class="form-input" type="text" id="fa-genre" maxlength="80" placeholder="e.g. shoegaze, 90s R&amp;B, ambient">
+      <p class="anon-hint">Shows on your profile so others know your taste at a glance.</p>
+    </div>
+
+    <button class="form-btn" onclick="saveProfileSetup()">Finish Setup</button>
+    <p class="auth-error" id="fa-error"></p>
+    <button class="form-btn" id="fa-skip-btn" onclick="skipForcedAvatar()" style="display:none;background:transparent;color:var(--dim);border:1px solid var(--border2);box-shadow:none;margin-top:8px;">Skip for now</button>
+  </div>
+</div>
+
+<!-- ADMIN ACCESS CODE -->
+<div class="auth-overlay" id="admin-code-overlay">
+  <div class="auth-modal">
+    <button class="auth-close" onclick="closeAuth()">✕</button>
+    <div class="auth-modal-title">Admin Access</div>
+    <p class="auth-modal-sub">Enter the admin access code to proceed.</p>
+    <div class="form-group">
+      <label>Access Code</label>
+      <input class="form-input" type="password" id="admin-access-code" placeholder="••••••••" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();verifyAdminCode();}">
+    </div>
+    <button class="form-btn" onclick="verifyAdminCode()">Verify Code</button>
+    <p class="auth-error" id="ac-error"></p>
+  </div>
+</div>
+
+<!-- ADMIN LOGIN -->
+<div class="auth-overlay" id="admin-login-overlay">
+  <div class="auth-modal">
+    <button class="auth-close" onclick="closeAuth()">✕</button>
+    <div class="auth-modal-title">Admin Access</div>
+    <p class="auth-modal-sub">Restricted to site administrators only.</p>
+    <div class="form-group">
+      <label>Admin Email</label>
+      <input class="form-input" type="email" id="al-email" placeholder="admin@afterlight.com">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input class="form-input" type="password" id="al-pass" placeholder="••••••••">
+    </div>
+    <button class="form-btn" onclick="handleAdminLogin()">Access Dashboard</button>
+    <div class="form-divider">or</div>
+    <button class="google-btn" onclick="handleAdminGoogle()">
+      <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Sign in with Google
+    </button>
+    <p class="auth-error" id="al-error"></p>
+  </div>
+</div>
+
+<!-- ADMIN GOOGLE EMAIL -->
+<div class="auth-overlay" id="admin-google-overlay">
+  <div class="auth-modal">
+    <button class="auth-close" onclick="closeAuth()">✕</button>
+    <div class="auth-modal-title">Admin Google Access</div>
+    <p class="auth-modal-sub">Enter the authorized admin Gmail to continue.</p>
+    <div class="form-group">
+      <label>Admin Email</label>
+      <input class="form-input" type="email" id="ag-email" placeholder="admin@afterlight.com" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();submitAdminGoogleEmail();}">
+    </div>
+    <button class="form-btn" onclick="submitAdminGoogleEmail()">Continue</button>
+    <p class="auth-error" id="ag-error"></p>
+  </div>
+</div>
+
+<!-- SUBMISSION DETAIL MODAL (admin: click a submission to see everything) -->
+<div class="auth-overlay" id="submission-detail-overlay">
+  <div class="auth-modal sub-detail-modal">
+    <button class="auth-close" onclick="closeSubmissionDetail()">✕</button>
+    <div class="auth-modal-title" id="sd-title">Submission</div>
+    <div class="sub-detail-status" id="sd-status">Pending</div>
+    <div class="sub-detail-grid">
+      <div class="sub-detail-field"><label>Song Title</label><div class="val" id="sd-song-title"></div></div>
+      <div class="sub-detail-field"><label>Artist</label><div class="val" id="sd-artist"></div></div>
+      <div class="sub-detail-field"><label>Year · Album</label><div class="val" id="sd-year"></div></div>
+      <div class="sub-detail-field"><label>Mood</label><div class="val" id="sd-mood"></div></div>
+      <div class="sub-detail-field"><label>Genres</label><div class="val" id="sd-genres"></div></div>
+      <div class="sub-detail-field"><label>Listen Link</label><div class="val" id="sd-link"></div></div>
+      <div class="sub-detail-field full"><label>Description — what the song is about</label><div class="val" id="sd-about"></div></div>
+      <div class="sub-detail-field full"><label>What it really means — interpretation</label><div class="val" id="sd-meaning"></div></div>
+      <div class="sub-detail-field full"><label>Key Lyrics</label><div class="val" id="sd-lyrics"></div></div>
+      <div class="sub-detail-field full"><label>Fun Fact</label><div class="val" id="sd-funfact"></div></div>
+      <div class="sub-detail-field"><label>Submitted By</label><div class="val" id="sd-submitted-by"></div></div>
+      <div class="sub-detail-field"><label>Submitted At</label><div class="val" id="sd-submitted-at"></div></div>
+    </div>
+    <div class="sub-detail-actions" id="sd-actions">
+      <button class="approve-btn" id="sd-approve-btn">Approve</button>
+      <button class="reject-btn" id="sd-reject-btn">Reject</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN: USER DETAIL -->
+<div class="auth-overlay" id="user-detail-overlay">
+  <div class="auth-modal sub-detail-modal">
+    <button class="auth-close" onclick="closeUserDetail()">✕</button>
+    <div class="auth-modal-title" id="ud-title">User</div>
+    <div class="sub-detail-status" id="ud-status">Active</div>
+    <div class="sub-detail-grid">
+      <div class="sub-detail-field"><label>Anonymous Name</label><div class="val" id="ud-name"></div></div>
+      <div class="sub-detail-field"><label>Real Name</label><div class="val" id="ud-realname"></div></div>
+      <div class="sub-detail-field"><label>Email</label><div class="val" id="ud-email"></div></div>
+      <div class="sub-detail-field"><label>Gender</label><div class="val" id="ud-gender"></div></div>
+      <div class="sub-detail-field"><label>Friend Code</label><div class="val" id="ud-code"></div></div>
+      <div class="sub-detail-field"><label>Account Created</label><div class="val" id="ud-created"></div></div>
+      <div class="sub-detail-field"><label>Time on Site</label><div class="val" id="ud-usage"></div></div>
+      <div class="sub-detail-field"><label>Sign-up Method</label><div class="val" id="ud-method"></div></div>
+      <div class="sub-detail-field"><label>Song Submissions</label><div class="val" id="ud-submits"></div></div>
+      <div class="sub-detail-field full"><label>Bio</label><div class="val" id="ud-bio"></div></div>
+    </div>
+    <div class="sub-detail-actions" id="ud-actions">
+      <button class="block-btn" id="ud-block-btn">Block User</button>
+      <button class="delete-btn" id="ud-delete-btn">Delete Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- REPORT USER / MESSAGE -->
+<div class="auth-overlay" id="report-overlay">
+  <div class="auth-modal">
+    <button class="auth-close" onclick="closeReportModal()">✕</button>
+    <div class="auth-modal-title">Report</div>
+    <p class="auth-modal-sub" id="report-modal-sub">Tell us what's going on. Reports are only visible to admins.</p>
+    <div class="form-group">
+      <label>Reason</label>
+      <select class="form-input" id="report-category">
+        <option value="harassment">Harassment or bullying</option>
+        <option value="hate_speech">Hate speech</option>
+        <option value="spam">Spam</option>
+        <option value="inappropriate">Inappropriate content</option>
+        <option value="impersonation">Impersonation</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Details (optional)</label>
+      <textarea class="form-input" id="report-details" rows="4" placeholder="Anything else that would help us look into this..."></textarea>
+    </div>
+    <button class="primary" style="width:100%;" onclick="submitReportModal()">Submit Report</button>
+  </div>
+</div>
+
+
+<!-- MESSAGE ACTIONS SHEET (tap a chat message to open) -->
+<!-- FLOATING MESSAGE ACTION BUBBLE -->
+<div class="bubble-backdrop" id="bubble-backdrop" onclick="closeMsgActions()"></div>
+<div class="msg-action-bubble" id="msg-action-bubble">
+  <div class="bubble-emoji-row" id="bubble-emoji-row"></div>
+  <button class="bubble-action" onclick="startReplyFromSheet()"><span class="ba-icon">↩</span> Reply</button>
+  <button class="bubble-action" onclick="openEmojiPicker()"><span class="ba-icon">😀</span> More reactions</button>
+  <button class="bubble-action" id="msg-action-report" onclick="reportMsgFromSheet()" style="display:none;"><span class="ba-icon">🚩</span> Report</button>
+  <button class="bubble-action danger" id="msg-action-delete" onclick="deleteMsgFromSheet()" style="display:none;"><span class="ba-icon">🗑</span> Delete</button>
+</div>
+
+<!-- FULL EMOJI PICKER -->
+<div class="emoji-picker-overlay" id="emoji-picker-overlay" onclick="if(event.target===this) closeEmojiPicker()">
+  <div class="emoji-picker-sheet">
+    <div class="emoji-picker-header">
+      <span>Choose a reaction</span>
+      <button class="reply-banner-cancel" onclick="closeEmojiPicker()">✕</button>
+    </div>
+    <div class="emoji-picker-body" id="emoji-picker-body"></div>
+  </div>
+</div>
+
+<!-- USER SETTINGS OVERLAY -->
+<div class="auth-overlay" id="user-settings-overlay" style="z-index:4000;">
+  <div class="auth-modal" style="max-width:420px;">
+    <button class="auth-close" onclick="closeUserSettings()">✕</button>
+    <div class="auth-modal-title">Site Settings</div>
+    <p class="auth-modal-sub">Preview layout &amp; theme preferences.</p>
+
+    <div class="settings-panel active" id="settings-panel-site">
+
+      <div class="settings-block">
+        <div class="settings-block-label">Preview layout</div>
+        <p class="anon-hint">By default the site automatically matches your screen — phone gets the Mobile UI, computer gets the Desktop UI. Force a specific layout here if you want to preview another size.</p>
+        <div class="device-toggle-panel" id="device-toggle" title="Preview viewport size">
+          <div class="device-toggle-glider" id="device-toggle-glider"></div>
+          <button class="device-toggle-btn" id="mode-auto" onclick="setDeviceMode('auto')" title="Automatic (matches your screen)">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2.5l1.9 5.6 5.6 1.9-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.9z"/><path d="M19 15.5l.8 2.3 2.3.8-2.3.8-.8 2.3-.8-2.3-2.3-.8 2.3-.8z"/></svg>
+          </button>
+          <button class="device-toggle-btn" id="mode-mobile" onclick="setDeviceMode('mobile')" title="Mobile view">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+          </button>
+          <button class="device-toggle-btn" id="mode-tablet" onclick="setDeviceMode('tablet')" title="Tablet view">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+          </button>
+          <button class="device-toggle-btn" id="mode-desktop" onclick="setDeviceMode('desktop')" title="Desktop view">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="settings-block">
+        <div class="settings-block-label">Theme</div>
+        <p class="anon-hint" style="margin-top:0;">Use the sun/moon switch in the header to toggle Light, Dark, or System theme.</p>
+      </div>
+
+      <div class="settings-block" style="margin-bottom:0;">
+        <div class="settings-block-label">Notifications</div>
+        <p class="anon-hint" style="margin-top:0;">Get notified when someone messages you, or when a song you submitted is reviewed.</p>
+        <label class="settings-toggle-row" for="notif-settings-checkbox">
+          <span class="theme-switch">
+            <input type="checkbox" id="notif-settings-checkbox" onchange="handleNotifSettingsToggle(this.checked)">
+            <span class="theme-track"></span>
+          </span>
+          <span class="settings-toggle-label" id="notif-settings-label">Off</span>
+        </label>
+        <p class="anon-hint" id="notif-settings-hint" style="margin-top:8px;margin-bottom:0;"></p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE NAV OVERLAY -->
+<!-- BOTTOM MOBILE NAV BAR -->
+<nav class="bottom-nav" id="bottom-nav">
+  <button class="bottom-nav-item" data-bn="home" onclick="showPage('home');setBottomNavActive('home');return false;">
+    <span class="bn-icon">◈</span><span class="bn-label">Archive</span>
+  </button>
+  <button class="bottom-nav-item" data-bn="about" onclick="showPage('home');document.getElementById('about').scrollIntoView({behavior:'smooth'});setBottomNavActive('about');return false;">
+    <span class="bn-icon">✦</span><span class="bn-label">About</span>
+  </button>
+  <button class="bottom-nav-item" data-bn="submit" onclick="showPage('submit');setBottomNavActive('submit');return false;">
+    <span class="bn-icon">♪</span><span class="bn-label">Submit</span>
+  </button>
+  <button class="bottom-nav-item" data-bn="social" onclick="showPage('social');setBottomNavActive('social');return false;">
+    <span class="bn-icon">◐</span><span class="bn-label">Social</span><span class="bn-badge" id="bn-social-badge"></span>
+  </button>
+  <button class="bottom-nav-item" data-bn="account" id="bottom-nav-account" onclick="handleBottomNavAccount();return false;">
+    <span class="bn-icon">⚙</span><span class="bn-label" id="bottom-nav-account-label">Log In</span>
+  </button>
+</nav>
+
+
+<!-- ── HOME PAGE ── -->
+<div class="page-section active" id="page-home">
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg-text">SONGS</div>
+
+  <!-- Floating music notes -->
+  <span class="music-note-float" style="top:15%;left:8%;animation-delay:0s;font-size:24px;">♪</span>
+  <span class="music-note-float" style="top:65%;left:5%;animation-delay:2s;font-size:16px;">♫</span>
+  <span class="music-note-float" style="top:25%;right:5%;animation-delay:4s;font-size:20px;">♩</span>
+  <span class="music-note-float" style="top:72%;right:8%;animation-delay:1s;font-size:14px;">♬</span>
+  <span class="music-note-float" style="top:40%;left:2%;animation-delay:3s;font-size:12px;">♭</span>
+
+  <div class="hero-inner">
+    <div class="hero-content">
+      <div class="hero-eyebrow">Personal Archive · Est. 2024</div>
+      <h1 id="hero-title">Songs that found me<br>in the <em>dark</em></h1>
+      <p class="hero-sub" id="hero-sub">
+        A nerd's archive of niche indie, alternative &amp; pop — with liner notes, meanings, and the exact moods they belong to. No algorithms. Just obsession.
+      </p>
+      <div class="hero-meta">
+        <div class="meta-item">
+          <label>Songs archived</label>
+          <span id="stat-songs">06</span>
+        </div>
+        <div class="meta-item">
+          <label>Moods mapped</label>
+          <span>07</span>
+        </div>
+        <div class="meta-item">
+          <label>Genres</label>
+          <span>03</span>
+        </div>
+      </div>
+      <div style="margin-top:32px;">
+        <div class="waveform-deco" id="hero-waveform">
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+    </div>
+    <div class="hero-vinyl-side">
+      <div class="vinyl-widget">
+        <div style="position:relative;display:inline-block;">
+          <div class="vinyl-outer" id="hero-vinyl"></div>
+          <div class="vinyl-arm" id="hero-vinyl-arm"></div>
+        </div>
+        <div class="vinyl-controls">
+          <button class="vinyl-btn" onclick="vinylPrev()" title="Prev">⏮</button>
+          <button class="vinyl-btn vinyl-play-btn" id="vinyl-play-btn" onclick="toggleVinyl()">▶</button>
+          <button class="vinyl-btn" onclick="vinylNext()" title="Next">⏭</button>
+        </div>
+        <div class="vinyl-now-playing" id="vinyl-now-playing">— click play to spin —</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero-track-bar">
+    <div class="hero-track-progress" id="hero-track-progress"></div>
+    <div class="hero-track-needle" id="hero-track-needle"></div>
+  </div>
+  <div class="scroll-hint">Scroll</div>
+</section>
+
+<!-- MOOD FILTER -->
+<section class="mood-section" id="archive">
+  <div class="section-label">// Filter by mood</div>
+  <div class="mood-bar" id="mood-bar"></div>
+</section>
+
+<!-- SONG ARCHIVE -->
+<section class="archive-section">
+  <div class="archive-header">
+    <h2 id="archive-title">The Archive</h2>
+    <span class="count-tag" id="count-tag">06 entries</span>
+  </div>
+  <div class="song-grid" id="song-grid"></div>
+</section>
+
+<!-- ABOUT -->
+<section class="about-strip" id="about">
+  <div>
+    <div class="about-title" id="about-title">Not a blog.<br>An <em>obsession</em>.</div>
+    <p class="about-body" id="about-body">
+      AfterLight:404Archive is a personal site by JK — a place to document the songs that don't chart, don't trend, but live rent-free in your head for years.<br><br>
+      Every entry includes the full story: what the song is about, what it <em>actually</em> means, a key lyric breakdown, and the precise mood it belongs to. Think liner notes for the internet age.<br><br>
+      Songs are added slowly, intentionally. No algorithms. No hot takes. Just a nerd with a playlist and too many feelings about chord progressions.
+    </p>
+  </div>
+  <div class="stat-grid">
+    <div class="stat-cell"><label>Genre focus</label><span style="font-size:16px;font-family:var(--mono);">Indie · Alt · Pop</span></div>
+    <div class="stat-cell"><label>Updated</label><span style="font-size:16px;font-family:var(--mono);">Whenever</span></div>
+    <div class="stat-cell"><label>Curator</label><span style="font-size:16px;font-family:var(--mono);">JK</span></div>
+    <div class="stat-cell"><label>Bias level</label><span style="font-size:16px;font-family:var(--mono);">Extreme</span></div>
+  </div>
+</section>
+
+</div><!-- /page-home -->
+
+<!-- ── SUBMIT SONG PAGE ── -->
+<div class="page-section" id="page-submit">
+<section class="submit-section">
+  <div class="submit-intro">
+    <h2 id="submit-title">Submit Your Own Song</h2>
+    <p id="submit-desc">
+      Found a song that lives rent-free in your head? Share it with the archive. 
+      Every submission gets reviewed before it goes live — this isn't a free-for-all, 
+      it's a curation. Tell us why it matters, what it means to you, and the exact 
+      moment it soundtracked. If it resonates, it stays.
+    </p>
+  </div>
+  <div id="submit-form-wrap">
+    <div class="submit-login-wall" id="submit-login-wall">
+      <p>Sign up or log in to submit a song to the archive.</p>
+      <button class="auth-btn primary" onclick="showSignup()">Get Started</button>
+    </div>
+    <form class="submit-form" id="submit-form" style="display:none;">
+      <div class="form-group">
+        <label>Song Title</label>
+        <input class="form-input" type="text" id="sub-title" placeholder="e.g. Motion Sickness" required>
+      </div>
+      <div class="form-group">
+        <label>Artist</label>
+        <input class="form-input" type="text" id="sub-artist" placeholder="e.g. Phoebe Bridgers" required>
+      </div>
+      <div class="form-group">
+        <label>Year · Album</label>
+        <input class="form-input" type="text" id="sub-year" placeholder="e.g. 2017 · Stranger in the Alps">
+      </div>
+      <div class="form-group">
+        <label>Mood</label>
+        <select class="form-input" id="sub-mood"></select>
+      </div>
+      <div class="form-group full">
+        <label>Description — what the song is about</label>
+        <textarea class="form-input" id="sub-about" placeholder="Describe the song, its sound, its atmosphere..." required></textarea>
+      </div>
+      <div class="form-group full">
+        <label>What it really means — your interpretation</label>
+        <textarea class="form-input" id="sub-meaning" placeholder="Dig deeper. What's the song actually about?" required></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Key Lyrics</label>
+        <textarea class="form-input" id="sub-lyrics" placeholder="Paste the most devastating lines here..." required></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Fun Fact <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+        <textarea class="form-input" id="sub-funfact" placeholder="Any trivia, backstory, or behind-the-scenes detail about this song?"></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Spotify / Listen Link</label>
+        <input class="form-input" type="url" id="sub-link" placeholder="https://open.spotify.com/track/...">
+      </div>
+      <div class="form-group">
+        <label>Genre 1</label>
+        <input class="form-input" type="text" id="sub-genre1" placeholder="e.g. Indie Folk">
+      </div>
+      <div class="form-group">
+        <label>Genre 2</label>
+        <input class="form-input" type="text" id="sub-genre2" placeholder="e.g. Alternative">
+      </div>
+      <button type="submit" class="form-btn">Submit to Archive</button>
+    </form>
+  </div>
+</section>
+</div>
+
+<!-- ── CHAT PAGE ── -->
+<div class="page-section" id="page-chat">
+<section class="chat-section">
+  <div id="chat-login-wall" style="display:none;">
+    <div class="submit-login-wall">
+      <p>Sign up or log in to join the conversation.</p>
+      <button class="auth-btn primary" onclick="showSignup()">Get Started</button>
+    </div>
+  </div>
+  <div class="chat-layout" id="chat-layout">
+    <div class="chat-main">
+      <div class="chat-header">
+        <button class="chat-back-btn" onclick="showPage('chats-list')" aria-label="Back">‹</button>
+        <div class="chat-header-avatar is-global chat-drawer-toggle-avatar" onclick="openChatDrawer()">◐</div>
+        <div class="chat-header-titles">
+          <h4 id="chat-room-title"># Global Chat</h4>
+          <span class="count-tag" id="chat-room-meta"><span class="chat-online-dot"></span>0 online</span>
+        </div>
+        <button class="chat-header-icon-btn" onclick="showToast('Search coming soon.')" aria-label="Search">🔍</button>
+        <button class="chat-header-icon-btn" onclick="openChatDrawer()" aria-label="Rooms">☰</button>
+      </div>
+      <div class="chat-pinned-banner" id="chat-pinned-banner">
+        <span class="chat-pinned-label">Pinned</span>
+        <span class="chat-pinned-text">Welcome to Global Chat! Be respectful and keep it about music.</span>
+        <button class="chat-pinned-close" onclick="document.getElementById('chat-pinned-banner').style.display='none'" aria-label="Dismiss">✕</button>
+      </div>
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="reply-banner" id="chat-reply-banner" style="display:none;">
+        <div class="reply-banner-text">Replying to <span id="chat-reply-author"></span>: <span id="chat-reply-preview"></span></div>
+        <button class="reply-banner-cancel" onclick="cancelReply('global')">✕</button>
+      </div>
+      <div class="chat-input-wrap" id="chat-input-wrap" style="position:relative;">
+        <div class="mention-dropdown" id="chat-mention-dropdown"></div>
+        <input type="text" class="chat-input" id="chat-input" placeholder="Share your favorite song...">
+        <button class="chat-send-circle" onclick="sendChat()" aria-label="Send">➤</button>
+      </div>
+    </div>
+  </div>
+</section>
+</div>
+
+<!-- ── CHATS LIST (Global / My Rooms / Trending Rooms) ── -->
+<div class="page-section" id="page-chats-list">
+<section class="chats-list-section">
+  <div class="chats-list-topbar">
+    <h2>Chats</h2>
+    <button class="chats-list-add-btn" onclick="openCreateRoomSheet()" aria-label="Create a room">+</button>
+  </div>
+  <div class="chats-list-body" id="chats-list-body"></div>
+</section>
+</div>
+
+<!-- ── SOCIAL HUB ── -->
+<div class="page-section" id="page-social">
+<section class="social-hub-section">
+  <div id="social-login-wall" style="display:none;">
+    <div class="submit-login-wall">
+      <p>Sign up or log in to connect with other listeners.</p>
+      <button class="auth-btn primary" onclick="showSignup()">Get Started</button>
+    </div>
+  </div>
+  <div id="social-hub-body" style="display:none;">
+    <div class="social-hub-header">
+      <div class="social-hub-eyebrow">Connect</div>
+      <h2>Social</h2>
+      <p class="social-hub-sub">Talk in the rooms, or add friends and message them one-on-one.</p>
+    </div>
+    <div class="social-hub-cards">
+      <div class="social-hub-card" onclick="showPage('chats-list');setBottomNavActive('social');">
+        <div class="shc-icon">◐</div>
+        <div class="shc-text">
+          <div class="shc-title">Chats</div>
+          <div class="shc-desc">Global &amp; topic chat rooms — talk with everyone.</div>
+        </div>
+        <div class="shc-arrow">›</div>
+      </div>
+      <div class="social-hub-card" onclick="showPage('friends')">
+        <div class="shc-icon">☺</div>
+        <div class="shc-text">
+          <div class="shc-title">Friends</div>
+          <div class="shc-desc">Add friends by username and message them privately.</div>
+        </div>
+        <span class="shc-badge" id="social-hub-friend-badge" style="display:none;"></span>
+        <div class="shc-arrow">›</div>
+      </div>
+    </div>
+    <div class="social-hub-friends-preview" id="social-hub-friends-preview"></div>
+  </div>
+</section>
+</div>
+
+<!-- ── FRIENDS ── -->
+<div class="page-section" id="page-friends">
+<section class="friends-section">
+  <div class="friends-page-header">
+    <button class="topic-back-btn friends-back-btn" onclick="showPage('social')">‹</button>
+    <div class="friends-page-title">Friends</div>
+    <button class="friends-compose-btn" onclick="toggleFriendsAddPanel()" aria-label="Add a friend">✎</button>
+  </div>
+
+  <div class="friends-add-panel" id="friends-add-panel">
+    <div class="friends-add-row">
+      <input type="text" class="chat-search" id="friend-search-input" placeholder="Search by username or #000-000 code...">
+      <button class="form-btn" onclick="searchFriendUsers()">Search</button>
+    </div>
+    <div class="friends-search-results" id="friend-search-results"></div>
+    <div class="friends-your-code" id="friends-your-code"></div>
+  </div>
+
+  <div class="friends-search-bar">
+    <input type="text" class="chat-search" id="friends-page-search" placeholder="Search friends..." oninput="renderMessagesTab()">
+  </div>
+
+  <div class="friends-tabs">
+    <button class="friends-tab-btn active" data-tab="messages" onclick="switchFriendsTab('messages')">Messages</button>
+    <button class="friends-tab-btn" id="friends-tab-requests-btn" data-tab="requests" onclick="switchFriendsTab('requests')">Requests</button>
+  </div>
+
+  <div class="friends-body">
+    <div class="friends-tab-panel" id="friends-messages-tab">
+      <div class="friends-list msg-list" id="friends-messages-list"></div>
+    </div>
+
+    <div class="friends-tab-panel" id="friends-requests-tab" style="display:none;">
+      <div class="friends-block" id="friend-requests-block" style="display:none;">
+        <div class="friends-block-title">Friend Requests</div>
+        <div class="friends-list" id="friend-requests-list"></div>
+      </div>
+      <div class="friends-block" id="friend-outgoing-block" style="display:none;">
+        <div class="friends-block-title">Pending (sent)</div>
+        <div class="friends-list" id="friend-outgoing-list"></div>
+      </div>
+      <p class="friends-empty" id="friends-requests-empty">No pending requests. Tap ✎ above to add someone.</p>
+    </div>
+  </div>
+  <div class="topic-chat-meta" id="friends-meta" style="display:none;">—</div>
+</section>
+</div>
+
+<!-- ── FULL-PAGE PROFILE VIEW ── -->
+<div class="page-section" id="page-profile">
+  <div class="ig-page-header">
+    <button class="ig-back-btn" onclick="showPage('home')" aria-label="Back">←</button>
+    <div class="ig-page-title">Profile</div>
+  </div>
+  <div class="ig-page-body">
+    <div class="pv-hero">
+      <div id="pv-avatar-wrap"></div>
+      <div class="pv-name" id="pv-name">—</div>
+      <div class="pv-username" id="pv-username">@—</div>
+      <div class="pv-pronouns" id="pv-pronouns"></div>
+      <div class="pv-bio" id="pv-bio"></div>
+      <div id="pv-genre-wrap"></div>
+    </div>
+
+    <div class="pv-actions">
+      <button class="pv-edit-btn" onclick="openEditProfilePage()">Edit Profile</button>
+      <button class="pv-share-btn" onclick="shareProfile()">Share Profile</button>
+    </div>
+
+    <div class="pv-stats">
+      <div class="pv-stat">
+        <div class="stat-label">Joined</div>
+        <div class="stat-value" id="pv-stat-joined">—</div>
+      </div>
+      <div class="pv-stat">
+        <div class="stat-label">Time on site</div>
+        <div class="stat-value" id="pv-stat-usage">—</div>
+      </div>
+      <div class="pv-stat">
+        <div class="stat-label">Your code</div>
+        <div class="stat-value" id="pv-stat-code">—</div>
+      </div>
+    </div>
+
+    <div class="pv-section">
+      <div class="pv-section-head">
+        <h3>Friends</h3>
+        <button class="pv-see-all" onclick="showPage('friends')">See all</button>
+      </div>
+      <div class="friends-list" id="pv-friends-list"></div>
+    </div>
+
+    <div class="pv-section">
+      <div class="pv-section-head">
+        <h3>Saved Songs</h3>
+      </div>
+      <div class="pv-saved-grid" id="pv-saved-songs"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── FULL-PAGE EDIT PROFILE (matches reference layout) ── -->
+<div class="page-section" id="page-edit-profile">
+  <div class="ig-page-header">
+    <button class="ig-back-btn" onclick="showPage('profile')" aria-label="Back">←</button>
+    <div class="ig-page-title">Edit profile</div>
+    <button class="ig-header-action" onclick="saveUserSettings()">Save</button>
+  </div>
+  <div class="ig-page-body">
+    <div class="avatar-edit-hero">
+      <img class="avatar-current" id="settings-avatar-preview" style="display:none;">
+      <div class="avatar-current-fallback" id="settings-avatar-preview-fallback">?</div>
+      <button type="button" class="avatar-edit-link" onclick="toggleAvatarEditPicker()">Edit picture or avatar</button>
+      <div class="avatar-edit-picker" id="avatar-edit-picker">
+        <div class="avatar-grid" id="settings-avatar-grid"></div>
+        <p class="anon-hint" id="settings-avatar-hint">Choose from the profile pictures uploaded by the site owner.</p>
+      </div>
+    </div>
+
+    <div class="pill-field">
+      <label>Name</label>
+      <input type="text" id="settings-realname" maxlength="60" placeholder="Your real name">
+    </div>
+
+    <div class="pill-field">
+      <label>Username</label>
+      <input type="text" id="settings-name" placeholder="3–20 chars, no spaces">
+    </div>
+    <p class="pill-hint" id="settings-name-limit" style="color:var(--accent);"></p>
+
+    <div class="pill-field pill-select">
+      <label>Pronouns</label>
+      <select id="settings-pronouns" onchange="document.getElementById('settings-pronouns-custom-wrap').style.display = this.value==='custom' ? 'block' : 'none';">
+        <option value="">Prefer not to say</option>
+        <option value="she/her">she/her</option>
+        <option value="he/him">he/him</option>
+        <option value="they/them">they/them</option>
+        <option value="custom">Other / custom</option>
+      </select>
+    </div>
+    <div class="pill-field" id="settings-pronouns-custom-wrap" style="display:none;">
+      <label>Custom pronouns</label>
+      <input type="text" id="settings-pronouns-custom" placeholder="e.g. xe/xem">
+    </div>
+
+    <div class="pill-field">
+      <label>Bio</label>
+      <textarea id="settings-bio" maxlength="300" placeholder="Tell us a bit about yourself and the artists you love..." oninput="document.getElementById('settings-bio-count').textContent=this.value.length"></textarea>
+    </div>
+    <p class="pill-hint"><span id="settings-bio-count">0</span>/300</p>
+
+    <div class="pill-field">
+      <label>Favorite Genres / Vibe</label>
+      <input type="text" id="settings-genre" maxlength="80" placeholder="e.g. shoegaze, 90s R&amp;B, ambient">
+    </div>
+
+    <div class="pill-field pill-select">
+      <label>Gender</label>
+      <select id="settings-gender" onchange="renderAvatarPicker((getCurrentUserRecord()||{}).avatar || null)">
+        <option value="">Prefer not to say</option>
+        <option value="female">Female</option>
+        <option value="male">Male</option>
+        <option value="nonbinary">Non-binary</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <p class="pill-hint">Changing this updates the set of profile pictures you can choose from above.</p>
+
+    <button class="form-btn" onclick="saveUserSettings()">Save Changes</button>
+    <p class="auth-error" id="settings-error" style="margin-top:10px;"></p>
+    <p id="settings-ok" style="display:none;font-family:var(--mono);font-size:11px;color:var(--green);margin-top:10px;"></p>
+  </div>
+</div>
+
+<!-- ── DIRECT MESSAGE (1:1) ── -->
+<div class="page-section" id="page-dm">
+<section class="chat-section">
+  <div class="dm-empty-state" id="page-dm-empty">
+    <div class="dm-empty-icon">💬</div>
+    <div class="dm-empty-title">Your Messages</div>
+    <div class="dm-empty-sub">Select a conversation to start chatting.</div>
+  </div>
+  <div class="dm-content" id="page-dm-content" style="display:none;">
+    <div class="chat-header">
+      <button class="topic-back-btn dm-back-btn" onclick="showPage('friends')" style="margin-right:10px;">‹</button>
+      <div class="dm-avatar" id="dm-header-avatar"></div>
+      <h4 id="dm-header-name">@friend</h4>
+      <span class="count-tag" id="dm-header-meta">0 messages</span>
+    </div>
+    <div class="chat-messages" id="dm-messages"></div>
+    <div class="chat-input-wrap" style="position:relative;">
+      <button class="dm-share-btn" onclick="openSongSharePicker()" title="Share a song">♪</button>
+      <input type="text" class="chat-input" id="dm-input" placeholder="Message your friend...">
+      <button class="chat-send" onclick="sendDmText()">Send</button>
+    </div>
+  </div>
+</section>
+</div>
+
+<!-- ── USER PROFILE VIEW MODAL ── -->
+<div class="auth-overlay" id="user-profile-overlay">
+  <div class="auth-modal" style="max-width:400px;text-align:center;">
+    <button class="auth-close" onclick="closeUserProfileView()">✕</button>
+    <div class="profile-view-avatar" id="profile-view-avatar">??</div>
+    <div class="auth-modal-title" id="profile-view-name" style="margin-top:14px;">@user</div>
+    <div class="profile-view-code" id="profile-view-code">#000-000</div>
+    <p class="auth-modal-sub" id="profile-view-bio" style="text-align:left;margin-top:16px;">—</p>
+    <div class="friend-row-actions" id="profile-view-actions" style="justify-content:center;margin-top:10px;"></div>
+    <div id="profile-view-songs-wrap" style="display:none;margin-top:22px;text-align:left;">
+      <div class="friends-block-title">Songs uploaded</div>
+      <div class="friends-list" id="profile-view-songs-list" style="margin-top:10px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SONG SHARE PICKER MODAL ── -->
+<div class="auth-overlay" id="song-share-overlay">
+  <div class="auth-modal" style="max-width:460px;">
+    <button class="auth-close" onclick="closeSongSharePicker()">✕</button>
+    <div class="auth-modal-title">Share a song</div>
+    <p class="auth-modal-sub">Send a track from the archive to <span id="song-share-target-name">your friend</span> as a recommendation.</p>
+    <input type="text" class="chat-search" id="song-share-search" oninput="renderSongSharePicker()" placeholder="Search the archive...">
+    <div class="song-share-list" id="song-share-list"></div>
+  </div>
+</div>
+
+<!-- ── SEND-TO-FRIEND BOTTOM SHEET (share a song from the archive/modal) ── -->
+<div class="sheet-overlay" id="song-recipient-sheet">
+  <div class="sheet-panel">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div>
+        <div class="sheet-title">Send to a friend</div>
+        <div class="sheet-sub" id="song-recipient-sheet-sub">Sending — as a DM</div>
+      </div>
+      <button class="sheet-close" onclick="closeSongRecipientSheet()">✕</button>
+    </div>
+    <div class="sheet-list" id="song-recipient-list"></div>
+  </div>
+</div>
+
+<!-- ── DEDICATED TOPIC CHAT PAGE ── -->
+<div class="page-section" id="page-topic-chat">
+<section class="chat-section">
+  <div class="topic-chat-header">
+    <button class="chat-back-btn" onclick="showPage('chats-list')" aria-label="Back">‹</button>
+    <div class="chat-header-avatar chat-drawer-toggle-avatar" id="topic-chat-avatar" onclick="openChatDrawer()">#</div>
+    <div class="topic-chat-title-wrap">
+      <div class="topic-chat-title" id="topic-chat-title">#topic</div>
+      <div class="topic-chat-meta" id="topic-chat-meta">0 messages</div>
+    </div>
+    <button class="chat-header-icon-btn" onclick="showToast('Search coming soon.')" aria-label="Search">🔍</button>
+    <button class="chat-header-icon-btn" onclick="openChatDrawer()" aria-label="Rooms">☰</button>
+  </div>
+  <div class="topic-chat-body">
+    <div class="topic-chat-messages" id="topic-chat-messages"></div>
+    <div class="reply-banner" id="topic-chat-reply-banner" style="display:none;">
+      <div class="reply-banner-text">Replying to <span id="topic-chat-reply-author"></span>: <span id="topic-chat-reply-preview"></span></div>
+      <button class="reply-banner-cancel" onclick="cancelReply('topic')">✕</button>
+    </div>
+    <div class="topic-chat-input-wrap" id="topic-chat-input-wrap" style="position:relative;">
+      <div class="mention-dropdown" id="topic-chat-mention-dropdown"></div>
+      <input type="text" class="chat-input" id="topic-chat-input" placeholder="Say something... (@ to mention)">
+      <button class="chat-send-circle" onclick="sendTopicChat()" aria-label="Send">➤</button>
+    </div>
+  </div>
+</section>
+</div>
+
+<!-- ── CHAT ROOM DRAWER (Discord-style, shared by Global Chat & Topic Chats) ── -->
+<div class="chat-drawer-backdrop" id="chat-drawer-backdrop" onclick="closeChatDrawer()"></div>
+<div class="chat-drawer" id="chat-drawer">
+  <div class="chat-drawer-header">
+    <h3>Chats</h3>
+    <div class="chat-drawer-header-actions">
+      <button class="chat-drawer-add" onclick="openCreateRoomSheet()" aria-label="Create room">+</button>
+      <button class="chat-drawer-close" onclick="closeChatDrawer()" aria-label="Close">✕</button>
+    </div>
+  </div>
+  <div class="chat-drawer-body">
+    <input type="text" class="chat-search" id="room-search" placeholder="Search rooms...">
+    <div class="room-list" id="room-list"></div>
+  </div>
+  <div class="chat-drawer-footer">
+    <button class="chat-drawer-create-btn" onclick="openCreateRoomSheet()">+ Create Room</button>
+  </div>
+</div>
+<div class="chat-drawer-edge-hint" id="chat-drawer-edge-hint" onclick="openChatDrawer()"></div>
+
+<!-- ── CREATE ROOM SHEET ── -->
+<div class="create-room-overlay" id="create-room-overlay" onclick="if(event.target===this)closeCreateRoomSheet()">
+  <div class="create-room-sheet" style="position:relative;">
+    <div class="create-room-sheet-handle"></div>
+    <button class="chat-drawer-close create-room-close" onclick="closeCreateRoomSheet()" aria-label="Close">✕</button>
+    <div class="create-room-title">Create a Room</div>
+    <div class="create-room-sub">Start a new chat room around a song or artist.</div>
+    <div class="create-room-label">Room Name</div>
+    <input type="text" id="new-room-name" placeholder="Enter room name...">
+    <div class="create-room-label">Description</div>
+    <textarea id="new-room-desc" placeholder="What's this room about?"></textarea>
+    <div class="create-room-label">Category</div>
+    <select id="new-room-category">
+      <option value="music-discussion">🎵 Music Discussion</option>
+      <option value="genre">🎧 Genre Specific</option>
+      <option value="fanclub">⭐ Artist Fanclub</option>
+      <option value="general">💬 General Chat</option>
+    </select>
+    <div class="create-room-label">Privacy</div>
+    <div class="create-room-privacy">
+      <button type="button" class="privacy-option active" id="privacy-public" onclick="setRoomPrivacy('public')">
+        <span class="privacy-icon">🔓</span>
+        <span class="privacy-text"><strong>Public</strong><small>Anyone can join</small></span>
+      </button>
+      <button type="button" class="privacy-option" id="privacy-private" onclick="setRoomPrivacy('private')">
+        <span class="privacy-icon">🔒</span>
+        <span class="privacy-text"><strong>Private</strong><small>Invite only</small></span>
+      </button>
+    </div>
+    <button class="form-btn" onclick="createRoom()">Create Room</button>
+  </div>
+</div>
+
+<!-- ── ADMIN PANEL ── -->
+<div class="page-section" id="page-admin">
+<section class="admin-section">
+  <div class="admin-header">
+    <div class="admin-header-titles">
+      <div class="admin-eyebrow"><span class="dot"></span>Control Center</div>
+      <h2>Admin Dashboard</h2>
+    </div>
+    <button class="auth-btn" onclick="adminLogout()">Log Out</button>
+  </div>
+
+  <div class="admin-stats-strip">
+    <div class="admin-stat-card"><span class="stat-icon">♪</span><span class="stat-num" id="admin-stat-songs">00</span><span class="stat-lbl">Songs Live</span></div>
+    <div class="admin-stat-card"><span class="stat-icon">◍</span><span class="stat-num" id="admin-stat-users">00</span><span class="stat-lbl">Registered Users</span></div>
+    <div class="admin-stat-card"><span class="stat-icon">✉</span><span class="stat-num" id="admin-stat-pending">00</span><span class="stat-lbl">Pending Submissions</span></div>
+    <div class="admin-stat-card"><span class="stat-icon">❖</span><span class="stat-num" id="admin-stat-rooms">00</span><span class="stat-lbl">Chat Rooms</span></div>
+  </div>
+
+  <div class="admin-grid">
+    <div class="admin-nav">
+      <div class="admin-nav-group-label">Content</div>
+      <div class="admin-nav-item active" onclick="showAdminTab('site')"><span class="ni-icon">⚙</span>Site Settings</div>
+      <div class="admin-nav-item" onclick="showAdminTab('songs')"><span class="ni-icon">♪</span>Manage Songs</div>
+      <div class="admin-nav-item" onclick="showAdminTab('add')"><span class="ni-icon">＋</span>Add New Song</div>
+      <div class="admin-nav-item" onclick="showAdminTab('genres')"><span class="ni-icon">▤</span>Genres</div>
+      <div class="admin-nav-item" onclick="showAdminTab('moods')"><span class="ni-icon">◐</span>Moods</div>
+      <div class="admin-nav-group-label">Community</div>
+      <div class="admin-nav-item" onclick="showAdminTab('users')"><span class="ni-icon">◍</span>Users</div>
+      <div class="admin-nav-item" onclick="showAdminTab('avatars')"><span class="ni-icon">▣</span>Avatars</div>
+      <div class="admin-nav-item" onclick="showAdminTab('submissions')"><span class="ni-icon">✉</span>Submissions<span class="ni-badge" id="admin-nav-pending-badge" style="display:none;"></span></div>
+      <div class="admin-nav-item" onclick="showAdminTab('reports')"><span class="ni-icon">🚩</span>Reports<span class="ni-badge" id="admin-nav-reports-badge" style="display:none;"></span></div>
+      <div class="admin-nav-item" onclick="showAdminTab('chat')"><span class="ni-icon">❖</span>Chat System</div>
+      <div class="admin-nav-item" onclick="showAdminTab('safety')"><span class="ni-icon">🛡</span>Safety &amp; Bots</div>
+      <div class="admin-nav-item" onclick="showAdminTab('email')"><span class="ni-icon">📧</span>Email (OTP)</div>
+      <div class="admin-nav-group-label">System</div>
+      <div class="admin-nav-item" onclick="showAdminTab('livestats')"><span class="ni-icon">◉</span>Live Stats<span class="ni-badge" id="admin-nav-live-badge" style="display:none;"></span></div>
+      <div class="admin-nav-item" onclick="showAdminTab('database')"><span class="ni-icon">▦</span>Database</div>
+    </div>
+    <div class="admin-panel" id="admin-panel">
+      <!-- Site Settings -->
+      <div id="admin-tab-site">
+        <h3>Site Settings</h3>
+        <div class="admin-form">
+          <div class="form-group full">
+            <label>Hero Title</label>
+            <input class="form-input" type="text" id="adm-hero-title" value="Songs that found me\nin the dark">
+          </div>
+          <div class="form-group full">
+            <label>Hero Subtitle</label>
+            <textarea class="form-input" id="adm-hero-sub">A nerd's archive of niche indie, alternative & pop — with liner notes, meanings, and the exact moods they belong to. No algorithms. Just obsession.</textarea>
+          </div>
+          <div class="form-group full">
+            <label>About Title</label>
+            <input class="form-input" type="text" id="adm-about-title" value="Not a blog.\nAn obsession.">
+          </div>
+          <div class="form-group full">
+            <label>About Body</label>
+            <textarea class="form-input" id="adm-about-body">AfterLight:404Archive is a personal site by JK — a place to document the songs that don't chart, don't trend, but live rent-free in your head for years.</textarea>
+          </div>
+          <div class="form-group full">
+            <label>Archive Section Title</label>
+            <input class="form-input" type="text" id="adm-archive-title" value="The Archive">
+          </div>
+          <div class="form-group full">
+            <label>Submit Page Title</label>
+            <input class="form-input" type="text" id="adm-submit-title" value="Submit Your Own Song">
+          </div>
+          <div class="form-group full">
+            <label>Submit Page Description</label>
+            <textarea class="form-input" id="adm-submit-desc">Found a song that lives rent-free in your head? Share it with the archive.</textarea>
+          </div>
+          <div class="form-group">
+            <label>Accent Color</label>
+            <div class="color-picker-wrap">
+              <input type="color" id="adm-accent" value="#C8A96E">
+              <span style="font-family:var(--mono);font-size:12px;color:var(--muted);">Warm amber</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Secondary Color</label>
+            <div class="color-picker-wrap">
+              <input type="color" id="adm-accent2" value="#7B6FA0">
+              <span style="font-family:var(--mono);font-size:12px;color:var(--muted);">Dusty violet</span>
+            </div>
+          </div>
+          <button class="form-btn" onclick="saveSiteSettings()">Save Changes</button>
+        </div>
+
+        <h3 style="margin-top:40px;">Admin Access Code</h3>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:18px;max-width:560px;">
+          This is the code someone enters (after clicking the logo 5 times) before they even see the admin login form.
+          It's a light front-door lock, not a strong secret — like the rest of this site's auth, it's checked in the
+          browser, so treat it as a deterrent for casual visitors rather than a real security boundary. The real gate
+          is your admin email + password below. The code is stored as a hash, not plain text, and the field below is
+          always blank — it never shows the current code back to you (or anyone else).
+        </p>
+        <div class="admin-form">
+          <div class="form-group">
+            <label>Set New Access Code</label>
+            <input class="form-input" type="text" id="adm-access-code-input" placeholder="Leave blank to keep current code" autocomplete="off">
+          </div>
+          <button class="form-btn" onclick="saveAdminAccessCode()" style="align-self:end;">Save Code</button>
+          <p class="auth-error" id="adm-access-code-ok" style="display:none;color:var(--green);grid-column:1/-1;"></p>
+        </div>
+
+        <h3 style="margin-top:40px;">Admin Login Credentials</h3>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:18px;max-width:560px;">
+          This is the real admin email + password used on the login screen. Changing it here updates it for every
+          browser (once Supabase is connected — otherwise it only applies to this browser). The password is stored
+          as a hash, never in plain text, and these fields stay blank on load.
+        </p>
+        <div class="admin-form">
+          <div class="form-group">
+            <label>Admin Email</label>
+            <input class="form-input" type="email" id="adm-login-email-input" placeholder="Leave blank to keep current email" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label>New Password</label>
+            <input class="form-input" type="password" id="adm-login-pass-input" placeholder="Leave blank to keep current password" autocomplete="new-password">
+          </div>
+          <div class="form-group">
+            <label>Confirm New Password</label>
+            <input class="form-input" type="password" id="adm-login-pass-input2" placeholder="Confirm new password" autocomplete="new-password">
+          </div>
+          <button class="form-btn" onclick="saveAdminLoginCredentials()" style="align-self:end;">Save Credentials</button>
+          <p class="auth-error" id="adm-login-cred-ok" style="display:none;color:var(--green);grid-column:1/-1;"></p>
+          <p class="auth-error" id="adm-login-cred-err" style="display:none;grid-column:1/-1;"></p>
+        </div>
+
+        <h3 style="margin-top:40px;">👑 Owner Account</h3>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:18px;max-width:560px;">
+          Link one chat/user account (by @username) as the site Owner. That account gets a gold profile
+          frame, a crown badge, an OWNER tag everywhere its name appears, and the power to ban/unban any
+          user directly from their public profile card — no need to open this dashboard. Only one owner
+          account at a time.
+        </p>
+        <div class="admin-form">
+          <div class="form-group">
+            <label>Owner's @username</label>
+            <input class="form-input" type="text" id="adm-owner-username-input" placeholder="e.g. jk">
+          </div>
+          <button class="form-btn" onclick="saveOwnerUsername()" style="align-self:end;">Set as Owner</button>
+          <p class="auth-error" id="adm-owner-ok" style="display:none;color:var(--green);grid-column:1/-1;"></p>
+          <p class="auth-error" id="adm-owner-err" style="display:none;grid-column:1/-1;"></p>
+          <p style="font-family:var(--mono);font-size:10.5px;color:var(--dim);grid-column:1/-1;">
+            Current owner: <strong id="adm-owner-current" style="color:var(--accent);">none set</strong>
+            <button class="form-btn" style="margin-left:10px;padding:4px 10px;font-size:9px;background:transparent;border:1px solid var(--red);color:var(--red);" onclick="clearOwnerUsername()">Remove Owner</button>
+          </p>
+        </div>
+      </div>
+      <!-- Manage Songs -->
+      <div id="admin-tab-songs" style="display:none;">
+        <h3>Manage Songs</h3>
+        <div class="admin-songs-list" id="admin-songs-list"></div>
+      </div>
+      <!-- Add Song -->
+      <div id="admin-tab-add" style="display:none;">
+        <h3>Add New Song</h3>
+        <div class="admin-form">
+          <div class="form-group">
+            <label>Number</label>
+            <input class="form-input" type="text" id="adm-song-num" placeholder="#007">
+          </div>
+          <div class="form-group">
+            <label>Title</label>
+            <input class="form-input" type="text" id="adm-song-title" placeholder="Song Title">
+          </div>
+          <div class="form-group">
+            <label>Artist</label>
+            <input class="form-input" type="text" id="adm-song-artist" placeholder="Artist Name">
+          </div>
+          <div class="form-group">
+            <label>Year · Album</label>
+            <input class="form-input" type="text" id="adm-song-year" placeholder="2024 · Album Name">
+          </div>
+          <div class="form-group">
+            <label>Mood</label>
+            <select class="form-input" id="adm-song-mood"></select>
+          </div>
+          <div class="form-group full">
+            <label>Description</label>
+            <textarea class="form-input" id="adm-song-about"></textarea>
+          </div>
+          <div class="form-group full">
+            <label>Meaning</label>
+            <textarea class="form-input" id="adm-song-meaning"></textarea>
+          </div>
+          <div class="form-group full">
+            <label>Lyrics</label>
+            <textarea class="form-input" id="adm-song-lyrics"></textarea>
+          </div>
+          <div class="form-group full">
+            <label>Fun Fact</label>
+            <textarea class="form-input" id="adm-song-funfact"></textarea>
+          </div>
+          <div class="form-group full">
+            <label>Credit / Copyright</label>
+            <input class="form-input" type="text" id="adm-song-credit">
+          </div>
+          <div class="form-group full">
+            <label>Spotify Link</label>
+            <input class="form-input" type="url" id="adm-song-spotify">
+          </div>
+          <div class="form-group">
+            <label>Genre 1</label>
+            <input class="form-input" type="text" id="adm-song-genre1">
+          </div>
+          <div class="form-group">
+            <label>Genre 2</label>
+            <input class="form-input" type="text" id="adm-song-genre2">
+          </div>
+          <button class="form-btn" onclick="addSongFromAdmin()">Add Song</button>
+        </div>
+      </div>
+      <!-- Users -->
+      <div id="admin-tab-users" style="display:none;">
+        <h3>Registered Users</h3>
+        <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+          <input type="text" class="chat-search" id="admin-user-search" oninput="renderAdminUsers()" placeholder="Search by username, real name, or email..." style="flex:1;min-width:180px;margin-bottom:0;">
+          <select class="form-input" id="admin-user-sort" onchange="renderAdminUsers()" style="max-width:220px;flex-shrink:0;">
+            <option value="newest">Newest signups</option>
+            <option value="oldest">Oldest signups</option>
+            <option value="most-time">Most time on site</option>
+            <option value="least-time">Least time on site</option>
+            <option value="most-submits">Most submissions</option>
+            <option value="az">Username A–Z</option>
+            <option value="za">Username Z–A</option>
+            <option value="blocked-first">Blocked first</option>
+          </select>
+        </div>
+        <div class="admin-songs-list" id="admin-users-list"></div>
+      </div>
+      <!-- Avatars -->
+      <div id="admin-tab-avatars" style="display:none;">
+        <h3>Profile Pictures</h3>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:20px;">Upload the profile pictures users are allowed to choose from, tagged by gender. Users can only pick from images uploaded here — no outside images.</p>
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;" id="admin-avatar-filter-tabs">
+          <button class="sub-bulk-btn active" onclick="setAdminAvatarFilter('all', this)">All</button>
+          <button class="sub-bulk-btn" onclick="setAdminAvatarFilter('female', this)">Female</button>
+          <button class="sub-bulk-btn" onclick="setAdminAvatarFilter('male', this)">Male</button>
+          <button class="sub-bulk-btn" onclick="setAdminAvatarFilter('any', this)">Unisex</button>
+        </div>
+        <div class="admin-avatar-grid" id="admin-avatar-grid"></div>
+        <div style="margin-top:24px;padding-top:24px;border-top:1px solid var(--border);">
+          <div class="form-group full">
+            <label>Upload Image</label>
+            <input class="form-input" type="file" accept="image/*" id="adm-new-avatar" style="padding:8px;">
+            <p class="anon-hint">JPG or PNG. Will be auto-cropped to a square and resized.</p>
+          </div>
+          <div class="form-group full">
+            <label>Assign To</label>
+            <select class="form-input" id="adm-new-avatar-gender">
+              <option value="any">Unisex — shown to everyone</option>
+              <option value="female">Female</option>
+              <option value="male">Male</option>
+            </select>
+            <p class="anon-hint">Users only see avatars tagged for their own gender, plus anything marked Unisex.</p>
+          </div>
+          <button class="form-btn" onclick="addAvatar()" style="max-width:200px;">Add Avatar</button>
+          <p class="auth-error" id="adm-avatar-error" style="margin-top:10px;"></p>
+        </div>
+      </div>
+      <!-- Genres -->
+      <div id="admin-tab-genres" style="display:none;">
+        <h3>Manage Genres</h3>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:20px;">Add, edit, or remove genre tags used across the archive.</p>
+        <div class="admin-songs-list" id="admin-genres-list"></div>
+        <div style="margin-top:24px;padding-top:24px;border-top:1px solid var(--border);">
+          <div class="form-group full">
+            <label>Add New Genre</label>
+            <input class="form-input" type="text" id="adm-new-genre" placeholder="e.g. Dream Pop, Shoegaze, Post-Punk">
+          </div>
+          <button class="form-btn" onclick="addGenre()" style="max-width:200px;">Add Genre</button>
+        </div>
+      </div>
+
+      <!-- Moods -->
+      <div id="admin-tab-moods" style="display:none;">
+        <h3>Manage Moods</h3>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:20px;">Moods power the filter bar and the colored tags on every song. Add, rename, recolor, or remove them.</p>
+        <div class="admin-songs-list" id="admin-moods-list"></div>
+        <div style="margin-top:24px;padding-top:24px;border-top:1px solid var(--border);">
+          <div class="admin-form" style="grid-template-columns: 1fr 1fr 80px;">
+            <div class="form-group">
+              <label>Mood Key (no spaces)</label>
+              <input class="form-input" type="text" id="adm-new-mood-key" placeholder="e.g. nostalgic">
+            </div>
+            <div class="form-group">
+              <label>Display Label</label>
+              <input class="form-input" type="text" id="adm-new-mood-label" placeholder="e.g. nostalgic ache">
+            </div>
+            <div class="form-group">
+              <label>Color</label>
+              <input class="form-input" type="color" id="adm-new-mood-color" value="#C8A96E" style="padding:4px;height:42px;cursor:pointer;">
+            </div>
+          </div>
+          <button class="form-btn" onclick="addMood()" style="max-width:200px;margin-top:8px;">Add Mood</button>
+        </div>
+      </div>
+
+      <!-- Submissions -->
+      <div id="admin-tab-submissions" style="display:none;">
+        <h3>Pending Submissions</h3>
+        <div class="sub-bulk-toolbar" id="sub-bulk-toolbar">
+          <button class="sub-bulk-btn" id="sub-select-toggle-btn" onclick="toggleSubmissionSelectMode()">Select</button>
+          <button class="sub-bulk-btn" id="sub-accept-all-btn" onclick="approveAllSubmissions()">Accept All</button>
+          <button class="sub-bulk-btn approve" id="sub-approve-selected-btn" style="display:none;" onclick="approveSelectedSubmissions()">Approve Selected (0)</button>
+          <button class="sub-bulk-btn" id="sub-cancel-select-btn" style="display:none;" onclick="toggleSubmissionSelectMode()">Cancel</button>
+        </div>
+        <div class="admin-songs-list" id="admin-submissions-list"></div>
+      </div>
+
+      <!-- Reports -->
+      <div id="admin-tab-reports" style="display:none;">
+        <h3>User Reports</h3>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:20px;">Reports filed by users on other users or chat messages. Only visible here — the reporter and reported user never see this list.</p>
+        <div class="admin-songs-list" id="admin-reports-list"></div>
+      </div>
+
+      <!-- Chat System -->
+      <div id="admin-tab-chat" style="display:none;">
+        <h3>Chat System</h3>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:20px;">Full control over the chat system — toggle it on or off, manage rooms, and moderate messages.</p>
+
+        <div class="admin-card" style="margin-bottom:20px;">
+          <div class="admin-row">
+            <div>
+              <div style="font-family:var(--mono);font-size:12px;color:var(--text);font-weight:600;">Chat system enabled</div>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:4px;">Turn this off to hide chat site-wide (nav links disappear, page blocked).</div>
+            </div>
+            <label class="chat-enable-switch">
+              <input type="checkbox" id="adm-chat-enabled" onchange="toggleChatSystem()" checked>
+              <span class="chat-enable-track"><span class="chat-enable-thumb"></span></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="admin-card" style="margin-bottom:20px;">
+          <div class="admin-row">
+            <div>
+              <div style="font-family:var(--mono);font-size:12px;color:var(--text);font-weight:600;">AI moderation</div>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:4px;">Screens every chat/room/DM message for harassment, hate, sexual content, violence, self-harm, and grooming signals before it posts. Requires the <code>moderate-message</code> Edge Function + an OpenAI key — see Database tab.</div>
+            </div>
+            <label class="chat-enable-switch">
+              <input type="checkbox" id="adm-moderation-enabled" onchange="toggleModerationSystem()" checked>
+              <span class="chat-enable-track"><span class="chat-enable-thumb"></span></span>
+            </label>
+          </div>
+          <div id="adm-moderation-status" style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:10px;"></div>
+        </div>
+
+        <h4 style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;">All Rooms</h4>
+        <div class="admin-songs-list" id="admin-chat-rooms-list"></div>
+
+        <div id="admin-chat-room-detail" style="margin-top:24px;"></div>
+      </div>
+
+      <!-- Email (OTP): EmailJS config, so signup verification codes actually
+           get emailed instead of just showing on-screen in "demo mode". -->
+      <div id="admin-tab-email" style="display:none;">
+        <h3>Email (OTP)</h3>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:20px;line-height:1.7;">Paste your EmailJS details here and signup verification codes will be emailed for real, instead of just appearing on-screen. All three values below are meant to be public (same spirit as the Supabase key on the Database tab) — EmailJS has no separate "secret" key for this. If you save while connected to Supabase, these sync to every visitor's browser through <code style="color:var(--accent2);">site_settings</code>; otherwise they're saved to this browser only.</p>
+
+        <div id="adm-emailjs-status" style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:16px;padding:10px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);"></div>
+
+        <div class="admin-form" style="grid-template-columns: 1fr;margin-bottom:12px;">
+          <div class="form-group full">
+            <label>Public Key</label>
+            <input class="form-input" type="text" id="adm-emailjs-publickey" placeholder="e.g. AbCdEfGhIjKlMnOp">
+            <p class="anon-hint">EmailJS dashboard → Account → General → "Public Key".</p>
+          </div>
+          <div class="form-group full">
+            <label>Service ID</label>
+            <input class="form-input" type="text" id="adm-emailjs-serviceid" placeholder="e.g. service_xxxxxxx">
+            <p class="anon-hint">EmailJS dashboard → Email Services → your connected inbox → "Service ID".</p>
+          </div>
+          <div class="form-group full">
+            <label>Template ID</label>
+            <input class="form-input" type="text" id="adm-emailjs-templateid" placeholder="e.g. template_xxxxxxx">
+            <p class="anon-hint">EmailJS dashboard → Email Templates → your template → "Template ID". The template body must use <code style="color:var(--accent2);">{{to_email}}</code>, <code style="color:var(--accent2);">{{to_name}}</code> and <code style="color:var(--accent2);">{{passcode}}</code> as its variables.</p>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px;">
+          <button class="form-btn secondary" style="max-width:200px;" onclick="saveEmailjsConfig()">Save</button>
+          <button class="form-btn secondary" style="max-width:220px;" onclick="sendTestVerificationEmail()">Send Test Email</button>
+        </div>
+        <p style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:-14px;margin-bottom:24px;" id="adm-emailjs-test-result"></p>
+
+        <div class="settings-divider"></div>
+
+        <h4 style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin:20px 0 12px;">EmailJS setup (once, ~5 minutes, free tier = 200 emails/month)</h4>
+        <div style="font-family:var(--sans);font-size:13px;color:var(--dim);line-height:1.8;">
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">1.</strong> Create a free account at <span style="color:var(--accent);">emailjs.com</span>.</p>
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">2.</strong> Email Services → Add New Service → connect Gmail/Outlook/any inbox you control → copy the Service ID.</p>
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">3.</strong> Email Templates → Create New Template using the <code style="color:var(--accent2);">to_email</code> / <code style="color:var(--accent2);">to_name</code> / <code style="color:var(--accent2);">passcode</code> variables above → copy the Template ID.</p>
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">4.</strong> Account → General → copy the Public Key.</p>
+          <p>Paste all three above and click Save. Until they're filled in (here or in <code style="color:var(--accent2);">config.js</code>), signup falls back to showing the code on-screen so it's never blocked.</p>
+        </div>
+      </div>
+
+      <!-- Safety & Bots: Cloudflare Turnstile + OpenAI moderation config -->
+      <div id="admin-tab-safety" style="display:none;">
+        <h3>Safety &amp; Bots</h3>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:20px;line-height:1.7;">Two independent layers: Turnstile stops bots from signing up, OpenAI moderation screens chat text once real people are in. Both need a small Supabase Edge Function to hold the secret keys — a static page like this one can never keep a secret safe in its own source, so the widget/toggle below only stores the <em>public</em> half of each setup.</p>
+
+        <h4 style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;">Cloudflare Turnstile (bot check on signup)</h4>
+        <div class="admin-card" style="margin-bottom:20px;">
+          <div class="admin-row">
+            <div>
+              <div style="font-family:var(--mono);font-size:12px;color:var(--text);font-weight:600;">Turnstile enabled</div>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:4px;">Shows a Cloudflare "prove you're not a robot" widget on the signup form and blocks submission until it passes. Works alongside the existing honeypot field.</div>
+            </div>
+            <label class="chat-enable-switch">
+              <input type="checkbox" id="adm-turnstile-enabled" onchange="toggleTurnstileSystem()">
+              <span class="chat-enable-track"><span class="chat-enable-thumb"></span></span>
+            </label>
+          </div>
+          <div id="adm-turnstile-status" style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:10px;"></div>
+        </div>
+
+        <div class="admin-form" style="grid-template-columns: 1fr;margin-bottom:12px;">
+          <div class="form-group full">
+            <label>Turnstile Site Key (public)</label>
+            <input class="form-input" type="text" id="adm-turnstile-sitekey" placeholder="0x4AAAAAAAxxxxxxxxxxxxxx">
+            <p class="anon-hint">From Cloudflare dashboard → Turnstile → your widget → "Site Key". Safe to expose in page source — it's the secret key that must never go here.</p>
+          </div>
+        </div>
+        <button class="form-btn secondary" style="max-width:200px;margin-bottom:24px;" onclick="saveTurnstileSiteKey()">Save Site Key</button>
+
+        <div class="settings-divider"></div>
+
+        <h4 style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin:20px 0 12px;">Turnstile setup (once)</h4>
+        <div style="font-family:var(--sans);font-size:13px;color:var(--dim);line-height:1.8;margin-bottom:16px;">
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">1.</strong> In <span style="color:var(--accent);">dash.cloudflare.com</span> → <strong style="color:var(--text);">Turnstile</strong> → Add Widget. Domain = your hosted site's domain, mode = Managed.</p>
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">2.</strong> Copy the <strong style="color:var(--text);">Site Key</strong> into the field above and click Save.</p>
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">3.</strong> Copy the <strong style="color:var(--text);">Secret Key</strong> — this one is dangerous to expose, it must live only in Supabase, never in this file.</p>
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">4.</strong> Paste it in your Supabase project's own secrets page — <span style="color:var(--accent);">Edge Functions → Secrets</span> — add key <code style="color:var(--accent2);">TURNSTILE_SECRET_KEY</code>, value = your secret key, and Save. No CLI needed.</p>
+          <p><strong style="color:var(--text);">5.</strong> Toggle Turnstile on above. The signup form will now render a real widget and refuse to submit until Cloudflare confirms the visitor passed.</p>
+        </div>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--accent);margin-bottom:16px;">✓ The <code style="color:var(--accent2);">verify-turnstile</code> function below is already deployed to your project — step 4 (pasting your secret key) is the only thing left to do. <strong>Important:</strong> Turnstile is currently switched ON but this secret isn't set yet, so every signup attempt right now is being rejected — either paste the secret key now, or turn Turnstile off above until you do.</p>
+        <a href="https://supabase.com/dashboard/project/yhpqyjdluppjmmhrybfy/functions/secrets" target="_blank" rel="noopener" class="form-btn secondary" style="max-width:260px;display:inline-block;text-align:center;text-decoration:none;margin-bottom:16px;">Open Secrets Page →</a>
+        <pre style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:14px;font-family:var(--mono);font-size:10px;color:var(--dim);overflow-x:auto;white-space:pre;line-height:1.6;margin-bottom:8px;" id="turnstile-fn-code">// supabase/functions/verify-turnstile/index.ts
+// Deno Edge Function — verifies a Turnstile token server-side, where the
+// secret key can actually stay secret.
+//
+// Every browser sends an OPTIONS "preflight" request before the real POST
+// when calling a function like this cross-origin — it must be handled
+// explicitly and return CORS headers, or the browser blocks the real
+// request before it's ever sent (this looks identical to "verification
+// always fails" from the signup form, even with a correct secret key).
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    const { token, remoteip } = await req.json();
+    const secret = Deno.env.get("TURNSTILE_SECRET_KEY");
+
+    if (!secret) {
+      return new Response(JSON.stringify({ success: false, reason: "TURNSTILE_SECRET_KEY not set in Supabase secrets yet" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
+    const body = new URLSearchParams();
+    body.set("secret", secret);
+    body.set("response", token ?? "");
+    if (remoteip) body.set("remoteip", remoteip);
+
+    const cfRes = await fetch(
+      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+      { method: "POST", body }
+    );
+    const outcome = await cfRes.json();
+
+    return new Response(JSON.stringify({ success: !!outcome.success, errorCodes: outcome["error-codes"] || [] }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ success: false, reason: String(error) }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    });
+  }
+});</pre>
+        <button class="form-btn secondary" style="max-width:200px;" onclick="copyTurnstileFnCode()">Copy Function Code</button>
+        <p style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:8px;" id="turnstile-copy-confirm"></p>
+
+        <div class="settings-divider"></div>
+
+        <h4 style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin:20px 0 12px;">OpenAI Moderation (chat/DM screening)</h4>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:16px;line-height:1.7;">This reuses the <strong style="color:var(--text);">AI moderation</strong> toggle already in the Chat System tab — flip it there. This section just holds the OpenAI-specific config and the Edge Function code it calls, since that toggle didn't have setup instructions yet.</p>
+
+        <div class="admin-form" style="grid-template-columns: 1fr 1fr;margin-bottom:12px;">
+          <div class="form-group">
+            <label>Model</label>
+            <select class="form-input" id="adm-moderation-model">
+              <option value="omni-moderation-latest" selected>omni-moderation-latest</option>
+              <option value="text-moderation-latest">text-moderation-latest (legacy)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>On flagged message</label>
+            <select class="form-input" id="adm-moderation-action">
+              <option value="block" selected>Block from posting</option>
+              <option value="flag">Allow, but flag for admin review</option>
+            </select>
+          </div>
+        </div>
+        <button class="form-btn secondary" style="max-width:200px;margin-bottom:24px;" onclick="saveModerationConfig()">Save Config</button>
+
+        <h4 style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;">Moderation setup (once)</h4>
+        <div style="font-family:var(--sans);font-size:13px;color:var(--dim);line-height:1.8;margin-bottom:16px;">
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">1.</strong> Get an API key at <span style="color:var(--accent);">platform.openai.com</span> → API Keys. The Moderation endpoint is free to call.</p>
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">2.</strong> Paste it in your Supabase project's own secrets page — <span style="color:var(--accent);">Edge Functions → Secrets</span> (or go straight to <code style="color:var(--accent2);">/dashboard/project/_/functions/secrets</code>) — add key <code style="color:var(--accent2);">OPENAI_API_KEY</code>, value <code style="color:var(--accent2);">sk-...</code>, and Save. No CLI needed, and it never touches this site's code or your browser — this is deliberate: unlike the Supabase/EmailJS keys elsewhere in this panel, an OpenAI key is a real secret, so there's no paste-it-here box on this page on purpose.</p>
+          <p><strong style="color:var(--text);">3.</strong> Make sure Database (Supabase) is connected above and the AI moderation toggle in Chat System is on — <code style="color:var(--accent2);">moderateText()</code> already calls this function for every chat/DM send.</p>
+        </div>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--accent);margin-bottom:16px;">✓ The <code style="color:var(--accent2);">moderate-message</code> function below is already deployed to your project — step 2 (pasting your key) is the only thing left to do.</p>
+        <a href="https://supabase.com/dashboard/project/yhpqyjdluppjmmhrybfy/functions/secrets" target="_blank" rel="noopener" class="form-btn secondary" style="max-width:260px;display:inline-block;text-align:center;text-decoration:none;margin-bottom:16px;">Open Secrets Page →</a>
+        <pre style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:14px;font-family:var(--mono);font-size:10px;color:var(--dim);overflow-x:auto;white-space:pre;line-height:1.6;margin-bottom:8px;" id="moderation-fn-code">// supabase/functions/moderate-message/index.ts
+// Deno Edge Function — screens one chat message with OpenAI's Moderation
+// endpoint and returns a verdict the client already knows how to handle:
+// { action: 'allow' | 'block' | 'self_harm', text, supportMessage? }
+//
+// Every browser sends an OPTIONS "preflight" request before the real POST
+// when calling a function like this cross-origin — it must be handled
+// explicitly and return CORS headers, or the browser blocks the real
+// request before it's ever sent, and every message silently stops
+// reaching this function at all (even with a correct OpenAI key).
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const ACTION_ON_FLAG = "block"; // or "flag" — mirrors the admin dropdown
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    const { text } = await req.json();
+    const apiKey = Deno.env.get("OPENAI_API_KEY");
+
+    if (!apiKey) {
+      // Fail open rather than break chat entirely just because no key is set yet.
+      return new Response(JSON.stringify({ action: "allow", text }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
+    const res = await fetch("https://api.openai.com/v1/moderations", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ model: "omni-moderation-latest", input: text }),
+    });
+    const data = await res.json();
+    const result = data.results?.[0];
+
+    if (!result) {
+      return new Response(JSON.stringify({ action: "allow", text }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
+      });
+    }
+    if (result.categories?.["self-harm"] || result.categories?.["self-harm/intent"]) {
+      return new Response(JSON.stringify({
+        action: "self_harm",
+        text,
+        supportMessage:
+          "If you're struggling, you don't have to go through it alone — reach out to someone you trust or a crisis line.",
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+    }
+    if (result.flagged) {
+      return new Response(JSON.stringify({ action: ACTION_ON_FLAG, text }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
+      });
+    }
+    return new Response(JSON.stringify({ action: "allow", text }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ action: "allow", error: String(error) }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
+    });
+  }
+});</pre>
+        <button class="form-btn secondary" style="max-width:200px;" onclick="copyModerationFnCode()">Copy Function Code</button>
+        <p style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:8px;" id="moderation-copy-confirm"></p>
+      </div>
+
+      <!-- Database / Supabase -->
+      <div id="admin-tab-livestats" style="display:none;">
+        <div class="admin-row" style="margin-bottom:16px;">
+          <h3 style="margin-bottom:0;">Live Stats</h3>
+          <button class="form-btn secondary" style="max-width:140px;" onclick="loadLiveStatsCounts();renderLiveStatsPresence();">↻ Refresh</button>
+        </div>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:20px;line-height:1.7;" id="ls-data-source-note">Local mode — connect Supabase (Database tab) for site-wide live stats across every visitor, not just this device.</p>
+
+        <h4 style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;">Right Now</h4>
+        <div class="admin-stats-strip" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px;">
+          <div class="admin-stat-card"><span class="stat-icon">🟢</span><span class="stat-num" id="ls-online-total">0</span><span class="stat-lbl">Online Now</span></div>
+          <div class="admin-stat-card"><span class="stat-icon">◍</span><span class="stat-num" id="ls-online-signed-in">0</span><span class="stat-lbl">Signed In</span></div>
+          <div class="admin-stat-card"><span class="stat-icon">◌</span><span class="stat-num" id="ls-online-guests">0</span><span class="stat-lbl">Guests Browsing</span></div>
+        </div>
+
+        <h4 style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;">Growth &amp; Activity</h4>
+        <div class="admin-stats-strip" style="grid-template-columns:repeat(4,1fr);margin-bottom:8px;">
+          <div class="admin-stat-card"><span class="stat-icon">◍</span><span class="stat-num" id="ls-total-accounts">0</span><span class="stat-lbl">Total Accounts</span></div>
+          <div class="admin-stat-card"><span class="stat-icon">＋</span><span class="stat-num" id="ls-new-today">0</span><span class="stat-lbl">New Today</span></div>
+          <div class="admin-stat-card"><span class="stat-icon">✉</span><span class="stat-num" id="ls-total-messages">0</span><span class="stat-lbl">Chat Messages</span></div>
+          <div class="admin-stat-card"><span class="stat-icon">⚠</span><span class="stat-num" id="ls-bot-signups">—</span><span class="stat-lbl">Possible Bot Signups</span></div>
+        </div>
+        <p style="font-family:var(--mono);font-size:9.5px;color:var(--muted);margin-bottom:28px;line-height:1.6;">"Possible Bot Signups" flags accounts created in rapid bursts — 3 or more signups within 10 seconds of each other. It's a heuristic based on timing patterns, not a certainty a real script wrote them. Always check the Users tab before deleting anything it flags.</p>
+
+        <div class="settings-divider"></div>
+
+        <h4 style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin:20px 0 12px;">Who's Online</h4>
+        <div class="admin-songs-list" id="ls-online-list">
+          <p style="font-family:var(--mono);font-size:11px;color:var(--muted);">No live presence data yet.</p>
+        </div>
+      </div>
+
+      <div id="admin-tab-database" style="display:none;">
+        <h3>Database Connection</h3>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:20px;line-height:1.7;">
+          By default this site stores everything in your browser only — songs, moods, chat messages, ratings. Nobody else sees your changes. Connect a free Supabase project to make all of that shared and permanent across every visitor.
+        </p>
+
+        <div class="admin-card" id="db-status-card" style="margin-bottom:24px;">
+          <div class="admin-row">
+            <div>
+              <div style="font-family:var(--mono);font-size:12px;font-weight:600;" id="db-status-label">⚪ Not connected — running in local mode</div>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:4px;" id="db-status-sub">Songs, moods, and chat are saved only on this device.</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="db-connect-form">
+          <div class="admin-form" style="grid-template-columns: 1fr;">
+            <div class="form-group full">
+              <label>Supabase Project URL</label>
+              <input class="form-input" type="text" id="db-url" placeholder="https://xxxxxxxxxxxx.supabase.co">
+            </div>
+            <div class="form-group full">
+              <label>Supabase Anon (Public) Key</label>
+              <input class="form-input" type="text" id="db-key" placeholder="eyJhbGciOi...">
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
+            <button class="form-btn" style="max-width:200px;" onclick="connectSupabase()">Connect</button>
+            <button class="form-btn secondary" style="max-width:160px;" onclick="testSupabaseConnection()">Test Connection</button>
+          </div>
+          <p class="auth-error" id="db-error" style="display:none;"></p>
+        </div>
+
+        <div id="db-connected-actions" style="display:none;margin-top:8px;">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <button class="form-btn secondary" style="max-width:160px;" onclick="syncNowToSupabase()">Sync Now</button>
+            <button class="form-btn danger" style="max-width:200px;" onclick="disconnectSupabase()">Disconnect</button>
+          </div>
+          <p style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:8px;" id="db-last-sync"></p>
+        </div>
+
+        <div class="settings-divider"></div>
+
+        <h4 style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;">Setup Guide</h4>
+        <div style="font-family:var(--sans);font-size:13px;color:var(--dim);line-height:1.8;">
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">1.</strong> Go to <span style="color:var(--accent);">supabase.com</span> → create a free account → "New Project"</p>
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">2.</strong> Once created, go to <strong style="color:var(--text);">Project Settings → API</strong></p>
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">3.</strong> Copy the <strong style="color:var(--text);">Project URL</strong> and the <strong style="color:var(--text);">anon public</strong> key into the fields above</p>
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">4.</strong> In Supabase: <strong style="color:var(--text);">Authentication → Sign In / Providers → Anonymous</strong> → toggle it on. This is what lets each visitor's browser get a real, invisible identity the database can check writes against — no email or password involved, and visitors never see it.</p>
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">5.</strong> Run the setup SQL (below) once in your Supabase project's SQL Editor to create the required tables</p>
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">6.</strong> Click Connect — your site will now sync data for every visitor. You'll be asked for your admin password once more; this sets up a real, authenticated Supabase account behind your admin login, which is what's actually allowed to add/edit/delete songs, moods, genres, and admin settings in the database (everyone else gets read-only access to those). If that step doesn't complete right away — e.g. your Supabase project requires email confirmation — finish it via the confirmation email or in Supabase → Authentication → Users, then click "Sync Now" above.</p>
+          <p><strong style="color:var(--text);">7.</strong> Chat messages, DMs, friend requests, and user profiles are now tied to each visitor's real (if anonymous) session — nobody holding only your public anon key can write as someone else, or read another person's DMs or friend requests, from outside the app.</p>
+          <p><strong style="color:var(--text);">8.</strong> The new <strong style="color:var(--text);">Live Stats</strong> tab (in the sidebar) shows who's on the site right now, plus account/message growth — it uses Supabase Realtime, which is on by default for new projects, so there's nothing extra to set up.</p>
+        </div>
+
+        <button class="form-btn secondary" style="max-width:240px;margin-top:16px;" onclick="copySetupSQL()">Copy Setup SQL</button>
+        <p style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:8px;" id="sql-copy-confirm"></p>
+
+        <div class="settings-divider"></div>
+
+        <h4 style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;">Real Google Sign-In Setup (optional)</h4>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:16px;line-height:1.7;">
+          The "Continue/Sign in with Google" buttons work as a simple alias picker until you do this setup — after that, they use real Google accounts. This needs Supabase connected above <strong style="color:var(--text);">and</strong> the site hosted at a real https:// address (Google won't redirect back to a local file).
+        </p>
+        <div style="font-family:var(--sans);font-size:13px;color:var(--dim);line-height:1.8;">
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">1.</strong> Host this file somewhere with a real URL — e.g. drag it into <span style="color:var(--accent);">netlify.com/drop</span>, or use GitHub Pages / Vercel.</p>
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">2.</strong> In <span style="color:var(--accent);">console.cloud.google.com</span>, create a project → <strong style="color:var(--text);">APIs & Services → OAuth consent screen</strong> (External, add your app name + support email).</p>
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">3.</strong> Go to <strong style="color:var(--text);">Credentials → Create Credentials → OAuth Client ID</strong>, type "Web application".</p>
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">4.</strong> Under Authorized redirect URIs, add: <code style="color:var(--accent2);">https://YOUR-PROJECT-REF.supabase.co/auth/v1/callback</code> (find YOUR-PROJECT-REF in your Supabase project URL above).</p>
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">5.</strong> Copy the generated Client ID + Client Secret.</p>
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">6.</strong> In your Supabase dashboard: <strong style="color:var(--text);">Authentication → Providers → Google</strong> → enable it → paste the Client ID + Secret → Save.</p>
+          <p style="margin-bottom:10px;"><strong style="color:var(--text);">7.</strong> Still in Supabase: <strong style="color:var(--text);">Authentication → URL Configuration</strong> → set Site URL to your hosted URL from step 1, and add it under Redirect URLs too.</p>
+          <p><strong style="color:var(--text);">8.</strong> Reload the live site and try "Continue with Google" — it should now show the real Google account picker. For admin, make sure the Google account you'll sign in with matches the Admin Email set above in Site Settings.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">AfterLight<span style="color:var(--accent)">:</span><span style="color:var(--accent2)">404</span>Archive</div>
+  <button class="donate-btn open-donate-btn footer-donate-btn">♡ <span class="donate-text">Donate</span></button>
+  <div class="footer-copy">
+    All song credits belong to their respective artists &amp; labels.<br>
+    This site is non-commercial. For love of music only. © 2026 JK.
+  </div>
+</footer>
+
+<!-- SONG DETAIL MODAL -->
+<div class="modal-overlay" id="modal" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-eyebrow">
+        <span id="m-number"></span>
+        <span id="m-year"></span>
+        <span id="m-mood-tag" class="song-mood-tag"></span>
+      </div>
+      <div class="modal-title" id="m-title"></div>
+      <div class="modal-artist" id="m-artist"></div>
+      <div id="m-uploader-wrap"></div>
+      <button class="modal-share-btn-top" onclick="shareCurrentModalSong()" title="Share to a friend">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.6" y1="10.6" x2="15.4" y2="6.4"></line><line x1="8.6" y1="13.4" x2="15.4" y2="17.6"></line></svg>
+        Share
+      </button>
+      <button class="close-btn" id="close-modal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section">
+        <div class="modal-section-label">About the song</div>
+        <p class="modal-desc" id="m-about"></p>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-label">What it really means</div>
+        <p class="modal-meaning" id="m-meaning"></p>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-label">Key lyrics</div>
+        <div class="lyric-block" id="m-lyrics"></div>
+        <p class="copyright-notice" id="m-credit"></p>
+      </div>
+      <div class="modal-section" id="m-funfact-section" style="display:none;">
+        <div class="modal-section-label">Fun fact</div>
+        <p class="modal-desc" id="m-funfact"></p>
+      </div>
+      <div class="modal-action-row">
+        <a href="#" class="listen-link" id="m-listen" target="_blank" rel="noopener">▶ Listen on Spotify</a>
+      </div>
+
+      <!-- COMMENTS -->
+      <div class="comments-section">
+        <div class="comments-header">Comments</div>
+        <div class="comment-list" id="comment-list"></div>
+        <div id="comment-form-wrap">
+          <div class="comment-login-prompt" id="comment-login-prompt">
+            <a onclick="showLogin()">Log in</a> or <a onclick="showSignup()">sign up</a> to share your thoughts.
+          </div>
+          <div class="comment-form" id="comment-form" style="display:none;">
+            <textarea class="comment-textarea" id="comment-text" placeholder="What does this song mean to you?"></textarea>
+            <button class="comment-submit" onclick="postComment()">Post Comment</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script src="config.js"></script>
+<script src="supabase.js"></script>
+<script src="songs.js"></script>
+<script src="auth.js"></script>
+<script src="chat.js"></script>
+<script src="profile.js"></script>
+<script src="admin.js"></script>
+<script>
+//  INIT
+// ═══════════════════════════════════════════════════════════════
+
+loadData();
+migrateAdminSecrets();
+initSupabaseClient();
+initLivePresence();
+handleGoogleAuthCallback();
+renderMoodBar();
+renderSongGrid();
+updateAuthUI();
+updateCommentForm();
+updateSubmitForm();
+applySiteSettings();
+initDeviceMode();
+setBottomNavActive('home');
+applyChatEnabledState();
+updateSocialBadge();
+refreshModerationEnabledFromDb();
+refreshTurnstileEnabledFromDb();
+refreshEmailjsConfigFromDb();
+if (currentUser) {
+  pushUserProfile();
+  pullFriendRequests().then(updateSocialBadge);
+  const savedToken = localStorage.getItem('al-session-token');
+  const savedUser = localStorage.getItem('al-session-user');
+  if (savedToken && savedUser === currentUser.name && isDbConnected()) {
+    ensureAnonSession().then(() => subscribeAliasSession(currentUser.name, savedToken));
+  }
+}
+
+// Init vinyl label and waveform paused state
+const vinylEl = document.getElementById('hero-vinyl');
+if (vinylEl) {
+  vinylEl.innerHTML = `
+    <div class="vinyl-label">
+      <div class="vinyl-label-text">After<br>Light</div>
+      <div class="vinyl-hole"></div>
+    </div>`;
+}
+document.querySelectorAll('.waveform-deco span').forEach(s => {
+  s.style.animationPlayState = 'paused';
+  s.style.height = '4px';
+});
+updateVinylLabel();
+
+if (isDbConnected()) {
+  pullSharedDataFromSupabase().then(() => {
+    renderMoodBar();
+    renderSongGrid();
+  });
+}
+
+// ── ON-SCREEN KEYBOARD HANDLING (chat/DM/topic-chat input bars) ──
+// Mobile keyboards shrink/pan the *visual* viewport, not the layout viewport
+// our position:fixed chat pages are sized against — that mismatch is what was
+// causing the empty gap below the input bar and the need to manually scroll
+// to reach it. window.visualViewport reports the actual visible area, so we
+// track it live and let the CSS above pin the chat page to it directly.
+//
+// The open/close toggle itself is driven by focus/blur on the chat inputs
+// rather than a height-difference heuristic — some browsers resize
+// window.innerHeight right along with the visual viewport when the keyboard
+// opens, which made a height-diff threshold unreliable (it just never
+// crossed the threshold, so the old gap-causing CSS stayed active).
+(function () {
+  const vv = window.visualViewport;
+  const root = document.documentElement;
+
+  function syncViewportVars() {
+    if (!vv) return;
+    root.style.setProperty('--vvh', vv.height + 'px');
+    root.style.setProperty('--vv-top', vv.offsetTop + 'px');
+  }
+
+  function scrollActiveIntoView() {
+    const active = document.activeElement;
+    if (active && active.classList && active.classList.contains('chat-input')) {
+      requestAnimationFrame(() => { try { active.scrollIntoView({ block: 'end' }); } catch (e) {} });
+    }
+  }
+
+  if (vv) {
+    vv.addEventListener('resize', () => { syncViewportVars(); scrollActiveIntoView(); });
+    vv.addEventListener('scroll', syncViewportVars);
+    syncViewportVars();
+  }
+
+  // Delegated so it also covers any chat-input rendered after page load.
+  document.addEventListener('focusin', e => {
+    if (!e.target.classList || !e.target.classList.contains('chat-input')) return;
+    document.body.classList.add('kb-open');
+    syncViewportVars();
+    scrollActiveIntoView();
+  });
+  document.addEventListener('focusout', e => {
+    if (!e.target.classList || !e.target.classList.contains('chat-input')) return;
+    // Give focus a moment to land on whatever's next (e.g. tapping the send
+    // button) before deciding the keyboard actually closed.
+    setTimeout(() => {
+      const stillTyping = document.activeElement && document.activeElement.classList &&
+        document.activeElement.classList.contains('chat-input');
+      if (!stillTyping) { document.body.classList.remove('kb-open'); syncViewportVars(); }
+    }, 120);
+  });
+})();
+
+// Close auth on Escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeAuth(); closeMsgActions(); }
+});
+document.addEventListener('scroll', () => closeMsgActions(), true);
+
+// ── IMMERSIVE / FULLSCREEN MODE ──
+// Mobile browsers won't hide their address bar for a plain page load — the
+// Fullscreen API requires an actual user gesture. So on the very first tap
+// or touch anywhere on the page, we ask the browser to go fullscreen, which
+// hides the URL bar until the person explicitly backs/swipes out. This is a
+// best-effort enhancement: some browsers (notably iOS Safari) don't support
+// requesting fullscreen on arbitrary elements, so it silently no-ops there.
+(function () {
+  let triedFullscreen = false;
+  function goFullscreen() {
+    if (triedFullscreen) return;
+    triedFullscreen = true;
+    const el = document.documentElement;
+    const request = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+    if (request) {
+      try { request.call(el).catch(() => { triedFullscreen = false; }); }
+      catch (e) { triedFullscreen = false; }
+    }
+  }
+  document.addEventListener('touchend', goFullscreen, { once: true, passive: true });
+  document.addEventListener('click', goFullscreen, { once: true });
+})();
+
+// ── ENTER KEY = SUBMIT ──
+// Lets people hit Enter in a text/password field (login, signup, edit
+// profile, admin forms, room creation, etc.) instead of having to reach
+// for the mouse to click Log In / Save / Create. We climb up from the
+// focused field to the smallest surrounding block that contains a
+// primary action button, then click that button. Textareas are left
+// alone so Enter still inserts a newline there, and any field that
+// already has its own onkeydown handler (e.g. the verify-email code
+// box) is respected — this only fires if that handler didn't already
+// handle + preventDefault the keypress.
+(function () {
+  const PRIMARY_BTN_SELECTOR = '.form-btn:not(.google-btn):not(:disabled), .ig-header-action:not(:disabled)';
+  const SUBMIT_TAG_TYPES = ['text', 'password', 'email', 'search', 'tel', 'number', 'url', ''];
+
+  function findPrimaryButton(fromEl) {
+    let node = fromEl.parentElement;
+    let hops = 0;
+    while (node && node !== document.body && hops < 8) {
+      const btn = node.querySelector(PRIMARY_BTN_SELECTOR);
+      if (btn && isVisible(btn)) return btn;
+      node = node.parentElement;
+      hops++;
+    }
+    return null;
+  }
+
+  function isVisible(el) {
+    return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' || e.defaultPrevented) return;
+    const el = e.target;
+    if (!el || el.tagName !== 'INPUT') return;
+    if (!SUBMIT_TAG_TYPES.includes((el.type || '').toLowerCase())) return;
+    if (!isVisible(el)) return;
+    const btn = findPrimaryButton(el);
+    if (btn) {
+      e.preventDefault();
+      btn.click();
+    }
+  });
+})();
+
+// ── DEVTOOLS DETERRENTS ──
+// Note: none of this can actually stop someone determined to open dev
+// tools (browsers always allow it from their own menu, and JS can't see
+// or block that). This is a light deterrent against casual right-click
+// → Inspect / F12 / Ctrl+U only.
+(function () {
+  // Disable right-click context menu
+  document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+  // Block common devtools / view-source keyboard shortcuts
+  document.addEventListener('keydown', function (e) {
+    const k = e.key;
+    const mod = e.ctrlKey || e.metaKey;
+    if (k === 'F12') { e.preventDefault(); return; }
+    if (mod && e.shiftKey && ['I', 'i', 'J', 'j', 'C', 'c'].includes(k)) { e.preventDefault(); return; }
+    if (mod && (k === 'U' || k === 'u')) { e.preventDefault(); return; }
+  });
+
+  // Heuristic: an undocked/docked DevTools panel changes the gap between
+  // outer and inner window dimensions. Not foolproof, but catches the
+  // common case and shows a warning overlay while it looks open.
+  //
+  // Mobile browsers don't have a desktop-style DevTools split-pane at all —
+  // this check was firing there anyway because the address bar showing/
+  // hiding on scroll changes that same outer/inner gap, which falsely
+  // triggered the overlay and blocked the whole site on phones. Skipped
+  // entirely on touch/narrow-viewport devices, where it can't be accurate.
+  const isMobileLike = ('ontouchstart' in window) || navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches;
+  if (isMobileLike) return;
+
+  let warningShown = false;
+  function showWarning() {
+    if (warningShown) return;
+    warningShown = true;
+    if (document.getElementById('devtools-block-overlay')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'devtools-block-overlay';
+    overlay.innerHTML = '<div class="devtools-block-msg">Developer tools are disabled on this site.<br><span>Please close them to continue.</span></div>';
+    document.body.appendChild(overlay);
+  }
+  function hideWarning() {
+    warningShown = false;
+    const el = document.getElementById('devtools-block-overlay');
+    if (el) el.remove();
+  }
+  const THRESHOLD = 160;
+  setInterval(function () {
+    const widthDiff = window.outerWidth - window.innerWidth;
+    const heightDiff = window.outerHeight - window.innerHeight;
+    if (widthDiff > THRESHOLD || heightDiff > THRESHOLD) showWarning();
+    else hideWarning();
+  }, 800);
+})();
+</script>
+</body>
+</html>
