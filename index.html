@@ -75,6 +75,15 @@
       <span class="theme-icon">☀</span>
       <button class="theme-mode-btn active-mode" id="sys-btn" title="Follow system preference">sys</button>
     </div>
+    <button class="bgm-toggle-btn" id="bgm-toggle-btn" aria-pressed="false" aria-label="Play background music" title="Play background music">
+      <svg class="bgm-icon-note" viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true">
+        <path d="M9 17V4.5c0-.28.2-.52.48-.58l9-2C18.83 1.85 19 2.02 19 2.24V15c0 1.66-1.79 3-4 3s-4-1.34-4-3 1.79-3 4-3c.35 0 .69.03 1 .1V6.1L10 7.8V17c0 1.66-1.79 3-4 3s-4-1.34-4-3 1.79-3 4-3c.35 0 .69.04 1 .11z"/>
+      </svg>
+      <span class="bgm-bars" aria-hidden="true"><i></i><i></i><i></i></span>
+      <svg class="bgm-icon-muted" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <line x1="4" y1="4" x2="20" y2="20"/>
+      </svg>
+    </button>
   </div>
 </header>
 <div class="subnav-row" id="desktop-nav-row">
@@ -1992,6 +2001,7 @@ serve(async (req) => {
 <script src="chat.js"></script>
 <script src="profile.js"></script>
 <script src="admin.js"></script>
+<script src="bgmusic.js"></script>
 <script>
 //  INIT
 // ═══════════════════════════════════════════════════════════════
