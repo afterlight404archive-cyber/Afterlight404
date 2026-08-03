@@ -169,6 +169,31 @@
 
   body { background: var(--bg); color: var(--text); font-family: var(--sans); font-weight: 300; line-height: 1.7; overflow-x: hidden; }
   body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E"); opacity: 0.032; pointer-events: none; z-index: 9999; }
+
+  /* ── DECORATIVE BACKGROUND (headphones + music notes) ──
+     A fixed, non-interactive layer of faint headphone/note glyphs in
+     the site's own accent colors, so the page reads as "this site is
+     about music" even where there's no content — instead of one flat
+     slab of color. Stays put while the page scrolls, sits behind real
+     content (z-index 1, well under the header's 100 and any modal),
+     and is skipped entirely under prefers-reduced-motion-adjacent
+     "reduce data" concerns by staying static (no animation). */
+  .bg-decor { position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+  .bg-decor-icon { position: absolute; fill: currentColor; }
+  .bg-decor-1 { width: 92px;  height: 92px;  top: 8%;   left: 5%;   color: var(--accent);  opacity: 0.09; transform: rotate(-14deg); }
+  .bg-decor-2 { width: 46px;  height: 46px;  top: 14%;  right: 9%;  color: var(--accent2); opacity: 0.11; transform: rotate(18deg); }
+  .bg-decor-3 { width: 34px;  height: 34px;  top: 42%;  left: 3%;   color: var(--accent);  opacity: 0.08; transform: rotate(8deg); }
+  .bg-decor-4 { width: 78px;  height: 78px;  bottom: 12%; right: 6%; color: var(--accent2); opacity: 0.09; transform: rotate(11deg); }
+  .bg-decor-5 { width: 40px;  height: 40px;  bottom: 20%; left: 8%;  color: var(--accent2); opacity: 0.10; transform: rotate(-20deg); }
+  .bg-decor-6 { width: 58px;  height: 58px;  top: 62%;   right: 3%; color: var(--accent);  opacity: 0.08; transform: rotate(-9deg); }
+  .bg-decor-7 { width: 30px;  height: 30px;  top: 30%;   right: 22%; color: var(--accent);  opacity: 0.07; transform: rotate(24deg); }
+  @media (max-width: 640px) {
+    /* Fewer, smaller icons on phones — enough to read as intentional
+       texture without competing with the (already busy) mobile layout. */
+    .bg-decor-3, .bg-decor-6, .bg-decor-7 { display: none; }
+    .bg-decor-1 { width: 60px; height: 60px; }
+    .bg-decor-4 { width: 52px; height: 52px; }
+  }
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: var(--bg); }
   ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
@@ -581,6 +606,10 @@
   .mood-btn { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; padding: 8px 18px; border-radius: 100px; border: 1px solid var(--border2); background: transparent; color: var(--dim); cursor: pointer; transition: all 0.22s; display: flex; align-items: center; gap: 8px; }
   .mood-btn:hover, .mood-btn.active { border-color: var(--mood-c, var(--accent)); color: var(--mood-c, var(--accent)); background: color-mix(in oklab, var(--mood-c, var(--accent)) 10%, transparent); box-shadow: 0 0 16px color-mix(in oklab, var(--mood-c, var(--accent)) 20%, transparent); }
   .mood-btn .mood-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+  .mood-btn-extra { display: none; }
+  .mood-bar-expanded .mood-btn-extra { display: flex; }
+  .mood-more-btn { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; padding: 8px 18px; border-radius: 100px; border: 1px dashed var(--border2); background: transparent; color: var(--muted); cursor: pointer; transition: all 0.22s; }
+  .mood-more-btn:hover { border-color: var(--accent); color: var(--accent); background: color-mix(in oklab, var(--accent) 8%, transparent); }
 
   /* ── ARCHIVE ── */
   .archive-section { padding: 48px 48px 80px; }

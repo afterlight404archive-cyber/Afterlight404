@@ -1834,6 +1834,7 @@ function addGenre() {
   saveGenres(genres);
   input.value = '';
   renderAdminGenres();
+  updateHomeStats();
 }
 
 function editGenre(idx) {
@@ -1855,6 +1856,7 @@ function deleteGenre(idx) {
   genres.splice(idx, 1);
   saveGenres(genres);
   renderAdminGenres();
+  updateHomeStats();
 }
 
 // ═══════════════════════════════════════════════════════════════

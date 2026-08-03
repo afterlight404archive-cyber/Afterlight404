@@ -226,6 +226,22 @@ function renderSongGrid() {
   initRatings();
   initMoodFilter();
   initModal();
+  updateHomeStats();
+}
+
+// Keeps the "Songs archived / Moods mapped / Genres" hero counters (the
+// ones a photo of the site once caught stuck at 06/07/03 forever) in sync
+// with whatever's actually in the archive right now — called after every
+// song, mood, or genre add/edit/delete, plus on first load.
+function updateHomeStats() {
+  const songsEl = document.getElementById('stat-songs');
+  const moodsEl = document.getElementById('stat-moods');
+  const genresEl = document.getElementById('stat-genres');
+  if (songsEl) songsEl.textContent = String(songs.length).padStart(2, '0');
+  if (moodsEl) moodsEl.textContent = String(Object.keys(MOOD_MAP).length).padStart(2, '0');
+  if (genresEl && typeof getGenres === 'function') {
+    genresEl.textContent = String(getGenres().length).padStart(2, '0');
+  }
 }
 
 function escapeHtml(t) {
@@ -336,18 +352,45 @@ async function pushSongRating(songKey, value) {
 //  MOOD FILTER
 // ═══════════════════════════════════════════════════════════════
 
+// Only this many mood chips show by default — the rest sit behind a
+// "Show more" toggle so the filter bar doesn't dominate the page once
+// there are a lot of moods.
+const MOOD_BAR_VISIBLE_COUNT = 5;
+
 function renderMoodBar() {
   const bar = document.getElementById('mood-bar');
   if (bar) {
+    const keys = Object.keys(MOOD_MAP);
     let html = `<button class="mood-btn active" data-mood="all"><span class="mood-dot"></span> All</button>`;
-    Object.keys(MOOD_MAP).forEach(key => {
+    keys.forEach((key, i) => {
       const m = MOOD_MAP[key];
-      html += `<button class="mood-btn" data-mood="${key}" style="--mood-c:${m.color}"><span class="mood-dot"></span> ${escapeHtml(m.label)}</button>`;
+      const extra = i >= MOOD_BAR_VISIBLE_COUNT ? ' mood-btn-extra' : '';
+      html += `<button class="mood-btn${extra}" data-mood="${key}" style="--mood-c:${m.color}"><span class="mood-dot"></span> ${escapeHtml(m.label)}</button>`;
     });
+    const hiddenCount = keys.length - MOOD_BAR_VISIBLE_COUNT;
+    if (hiddenCount > 0) {
+      html += `<button class="mood-more-btn" id="mood-more-btn" type="button" data-hidden-count="${hiddenCount}">+ ${hiddenCount} more</button>`;
+    }
     bar.innerHTML = html;
+    bar.classList.remove('mood-bar-expanded');
     initMoodFilter();
+    initMoodShowMore();
   }
   populateMoodSelects();
+  updateHomeStats();
+}
+
+function initMoodShowMore() {
+  const bar = document.getElementById('mood-bar');
+  const btn = document.getElementById('mood-more-btn');
+  if (!bar || !btn || btn.dataset.bound) return;
+  btn.dataset.bound = '1';
+  const hiddenCount = btn.dataset.hiddenCount;
+  btn.addEventListener('click', () => {
+    const expanded = bar.classList.toggle('mood-bar-expanded');
+    btn.textContent = expanded ? 'Show less' : `+ ${hiddenCount} more`;
+    btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  });
 }
 
 function populateMoodSelects() {

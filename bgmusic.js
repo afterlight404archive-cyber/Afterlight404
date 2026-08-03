@@ -1,24 +1,30 @@
 /* ===================================================================
-   bgmusic.js — soft indie/dream-pop ambient background music
+   bgmusic.js — original ambient piano, in the spirit of C418's
+   Minecraft soundtrack (sparse notes, long reverb tails, lots of open
+   space) — but a fully original composition generated live in the
+   browser, so there's no melody or sample being copied and nothing to
+   claim rights over.
    ===================================================================
-   Generated live in the browser with the Web Audio API — no audio
-   file, no external host, no license risk. Rather than a short loop
-   that repeats every few seconds, this is a continuously-generative
-   piece: chords, hold-lengths and the arpeggio pattern on top are all
-   picked from a pool at random (never repeating the same chord twice
-   in a row, and never repeating the exact same pattern back-to-back),
-   so across a 20–30 minute sit it never sounds like it's looping —
-   it just keeps drifting, the way a long ambient/lo-fi mix would.
+   How it works:
+   - A handful of soft piano-style notes, picked from a simple major
+     scale, are played in short 3–6 note phrases with a long, generous
+     reverb tail (built procedurally, not sampled from anywhere).
+   - Between phrases there's a real pause — 4 to 10 seconds of near
+     silence, just like the Minecraft soundtrack's pacing — which is
+     what gives this style its calm, "exploring alone" feel.
+   - A very quiet, slow-moving low drone occasionally underpins it for
+     warmth, without ever becoming a "song" you'd recognize.
+   - Notes, phrase shapes, gaps and drone timing are all randomized
+     with no fixed cycle, so a 20–30 minute sit never repeats itself.
 
-   Plays as soon as the visitor lands, if the browser allows it; if the
-   browser's autoplay policy blocks audio before any interaction (most
-   do), it starts silently the instant they first click/tap/scroll
-   anywhere on the page — so in practice it's playing within a second
-   or two of arriving. It only ever stops when they hit mute, and that
+   Plays as soon as the visitor lands, if the browser allows it; if
+   the browser's autoplay policy blocks audio before any interaction
+   (most do), it starts the instant they first click/tap/scroll
+   anywhere on the page. It only stops when they hit mute, and that
    choice is remembered for next time.
 
    Public API (used by index.html):
-     window.AfterlightBGM.toggle()   → flips play/pause, updates the icon
+     window.AfterlightBGM.toggle()
      window.AfterlightBGM.isPlaying()
    ================================================================= */
 (function () {
@@ -28,43 +34,45 @@
 
   let ctx = null;
   let master = null;
-  let delayNode = null;
-  let delayGain = null;
-  let filter = null;
-  let lfo = null;
+  let dry = null;
+  let convolver = null;
+  let wetGain = null;
+  let wetFilter = null;
   let playing = false;
   let started = false;
-  let stepTimer = null;
-  let lastChordIdx = -1;
-  let lastChordIdx2 = -1;
+  let phraseTimer = null;
+  let droneTimer = null;
 
-  // A pool of chords all diatonic to F major / D minor, four-note
-  // voicings kept in one comfortable octave band so any chord can
-  // follow any other without ever clashing.
-  const CHORDS = [
-    { name: 'Fmaj7',  notes: [174.61, 220.00, 261.63, 329.63] }, // F3 A3 C4 E4
-    { name: 'Am7',    notes: [220.00, 261.63, 329.63, 392.00] }, // A3 C4 E4 G4
-    { name: 'Dm7',    notes: [146.83, 174.61, 220.00, 261.63] }, // D3 F3 A3 C4
-    { name: 'Cmaj7',  notes: [130.81, 164.81, 196.00, 246.94] }, // C3 E3 G3 B3
-    { name: 'Bbmaj7', notes: [116.54, 174.61, 220.00, 293.66] }, // Bb2 F3 A3 D4
-    { name: 'Gm7',    notes: [98.00, 174.61, 220.00, 293.66] },  // G2 F3 A3 D4
-    { name: 'C7',     notes: [130.81, 164.81, 196.00, 233.08] }, // C3 E3 G3 Bb3
-    { name: 'Csus4',  notes: [130.81, 174.61, 196.00, 261.63] }, // C3 F3 G3 C4
+  // A simple, warm major scale (C major, two octaves) — deliberately
+  // plain and consonant, the way the Minecraft soundtrack leans on
+  // open, unresolved-feeling piano tones rather than busy harmony.
+  const SCALE = [
+    130.81, 146.83, 164.81, 196.00, 220.00,           // C3 D3 E3 G3 A3
+    261.63, 293.66, 329.63, 392.00, 440.00, 523.25,   // C4 D4 E4 G4 A4 C5
   ];
+  const DRONE_NOTES = [65.41, 73.42, 87.31, 98.00];   // C2 D2 F2 G2 — root tones
 
-  // A handful of arpeggio shapes (as index-into-chord-notes sequences);
-  // one is picked at random for each chord so the top line keeps moving.
-  const ARP_PATTERNS = [
-    [0, 1, 2, 3, 2, 1],
-    [0, 2, 1, 3],
-    [3, 2, 1, 0, 1, 2],
-    [0, 1, 3, 2],
-    [], // occasional bar of just the pad, no arpeggio — breathing room
-  ];
-
-  const BPM = 78;
-  const BEAT = 60 / BPM;      // seconds per beat
-  const ARP_STEP = BEAT / 2;  // gentle 8th-note arpeggio
+  function buildReverbImpulse() {
+    // A procedurally-generated reverb tail (no sample, no file) — soft,
+    // lightly filtered noise with a long exponential decay, giving the
+    // notes that big, airy "room" trail without ever sounding harsh.
+    const duration = 4.2;
+    const decayPow = 3.2;
+    const rate = ctx.sampleRate;
+    const length = Math.floor(rate * duration);
+    const impulse = ctx.createBuffer(2, length, rate);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = impulse.getChannelData(ch);
+      let lp = 0;
+      for (let i = 0; i < length; i++) {
+        const white = Math.random() * 2 - 1;
+        lp += 0.06 * (white - lp); // gentle low-pass so it's soft, not hissy
+        const env = Math.pow(1 - i / length, decayPow);
+        data[i] = lp * env;
+      }
+    }
+    return impulse;
+  }
 
   function ensureContext() {
     if (ctx) return;
@@ -74,102 +82,109 @@
     master.gain.value = 0;
     master.connect(ctx.destination);
 
-    // Warm low-pass so nothing gets bright or fatiguing over a long sit.
-    filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 1800;
-    filter.connect(master);
+    dry = ctx.createGain();
+    dry.gain.value = 0.55;
+    dry.connect(master);
 
-    // A very slow LFO drifting the filter cutoff keeps the tone from
-    // ever feeling static across 20+ minutes, without being noticeable
-    // moment-to-moment.
-    lfo = ctx.createOscillator();
-    lfo.frequency.value = 1 / 47; // one slow sweep roughly every 47s
-    const lfoGain = ctx.createGain();
-    lfoGain.gain.value = 350;
-    lfo.connect(lfoGain);
-    lfoGain.connect(filter.frequency);
-    lfo.start();
+    convolver = ctx.createConvolver();
+    convolver.buffer = buildReverbImpulse();
+    convolver.normalize = true;
 
-    // Soft slap-back delay for a bit of indie shimmer/space.
-    delayNode = ctx.createDelay(1.0);
-    delayNode.delayTime.value = BEAT * 0.75;
-    delayGain = ctx.createGain();
-    delayGain.gain.value = 0.22;
-    delayNode.connect(delayGain);
-    delayGain.connect(filter);
-    delayGain.connect(delayNode); // feedback
+    wetFilter = ctx.createBiquadFilter();
+    wetFilter.type = 'lowpass';
+    wetFilter.frequency.value = 2600;
+
+    wetGain = ctx.createGain();
+    wetGain.gain.value = 0.55; // a generous, spacious tail like the reference style
+
+    convolver.connect(wetFilter);
+    wetFilter.connect(wetGain);
+    wetGain.connect(master);
   }
 
-  function playPadNote(freq, startTime, duration) {
+  function playPianoNote(freq, startTime, velocity) {
+    // Two slightly detuned tones (a soft fundamental + a quiet octave
+    // partial) with a fast attack and a slow piano-like decay.
     const g = ctx.createGain();
+    const peak = 0.16 * velocity;
     g.gain.setValueAtTime(0, startTime);
-    g.gain.linearRampToValueAtTime(0.09, startTime + 1.2);
-    g.gain.linearRampToValueAtTime(0.0, startTime + duration);
-    g.connect(filter);
-    g.connect(delayNode);
+    g.gain.linearRampToValueAtTime(peak, startTime + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0008, startTime + 3.6);
+    g.connect(dry);
+    g.connect(convolver);
 
-    [1, -1].forEach((detuneDir) => {
-      const osc = ctx.createOscillator();
-      osc.type = 'triangle';
-      osc.frequency.value = freq;
-      osc.detune.value = detuneDir * 5;
-      osc.connect(g);
-      osc.start(startTime);
-      osc.stop(startTime + duration + 0.1);
-    });
+    const osc1 = ctx.createOscillator();
+    osc1.type = 'triangle';
+    osc1.frequency.value = freq;
+    osc1.detune.value = -3;
+    osc1.connect(g);
+    osc1.start(startTime);
+    osc1.stop(startTime + 4);
+
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.value = freq * 2;
+    const g2 = ctx.createGain();
+    g2.gain.setValueAtTime(0, startTime);
+    g2.gain.linearRampToValueAtTime(peak * 0.18, startTime + 0.008);
+    g2.gain.exponentialRampToValueAtTime(0.0006, startTime + 2.4);
+    osc2.connect(g2);
+    g2.connect(dry);
+    g2.connect(convolver);
+    osc2.start(startTime);
+    osc2.stop(startTime + 2.6);
   }
 
-  function playArpNote(freq, startTime) {
+  function playDrone() {
+    if (!playing) return;
+    const freq = DRONE_NOTES[Math.floor(Math.random() * DRONE_NOTES.length)];
+    const start = ctx.currentTime + 0.2;
+    const dur = 22 + Math.random() * 14; // 22–36s, very slow
     const g = ctx.createGain();
-    const dur = ARP_STEP * 1.6;
-    g.gain.setValueAtTime(0, startTime);
-    g.gain.linearRampToValueAtTime(0.05, startTime + 0.03);
-    g.gain.exponentialRampToValueAtTime(0.0001, startTime + dur);
-    g.connect(filter);
-    g.connect(delayNode);
+    g.gain.setValueAtTime(0, start);
+    g.gain.linearRampToValueAtTime(0.035, start + 6);
+    g.gain.linearRampToValueAtTime(0.0, start + dur);
+    g.connect(dry);
+    g.connect(convolver);
 
     const osc = ctx.createOscillator();
     osc.type = 'sine';
-    osc.frequency.value = freq * 2; // an octave up from the pad
+    osc.frequency.value = freq;
     osc.connect(g);
-    osc.start(startTime);
-    osc.stop(startTime + dur + 0.05);
+    osc.start(start);
+    osc.stop(start + dur + 0.5);
+
+    droneTimer = setTimeout(playDrone, dur * 1000 * 0.9);
   }
 
-  function pickNextChordIndex() {
-    // Random, but never the same chord as either of the last two picks —
-    // that's what keeps a 20–30 minute sit from ever feeling like a loop.
-    let idx;
-    do {
-      idx = Math.floor(Math.random() * CHORDS.length);
-    } while (idx === lastChordIdx || idx === lastChordIdx2);
-    lastChordIdx2 = lastChordIdx;
-    lastChordIdx = idx;
-    return idx;
-  }
+  function playPhrase() {
+    if (!playing) return;
+    const now = ctx.currentTime;
+    const noteCount = 3 + Math.floor(Math.random() * 4); // 3–6 notes
+    let t = now + 0.1;
+    let idx = Math.floor(Math.random() * SCALE.length);
 
-  function scheduleChord(time) {
-    const chord = CHORDS[pickNextChordIndex()];
-    // Chords hold for an irregular 10–16 beats, so the rhythm of change
-    // itself never settles into a predictable cycle either.
-    const holdBeats = 10 + Math.floor(Math.random() * 7);
-    const chordLen = holdBeats * BEAT;
+    for (let i = 0; i < noteCount; i++) {
+      // Mostly small steps up or down the scale, occasionally a leap —
+      // gives a gentle, wandering melodic shape rather than randomness.
+      const step = Math.random() < 0.7
+        ? (Math.random() < 0.5 ? -1 : 1) * (Math.random() < 0.8 ? 1 : 2)
+        : (Math.random() < 0.5 ? -1 : 1) * 3;
+      idx = Math.max(0, Math.min(SCALE.length - 1, idx + step));
 
-    chord.notes.forEach((f) => playPadNote(f, time, chordLen + 1.0));
+      const velocity = 0.6 + Math.random() * 0.4;
+      playPianoNote(SCALE[idx], t, velocity);
 
-    const pattern = ARP_PATTERNS[Math.floor(Math.random() * ARP_PATTERNS.length)];
-    if (pattern.length) {
-      const stepsInChord = Math.floor(chordLen / ARP_STEP);
-      for (let s = 0; s < stepsInChord; s++) {
-        const note = chord.notes[pattern[s % pattern.length]];
-        playArpNote(note, time + s * ARP_STEP + ARP_STEP);
-      }
+      // Notes don't fall on a strict grid — small timing variation
+      // keeps it feeling played, not sequenced.
+      t += 0.55 + Math.random() * 0.85;
     }
 
-    stepTimer = setTimeout(() => {
-      if (playing) scheduleChord(ctx.currentTime + 0.05);
-    }, chordLen * 1000);
+    // The real character of this style: a long rest before the next
+    // phrase, so it never feels busy or loop-like.
+    const rest = 4 + Math.random() * 6;
+    const totalWait = (t - now) + rest;
+    phraseTimer = setTimeout(() => { if (playing) playPhrase(); }, totalWait * 1000);
   }
 
   function fadeTo(value, seconds) {
@@ -184,17 +199,19 @@
     ensureContext();
     if (ctx.state === 'suspended') ctx.resume();
     playing = true;
-    fadeTo(0.5, 1.5);
+    fadeTo(0.8, 2.0);
     if (!started) {
       started = true;
-      scheduleChord(ctx.currentTime + 0.1);
+      playPhrase();
+      droneTimer = setTimeout(playDrone, 3000);
     }
     updateIcon();
   }
 
   function stop() {
     playing = false;
-    if (stepTimer) { clearTimeout(stepTimer); stepTimer = null; }
+    if (phraseTimer) { clearTimeout(phraseTimer); phraseTimer = null; }
+    if (droneTimer) { clearTimeout(droneTimer); droneTimer = null; }
     if (ctx) fadeTo(0, 0.6);
     updateIcon();
   }
@@ -226,10 +243,7 @@
     if (wasExplicitlyMuted()) { updateIcon(); return; }
 
     ensureContext();
-    // Try immediately. Most browsers will leave the context "suspended"
-    // until a real user gesture — that's fine, the fallback below covers it.
     start();
-
     if (ctx.state === 'running') return;
 
     const kick = () => {
