@@ -717,6 +717,107 @@ function userLogout() {
   updateSocialBadge();
 }
 
+// Permanently deletes the signed-in account. Removes the server-side row
+// (and everything tied to it, via the alias_delete_account RPC) first when
+// connected, then clears every local trace and logs the browser out.
+// Returns true on success, false if the server delete failed (in which case
+// nothing local is touched, so the caller can let the person retry).
+async function deleteMyAccount() {
+  if (!currentUser) return false;
+  const name = currentUser.name;
+
+  if (isDbConnected() && sb) {
+    try {
+      await ensureAnonSession();
+      const { error } = await sb.rpc('alias_delete_account', { p_username: name });
+      if (error) {
+        showToast(error.message || 'Could not delete your account on the server. Please try again.', { type: 'error' });
+        return false;
+      }
+    } catch (e) {
+      console.error('alias_delete_account failed:', e);
+      showToast('Could not reach the server — your account was not deleted. Check your connection and try again.', { type: 'error' });
+      return false;
+    }
+  }
+
+  // Server delete succeeded (or we're in local-only mode) — clear local traces.
+  let users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  users = users.filter(u => u.name !== name);
+  localStorage.setItem('al-users', JSON.stringify(users));
+
+  let reqs = JSON.parse(localStorage.getItem('al-friend-requests') || '[]');
+  reqs = reqs.filter(r => r.from !== name && r.to !== name);
+  localStorage.setItem('al-friend-requests', JSON.stringify(reqs));
+
+  teardownAliasSession(true);
+  currentUser = null;
+  saveUser();
+  updateAuthUI();
+  updateCommentForm();
+  updateSubmitForm();
+  stopSocialPolling();
+  dmActiveFriend = null;
+  updateSocialBadge();
+
+  return true;
+}
+
+// ── Delete-account confirmation flow (2 steps + a 5s hold before the final
+// button becomes tappable, so nobody deletes their account with a stray tap) ──
+let deleteAccountTimer = null;
+
+function openDeleteAccountFlow() {
+  if (!currentUser) return;
+  document.getElementById('delete-account-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  document.getElementById('da-step1').style.display = '';
+  document.getElementById('da-step2').style.display = 'none';
+}
+
+function closeDeleteAccountOverlay() {
+  document.getElementById('delete-account-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+  if (deleteAccountTimer) { clearInterval(deleteAccountTimer); deleteAccountTimer = null; }
+}
+
+function showDeleteAccountStep2() {
+  document.getElementById('da-step1').style.display = 'none';
+  document.getElementById('da-step2').style.display = '';
+  const btn = document.getElementById('da-confirm-btn');
+  let secondsLeft = 5;
+  btn.disabled = true;
+  btn.textContent = `Delete Permanently (${secondsLeft})`;
+  if (deleteAccountTimer) clearInterval(deleteAccountTimer);
+  deleteAccountTimer = setInterval(() => {
+    secondsLeft -= 1;
+    if (secondsLeft <= 0) {
+      clearInterval(deleteAccountTimer);
+      deleteAccountTimer = null;
+      btn.disabled = false;
+      btn.textContent = 'Delete Permanently';
+    } else {
+      btn.textContent = `Delete Permanently (${secondsLeft})`;
+    }
+  }, 1000);
+}
+
+async function confirmDeleteAccountBtn() {
+  const btn = document.getElementById('da-confirm-btn');
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = 'Deleting…';
+  const ok = await deleteMyAccount();
+  if (!ok) {
+    btn.disabled = false;
+    btn.textContent = 'Delete Permanently';
+    return;
+  }
+  closeDeleteAccountOverlay();
+  showPage('home');
+  showToast('Your account has been permanently deleted.');
+}
+
 function userPfpHTML(name) {
   const users = JSON.parse(localStorage.getItem('al-users') || '[]');
   const record = users.find(u => u.name === name);

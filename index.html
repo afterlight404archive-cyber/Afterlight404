@@ -977,6 +977,33 @@
     <button class="form-btn" onclick="saveUserSettings()">Save Changes</button>
     <p class="auth-error" id="settings-error" style="margin-top:10px;"></p>
     <p id="settings-ok" style="display:none;font-family:var(--mono);font-size:11px;color:var(--green);margin-top:10px;"></p>
+
+    <div class="danger-zone">
+      <div class="settings-block-label" style="color:var(--red);">Danger Zone</div>
+      <p class="anon-hint">Permanently delete your account, profile, and saved data. This can't be undone.</p>
+      <button class="form-btn danger-btn" onclick="openDeleteAccountFlow()">Delete Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE ACCOUNT — 2-step confirmation with a 5s hold before the final button unlocks -->
+<div class="auth-overlay" id="delete-account-overlay" style="z-index:4500;">
+  <div class="auth-modal" style="max-width:380px;">
+    <button class="auth-close" onclick="closeDeleteAccountOverlay()">✕</button>
+
+    <div id="da-step1">
+      <div class="auth-modal-title">Delete Account</div>
+      <p class="auth-modal-sub">Are you sure you want to delete your account? Your profile, saved songs, messages, and account access will be permanently removed.</p>
+      <button class="form-btn danger-btn" onclick="showDeleteAccountStep2()">Delete Permanently</button>
+      <button class="form-btn secondary" onclick="closeDeleteAccountOverlay()">Cancel</button>
+    </div>
+
+    <div id="da-step2" style="display:none;">
+      <div class="auth-modal-title">Are You Sure?</div>
+      <div class="da-warning-box">⚠ This action is permanent. Deleting your account cannot be reversed — your profile, saved songs, messages, and friends will all be gone for good.</div>
+      <button class="form-btn danger-btn" id="da-confirm-btn" disabled onclick="confirmDeleteAccountBtn()">Delete Permanently (5)</button>
+      <button class="form-btn secondary" onclick="closeDeleteAccountOverlay()">Cancel</button>
+    </div>
   </div>
 </div>
 

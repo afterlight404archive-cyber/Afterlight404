@@ -835,10 +835,33 @@ returns boolean language sql stable security definer set search_path = public as
   select exists (select 1 from users where lower(username) = lower(p_username));
 $$;
 
+-- Permanently deletes an alias account and everything tied to it. Only the
+-- browser session that currently owns the alias (owns_alias) may call this.
+-- Deleting the users row cascades to user_auth automatically; everything
+-- else is cleaned up explicitly since it isn't foreign-keyed to users.
+create or replace function alias_delete_account(p_username text)
+returns boolean language plpgsql security definer set search_path = public as $$
+begin
+  if not owns_alias(p_username) then
+    raise exception 'Not authorized to delete this account.';
+  end if;
+  delete from chat_messages   where author = p_username;
+  delete from comments        where author = p_username;
+  delete from dm_messages     where sender = p_username or recipient = p_username;
+  delete from friend_requests where from_user = p_username or to_user = p_username;
+  delete from notifications   where username = p_username or from_user = p_username;
+  delete from submissions     where submitted_by = p_username;
+  delete from reports         where reporter = p_username;
+  delete from users           where username = p_username; -- cascades to user_auth
+  return true;
+end;
+$$;
+
 grant execute on function alias_signup(text, text)                  to anon, authenticated;
 grant execute on function alias_login(text, text)                   to anon, authenticated;
 grant execute on function alias_change_password(text, text, text)   to anon, authenticated;
 grant execute on function alias_name_taken(text)                    to anon, authenticated;
+grant execute on function alias_delete_account(text)                to anon, authenticated;
 
 -- ───────────────────── BLOCK / BAN GUARD ─────────────────────
 

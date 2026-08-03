@@ -1,21 +1,21 @@
 /* ===================================================================
    bgmusic.js — original ambient piano, in the spirit of C418's
-   Minecraft soundtrack (sparse notes, long reverb tails, lots of open
-   space) — but a fully original composition generated live in the
-   browser, so there's no melody or sample being copied and nothing to
-   claim rights over.
+   Minecraft soundtrack (soft piano tone, long reverb tails) — but a
+   fully original composition generated live in the browser, so
+   there's no melody or sample being copied and nothing to claim
+   rights over.
    ===================================================================
    How it works:
-   - A handful of soft piano-style notes, picked from a simple major
-     scale, are played in short 3–6 note phrases with a long, generous
-     reverb tail (built procedurally, not sampled from anywhere).
-   - Between phrases there's a real pause — 4 to 10 seconds of near
-     silence, just like the Minecraft soundtrack's pacing — which is
-     what gives this style its calm, "exploring alone" feel.
-   - A very quiet, slow-moving low drone occasionally underpins it for
-     warmth, without ever becoming a "song" you'd recognize.
-   - Notes, phrase shapes, gaps and drone timing are all randomized
-     with no fixed cycle, so a 20–30 minute sit never repeats itself.
+   - A continuous, never-stopping stream of soft piano-style notes,
+     picked from a simple major scale via a gentle random walk (mostly
+     small steps, occasional bigger leaps) — one flowing line with no
+     silent gaps, rather than short phrases separated by pauses.
+   - A long, generous reverb tail (built procedurally, not sampled
+     from anywhere) on every note gives it that big, airy "room" sound.
+   - A slow, continuously-overlapping low drone underneath for warmth,
+     so the low end never actually goes quiet either.
+   - Notes and the melodic shape are randomized with no fixed cycle,
+     so a 20–30 minute sit never repeats itself.
 
    Plays as soon as the visitor lands, if the browser allows it; if
    the browser's autoplay policy blocks audio before any interaction
@@ -154,36 +154,43 @@
     osc.start(start);
     osc.stop(start + dur + 0.5);
 
-    droneTimer = setTimeout(playDrone, dur * 1000 * 0.9);
+    // Next drone note overlaps well before this one fully fades, so the
+    // low end never actually goes silent — one continuous bed of sound.
+    droneTimer = setTimeout(playDrone, dur * 1000 * 0.55);
   }
+
+  let melodyIdx = Math.floor(Math.random() * SCALE.length);
 
   function playPhrase() {
     if (!playing) return;
     const now = ctx.currentTime;
-    const noteCount = 3 + Math.floor(Math.random() * 4); // 3–6 notes
-    let t = now + 0.1;
-    let idx = Math.floor(Math.random() * SCALE.length);
+    const noteCount = 4 + Math.floor(Math.random() * 5); // 4–8 notes
+    let t = now + 0.05;
 
     for (let i = 0; i < noteCount; i++) {
       // Mostly small steps up or down the scale, occasionally a leap —
       // gives a gentle, wandering melodic shape rather than randomness.
+      // melodyIdx is kept across phrases (not reset each time) so the
+      // line keeps flowing instead of jumping after every "phrase".
       const step = Math.random() < 0.7
         ? (Math.random() < 0.5 ? -1 : 1) * (Math.random() < 0.8 ? 1 : 2)
         : (Math.random() < 0.5 ? -1 : 1) * 3;
-      idx = Math.max(0, Math.min(SCALE.length - 1, idx + step));
+      melodyIdx = Math.max(0, Math.min(SCALE.length - 1, melodyIdx + step));
 
       const velocity = 0.6 + Math.random() * 0.4;
-      playPianoNote(SCALE[idx], t, velocity);
+      playPianoNote(SCALE[melodyIdx], t, velocity);
 
       // Notes don't fall on a strict grid — small timing variation
-      // keeps it feeling played, not sequenced.
-      t += 0.55 + Math.random() * 0.85;
+      // keeps it feeling played, not sequenced — but they now follow
+      // right on each other's heels instead of leaving a gap.
+      t += 0.5 + Math.random() * 0.6;
     }
 
-    // The real character of this style: a long rest before the next
-    // phrase, so it never feels busy or loop-like.
-    const rest = 4 + Math.random() * 6;
-    const totalWait = (t - now) + rest;
+    // No long silence anymore — the next run of notes picks up almost
+    // immediately, so it reads as one continuous, ever-flowing piece
+    // rather than a phrase-then-pause pattern.
+    const gap = 0.15 + Math.random() * 0.35;
+    const totalWait = (t - now) + gap;
     phraseTimer = setTimeout(() => { if (playing) playPhrase(); }, totalWait * 1000);
   }
 
