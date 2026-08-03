@@ -7,37 +7,11 @@ function initChat() {
   if (!currentUser) { wall.style.display = 'block'; layout.style.display = 'none'; return; }
   wall.style.display = 'none'; layout.style.display = 'grid';
   currentRoom = 'general';
+  clearRoomUnread('general');
   renderRoomList();
   syncRoomMessages('general').then(renderChatMessages);
+  subscribeToRoom('general');
   attachMentionAutocomplete('chat-input', 'chat-mention-dropdown');
-  startChatPolling();
-}
-
-// Previously, messages only ever got pulled from Supabase when a room was first
-// opened (syncRoomMessages calls above/below) — so if you stayed in a room, a
-// message someone else sent from another device just never appeared until you
-// left and re-entered, or reloaded the page. This polls whatever's actually
-// visible (global chat room or an open topic thread) every few seconds and only
-// re-renders when something genuinely changed, so an open chat behaves live
-// without constantly resetting your scroll position for no reason.
-let chatPollTimer = null;
-function startChatPolling() {
-  if (chatPollTimer) return;
-  chatPollTimer = setInterval(async () => {
-    if (!currentUser || !isDbConnected()) return;
-    const chatPageVisible = (document.getElementById('page-chat') && document.getElementById('page-chat').classList.contains('active')) || isChatDrawerOpen();
-    if (chatPageVisible && currentRoom) {
-      const before = getMessages(currentRoom).map(m => m.id).join(',');
-      await syncRoomMessages(currentRoom);
-      if (getMessages(currentRoom).map(m => m.id).join(',') !== before) renderChatMessages();
-      renderRoomList();
-    }
-    if (currentTopicRoom) {
-      const before = getMessages(currentTopicRoom).map(m => m.id).join(',');
-      await syncRoomMessages(currentTopicRoom);
-      if (getMessages(currentTopicRoom).map(m => m.id).join(',') !== before) renderTopicChatMessages();
-    }
-  }, 5000);
 }
 
 function getRooms() {
@@ -110,6 +84,7 @@ function renderChatsListPage() {
     .slice(0, 6);
 
   const roomRowHTML = (r, showDot) => {
+    showDot = showDot || isRoomUnread(r.name);
     const count = (msgsByRoom[r.name] || []).length;
     const meta = r.description ? escapeHtml(r.description) : (count + ' message' + (count === 1 ? '' : 's'));
     return `<div class="room-row" onclick="openTopicChat('${escapeJs(r.name)}')">
@@ -196,8 +171,10 @@ function switchRoom(name) {
     document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
     document.getElementById('page-chat').classList.add('active');
   }
+  clearRoomUnread(name);
   renderRoomList();
   syncRoomMessages(name).then(renderChatMessages);
+  subscribeToRoom(name);
   closeChatDrawer();
 }
 
@@ -331,9 +308,10 @@ function renderChatMessages() {
   const isGlobal = currentRoom === 'general';
   title.textContent = isGlobal ? '# Global Chat' : '#' + currentRoom;
   const msgs = getMessages(currentRoom);
-  meta.innerHTML = isGlobal
+  meta.innerHTML = (isGlobal
     ? '<span class="chat-online-dot"></span>' + getLiveOnlineCount().toLocaleString() + ' online'
-    : msgs.length + ' messages';
+    : msgs.length + ' messages') + ' <span class="chat-live-dot"></span>';
+  setChatLiveIndicator(roomChannelStatus);
   container.innerHTML = renderMessageListHTML(msgs, currentRoom);
   container.scrollTop = container.scrollHeight;
   attachLongPress(container);
@@ -391,37 +369,7 @@ function handleModerationVerdict(verdict, originalText) {
 }
 
 async function sendChat() {
-  if (!currentUser) return;
-  const input = document.getElementById('chat-input');
-  const text = input.value.trim();
-  if (!text) return;
-  if (!canSendMessageNow()) return;
-  input.value = '';
-  const verdict = await moderateText(text, 'global', currentRoom);
-  const finalText = handleModerationVerdict(verdict, text);
-  if (finalText === null) return;
-  const msgs = getMessages(currentRoom);
-  const newMsg = { id: 'm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8), author: currentUser.name, text: finalText, time: Date.now(), replyTo: replyContext.global, reactions: {} };
-  msgs.push(newMsg);
-  saveMessages(currentRoom, msgs);
-  if (isDbConnected()) {
-    sb.from('chat_messages').insert({ room: currentRoom, author: currentUser.name, text: finalText, reply_to: newMsg.replyTo }).then(({ error }) => {
-      if (error) {
-        console.error('Chat send failed:', error);
-        showToast('That message only saved on this device — it failed to sync (' + error.message + '), so other people won\'t see it.', { type: 'error', duration: 8000 });
-      }
-    });
-  }
-  lastSentMsgId = newMsg.id;
-  cancelReply('global');
-  renderChatMessages();
-  renderRoomList();
-  // Keep the keyboard bar focused so chatting stays uninterrupted, and give
-  // the input a quick smooth "settle" pulse to confirm the send landed.
-  input.focus();
-  input.classList.remove('input-sent-pulse');
-  void input.offsetWidth; // restart animation
-  input.classList.add('input-sent-pulse');
+  await sendChatToRoom(currentRoom, 'chat-input', 'global', renderChatMessages);
 }
 
 let lastRoomCreatedAt = 0;
@@ -491,11 +439,12 @@ function openTopicChat(name) {
   document.getElementById('page-topic-chat').classList.add('active');
   document.body.classList.add('on-chat-page');
   window.scrollTo(0, 0);
+  clearRoomUnread(name);
   syncRoomMessages(name).then(renderTopicChatMessages);
+  subscribeToRoom(name);
   attachMentionAutocomplete('topic-chat-input', 'topic-chat-mention-dropdown');
   renderRoomList();
   closeChatDrawer();
-  startChatPolling();
 }
 
 function backToGlobalChat() {
@@ -520,34 +469,7 @@ function renderTopicChatMessages() {
 }
 
 async function sendTopicChat() {
-  if (!currentUser || !currentTopicRoom) return;
-  const input = document.getElementById('topic-chat-input');
-  const text = input.value.trim();
-  if (!text) return;
-  if (!canSendMessageNow()) return;
-  input.value = '';
-  const verdict = await moderateText(text, 'topic', currentTopicRoom);
-  const finalText = handleModerationVerdict(verdict, text);
-  if (finalText === null) return;
-  const msgs = getMessages(currentTopicRoom);
-  const newMsg = { id: 'm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8), author: currentUser.name, text: finalText, time: Date.now(), replyTo: replyContext.topic, reactions: {} };
-  msgs.push(newMsg);
-  saveMessages(currentTopicRoom, msgs);
-  if (isDbConnected()) {
-    sb.from('chat_messages').insert({ room: currentTopicRoom, author: currentUser.name, text: finalText, reply_to: newMsg.replyTo }).then(({ error }) => {
-      if (error) {
-        console.error('Topic chat send failed:', error);
-        showToast('That message only saved on this device — it failed to sync (' + error.message + '), so other people won\'t see it.', { type: 'error', duration: 8000 });
-      }
-    });
-  }
-  lastSentMsgId = newMsg.id;
-  cancelReply('topic');
-  renderTopicChatMessages();
-  input.focus();
-  input.classList.remove('input-sent-pulse');
-  void input.offsetWidth;
-  input.classList.add('input-sent-pulse');
+  await sendChatToRoom(currentTopicRoom, 'topic-chat-input', 'topic', renderTopicChatMessages);
 }
 
 document.getElementById('topic-chat-input').addEventListener('keydown', e => {
@@ -759,17 +681,28 @@ function cancelReply(which) {
   if (bannerEl) bannerEl.style.display = 'none';
 }
 
-function deleteMsgFromSheet() {
+async function deleteMsgFromSheet() {
   if (!activeMsgAction) return;
   if (!confirm('Delete this message?')) return;
   const { room, id } = activeMsgAction;
-  let msgs = getMessages(room);
-  msgs = msgs.filter(m => m.id !== id);
-  saveMessages(room, msgs);
-  if (isDbConnected() && sb) {
-    sb.from('chat_messages').delete().eq('room', room).eq('id', id).then(() => {});
-  }
   closeMsgActions();
+
+  // The database id is a bigint. The old code passed the browser-generated
+  // string id ("m_1699..."), so the delete never matched a row — the message
+  // vanished locally and came straight back on the next sync.
+  const isDbRow = /^\d+$/.test(String(id));
+
+  if (isDbConnected() && sb && isDbRow) {
+    const { error } = await sb.from('chat_messages').delete().eq('id', Number(id));
+    if (error) {
+      showToast(/policy|row-level/i.test(error.message)
+        ? "You can only delete your own messages."
+        : 'Could not delete: ' + error.message, { type: 'error' });
+      return;
+    }
+  }
+  const msgs = getMessages(room).filter(m => m.id !== id);
+  saveMessages(room, msgs);
   refreshChatView(room);
   renderRoomList();
 }
@@ -814,3 +747,244 @@ function pickFromFullPicker(emoji) {
 
 
 // ═══════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════
+//  LIVE CHAT (Supabase Realtime)
+//
+//  This is what was missing. Before, chat_messages was fetched exactly
+//  twice — once when you opened the chat page, once when you switched
+//  rooms — and never again. Nothing subscribed to new rows, and the
+//  table was never even added to the `supabase_realtime` publication,
+//  so the server had nothing to push. Other people's messages only
+//  appeared if you left the room and came back.
+//
+//  Now: one channel per room, opened when you enter and torn down when
+//  you leave. INSERT appends, DELETE removes, both re-render instantly.
+// ═══════════════════════════════════════════════════════════════
+
+let roomChannel = null;          // active realtime channel
+let roomChannelName = null;      // which room it's for
+let roomChannelStatus = 'idle';  // idle | connecting | live | error
+
+// Messages sent from THIS browser echo back over realtime a moment later.
+// We stash the temp id against the text+author so the echo replaces the
+// optimistic copy instead of showing the message twice.
+const pendingLocalSends = [];
+
+function setChatLiveIndicator(state) {
+  roomChannelStatus = state;
+  document.querySelectorAll('.chat-live-dot').forEach(el => {
+    el.classList.toggle('is-live', state === 'live');
+    el.classList.toggle('is-error', state === 'error');
+    el.title = state === 'live' ? 'Live — new messages appear instantly'
+             : state === 'error' ? 'Live connection lost — messages may be delayed'
+             : 'Connecting…';
+  });
+}
+
+function teardownRoomRealtime() {
+  if (roomChannel && sb) {
+    try { sb.removeChannel(roomChannel); } catch (e) { /* ignore */ }
+  }
+  roomChannel = null;
+  roomChannelName = null;
+  setChatLiveIndicator('idle');
+}
+
+// Opens (or re-points) the live channel for one room.
+function subscribeToRoom(room) {
+  if (!isDbConnected() || !sb || !room) { teardownRoomRealtime(); return; }
+  if (roomChannelName === room && roomChannel) return; // already listening
+  teardownRoomRealtime();
+  roomChannelName = room;
+  setChatLiveIndicator('connecting');
+
+  try {
+    roomChannel = sb.channel('room-' + room)
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: 'room=eq.' + room },
+        payload => handleIncomingChatRow(room, payload.new))
+      .on('postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'chat_messages' },
+        payload => handleDeletedChatRow(room, payload.old))
+      .subscribe(status => {
+        if (status === 'SUBSCRIBED') setChatLiveIndicator('live');
+        else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setChatLiveIndicator('error');
+      });
+  } catch (e) {
+    console.error('Chat realtime subscribe failed:', e);
+    setChatLiveIndicator('error');
+  }
+}
+
+// A new row landed for this room.
+function handleIncomingChatRow(room, row) {
+  if (!row) return;
+  const msgs = getMessages(room);
+  const dbId = String(row.id);
+
+  // Already have it (e.g. a sync raced the realtime event)? Do nothing.
+  if (msgs.some(m => m.id === dbId)) return;
+
+  // Is this the echo of a message we just sent optimistically? If so,
+  // upgrade the temp row to the real DB id rather than appending a copy.
+  const pendingIdx = pendingLocalSends.findIndex(
+    p => p.room === room && p.author === row.author && p.text === row.text
+  );
+  if (pendingIdx > -1) {
+    const pending = pendingLocalSends.splice(pendingIdx, 1)[0];
+    const local = msgs.find(m => m.id === pending.tempId);
+    if (local) {
+      local.id = dbId;
+      local.time = new Date(row.created_at).getTime();
+      local.replyTo = row.reply_to != null ? String(row.reply_to) : null;
+      saveMessages(room, msgs);
+      refreshChatView(room);
+      return;
+    }
+  }
+
+  msgs.push(migrateMessage({
+    id: dbId,
+    author: row.author,
+    text: row.text,
+    time: new Date(row.created_at).getTime(),
+    replyTo: row.reply_to != null ? String(row.reply_to) : null,
+    reactions: {}
+  }));
+  msgs.sort((a, b) => a.time - b.time);
+  saveMessages(room, msgs);
+  refreshChatView(room);
+  renderRoomList();
+
+  // Someone else said something while you're looking elsewhere on the site.
+  if (currentUser && row.author !== currentUser.name && room !== currentRoom && room !== currentTopicRoom) {
+    markRoomUnread(room);
+  }
+}
+
+function handleDeletedChatRow(room, oldRow) {
+  if (!oldRow || oldRow.id == null) return;
+  const dbId = String(oldRow.id);
+  [room, currentRoom, currentTopicRoom].filter(Boolean).forEach(r => {
+    const msgs = getMessages(r);
+    const next = msgs.filter(m => m.id !== dbId);
+    if (next.length !== msgs.length) {
+      saveMessages(r, next);
+      refreshChatView(r);
+    }
+  });
+}
+
+// Small unread marker so rooms in the drawer show a dot.
+function markRoomUnread(room) {
+  try {
+    const set = JSON.parse(localStorage.getItem('al-unread-rooms') || '[]');
+    if (!set.includes(room)) {
+      set.push(room);
+      localStorage.setItem('al-unread-rooms', JSON.stringify(set));
+    }
+  } catch (e) { /* ignore */ }
+  renderRoomList();
+}
+function clearRoomUnread(room) {
+  try {
+    const set = JSON.parse(localStorage.getItem('al-unread-rooms') || '[]');
+    localStorage.setItem('al-unread-rooms', JSON.stringify(set.filter(r => r !== room)));
+  } catch (e) { /* ignore */ }
+}
+function isRoomUnread(room) {
+  try { return JSON.parse(localStorage.getItem('al-unread-rooms') || '[]').includes(room); }
+  catch (e) { return false; }
+}
+
+// Shared send path for both the global room and topic rooms — the two used
+// to be near-identical copies that drifted apart, and both carried the same
+// two bugs: reply_to was sent as a local string id (the column is bigint, so
+// every reply silently failed to reach the database), and nothing checked
+// whether the insert succeeded.
+async function sendChatToRoom(room, inputId, replyKey, rerender) {
+  if (!currentUser || !room) return;
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+  if (text.length > 2000) {
+    showToast('That message is too long (2000 characters max).', { type: 'error' });
+    return;
+  }
+  if (!canSendMessageNow()) return;
+
+  input.value = '';
+  const verdict = await moderateText(text, room === 'general' ? 'global' : 'topic', room);
+  const finalText = handleModerationVerdict(verdict, text);
+  if (finalText === null) { input.value = text; return; }
+
+  // Only a numeric (database) id is a valid reply target. A reply to a
+  // message that only exists locally is sent as a plain message instead of
+  // failing the whole insert.
+  const rawReply = replyContext[replyKey];
+  const replyDbId = rawReply && /^\d+$/.test(String(rawReply)) ? Number(rawReply) : null;
+
+  const tempId = 'tmp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  const msgs = getMessages(room);
+  const newMsg = {
+    id: tempId, author: currentUser.name, text: finalText,
+    time: Date.now(), replyTo: rawReply || null, reactions: {}, pending: true
+  };
+  msgs.push(newMsg);
+  saveMessages(room, msgs);
+  lastSentMsgId = tempId;
+  cancelReply(replyKey);
+  rerender();
+  renderRoomList();
+
+  input.focus();
+  input.classList.remove('input-sent-pulse');
+  void input.offsetWidth;
+  input.classList.add('input-sent-pulse');
+
+  if (!isDbConnected() || !sb) return; // local-only mode, nothing more to do
+
+  pendingLocalSends.push({ room, author: currentUser.name, text: finalText, tempId });
+
+  const { data, error } = await sb.from('chat_messages')
+    .insert({ room: room, author: currentUser.name, text: finalText, reply_to: replyDbId })
+    .select('id, created_at')
+    .single();
+
+  if (error) {
+    // Roll the optimistic message back and say what happened, instead of
+    // leaving it sitting there looking sent when it never left the browser.
+    const idx = pendingLocalSends.findIndex(p => p.tempId === tempId);
+    if (idx > -1) pendingLocalSends.splice(idx, 1);
+    const list = getMessages(room).filter(m => m.id !== tempId);
+    saveMessages(room, list);
+    rerender();
+    const friendly = /rate|too fast|slow down/i.test(error.message)
+      ? 'Sending too fast — wait a second and try again.'
+      : /row-level security|policy/i.test(error.message)
+        ? 'Your session expired. Log out and back in to keep chatting.'
+        : 'Message failed to send: ' + error.message;
+    showToast(friendly, { type: 'error' });
+    input.value = finalText;
+    return;
+  }
+
+  // Insert succeeded. Promote the temp row now rather than waiting for the
+  // realtime echo, so the message is immediately replyable/deletable.
+  if (data && data.id != null) {
+    const idx = pendingLocalSends.findIndex(p => p.tempId === tempId);
+    if (idx > -1) pendingLocalSends.splice(idx, 1);
+    const list = getMessages(room);
+    const local = list.find(m => m.id === tempId);
+    if (local) {
+      local.id = String(data.id);
+      delete local.pending;
+      if (data.created_at) local.time = new Date(data.created_at).getTime();
+      saveMessages(room, list);
+      if (lastSentMsgId === tempId) lastSentMsgId = local.id;
+      rerender();
+    }
+  }
+}

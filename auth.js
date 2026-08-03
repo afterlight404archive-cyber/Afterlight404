@@ -1,16 +1,9 @@
 //  REAL GOOGLE SIGN-IN (via Supabase Auth)
-//  Login-only by design: Google can log someone into an account that
-//  already exists (matched by email against a normal email+password
-//  signup, or a previously Google-linked account), but it can never
-//  create a brand-new account. Someone with no matching account gets
-//  signed back out immediately and told to sign up with email first.
-//
 //  Only works once: (1) Supabase is connected, (2) the Google provider is
 //  enabled in that Supabase project with a Google Cloud OAuth client, and
 //  (3) the site is served from a real https:// URL matching Supabase's
 //  configured Site URL / Redirect URLs. Falls back to the simulated
-//  alias-entry modal otherwise (e.g. while testing locally as a file) —
-//  that fallback is login-only too, for the same reason.
+//  alias-entry modal otherwise (e.g. while testing locally as a file).
 // ═══════════════════════════════════════════════════════════════
 
 function sanitizeGoogleAlias(rawName) {
@@ -61,34 +54,19 @@ async function handleGoogleAuthCallback() {
       }
     } else {
       let users = JSON.parse(localStorage.getItem('al-users') || '[]');
-      // Google is login-only now — it must never be a second way to create an
-      // account. Match against an account that's already linked to this exact
-      // Google email (a previous successful Google login) OR one that was
-      // registered the normal way (email + password) using this same email.
-      // If neither matches, sign the person back out of the Supabase session
-      // immediately and tell them to sign up first — no account gets created
-      // here under any circumstance.
+      // Returning Google user on this browser — log back into the same local account.
       let account = users.find(u => u.googleEmail === email);
       if (!account) {
-        account = users.find(u => (u.email || '').toLowerCase() === (email || '').toLowerCase());
-        if (account) {
-          // First successful Google login for an existing email/password
-          // account — link it so future Google logins match instantly.
-          account.googleEmail = email;
-          localStorage.setItem('al-users', JSON.stringify(users));
+        let alias = sanitizeGoogleAlias(displayName);
+        // Don't silently take over an existing name that belongs to a different account.
+        if (users.find(u => u.name === alias)) {
+          let suffix = 2;
+          while (users.find(u => u.name === (alias + suffix).slice(0, 20))) suffix++;
+          alias = (alias + suffix).slice(0, 20);
         }
-      }
-      if (!account) {
-        showToast('No account found for ' + email + '. Sign up with your email and password first — then Google sign-in will work for that account.', { type: 'error', duration: 10000 });
-        await sb.auth.signOut();
-        closeAuth();
-        return;
-      }
-      if (account.blocked) {
-        showToast('This account has been blocked by the site owner.', { type: 'error' });
-        await sb.auth.signOut();
-        closeAuth();
-        return;
+        account = { name: alias, password: 'google_oauth', created: Date.now(), avatar: null, gender: '', bio: '', totalSeconds: 0, code: generateFriendCode(new Set(users.map(u => u.code).filter(Boolean))), googleEmail: email };
+        users.push(account);
+        localStorage.setItem('al-users', JSON.stringify(users));
       }
       currentUser = { name: account.name };
       saveUser();
@@ -294,20 +272,18 @@ async function handleUserSignup() {
   const honeypot = document.getElementById('us-website');
   if (honeypot && honeypot.value.trim() !== '') { return; }
   if (!canAttemptSignupNow()) return;
-  const err0 = document.getElementById('us-error');
-  if (isTurnstileEnabledCached()) {
-    const token = getTurnstileToken('signup');
-    if (!token) {
-      if (err0) { err0.textContent = 'Please complete the verification check above.'; err0.style.display = 'block'; }
-      return;
-    }
-    const human = await verifyTurnstileToken(token);
-    if (!human) {
-      if (err0) { err0.textContent = "Verification failed — please retry the check above."; err0.style.display = 'block'; }
-      if (window.turnstile && turnstileWidgetIds.signup) turnstile.reset(turnstileWidgetIds.signup);
-      return;
-    }
-  }
+
+  // NOTE ON ORDERING — the bot check used to run FIRST, before any of the
+  // field validation below. That burned the single-use Turnstile token on
+  // every submission, including ones that were always going to be rejected
+  // for a mismatched password or a taken name. Fix the password, press
+  // Create Account again, and the code re-sent the token it had already
+  // spent — Cloudflare answers "timeout-or-duplicate", the site says
+  // "Verification failed", and you are stuck on that screen permanently
+  // with a green Success! badge sitting right above the red error.
+  //
+  // The check now runs LAST, once everything else has passed, so a token is
+  // only ever spent on a submission that is otherwise ready to go through.
   const realName = document.getElementById('us-realname').value.trim();
   const name = document.getElementById('us-name').value.trim();
   const gender = document.getElementById('us-gender').value;
@@ -327,6 +303,60 @@ async function handleUserSignup() {
   // Don't write the account yet — hold it as a pending signup until the
   // email code checks out, so nobody can create an account with an email
   // they don't actually control.
+  // Cross-device name check. The old code only looked at this browser's
+  // 'al-users' array, so two people on different devices could both claim
+  // the same name — the second one's alias_signup() then threw, the error
+  // was swallowed into console.error, and they ended up with an account
+  // that existed on their device only and could never sync. That is the
+  // single biggest reason things "fall into local storage".
+  if (isDbConnected() && sb) {
+    try {
+      const { data: taken, error: takenErr } = await sb.rpc('alias_name_taken', { p_username: name });
+      if (!takenErr && taken) {
+        err.textContent = 'That anonymous name is already taken.';
+        err.style.display = 'block';
+        return;
+      }
+    } catch (e) { /* fall through — better to attempt signup than to block it */ }
+  }
+
+  // ── Bot check, last thing before the account is actually created ──
+  if (isTurnstileEnabledCached()) {
+    const token = getTurnstileToken('signup');
+    if (!token) {
+      err.textContent = 'Please complete the verification check above.';
+      err.style.display = 'block';
+      return;
+    }
+    const verdict = await verifyTurnstileToken(token);
+    // Always burn and re-issue the widget, pass or fail — the token just
+    // used is spent either way, and reusing it is what caused the loop.
+    resetTurnstileWidget('signup');
+
+    if (!verdict.ok) {
+      if (verdict.reason === 'stale-token') {
+        err.textContent = 'That check had expired. It has been refreshed — please tick it once more and press Create Account.';
+        err.style.display = 'block';
+        return;
+      }
+      if (verdict.reason === 'rejected') {
+        err.textContent = 'The bot check did not pass. Please retry the check above.';
+        err.style.display = 'block';
+        return;
+      }
+      // Infrastructure fault: not this person's fault, and no amount of
+      // retrying will fix it. Don't trap them on the signup screen.
+      console.error('Turnstile unavailable (' + (verdict.detail || verdict.reason) +
+        ') — see Admin → Safety & Bots → Current status.');
+      if (isTurnstileStrictMode()) {
+        err.textContent = "Signups are temporarily unavailable — the site's bot check isn't responding. Please try again later.";
+        err.style.display = 'block';
+        return;
+      }
+      showToast('Bot check unavailable — continuing without it.', { duration: 4000 });
+    }
+  }
+
   const passHash = await hashUserPassword(name, pass);
   pendingSignup = {
     // pass (plaintext) is kept only for the 15-min verification window, purely so
@@ -336,14 +366,80 @@ async function handleUserSignup() {
     realName: realName, name: name, gender: gender, email: email,
     passHash: passHash, pass: pass, code: generateVerificationCode(), expires: Date.now() + 15 * 60 * 1000
   };
-  localStorage.setItem('al-pending-signup', JSON.stringify(pendingSignup));
+  await savePendingSignup();
   closeAuth();
   await sendVerificationEmail(pendingSignup.email, pendingSignup.code, pendingSignup.name);
   showVerifyEmail();
 }
 
 function generateVerificationCode() {
+  // crypto.getRandomValues is unpredictable; Math.random is not. A code
+  // that guards email ownership shouldn't come out of a PRNG an attacker
+  // can model.
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const buf = new Uint32Array(1);
+    crypto.getRandomValues(buf);
+    return String(100000 + (buf[0] % 900000));
+  }
   return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PENDING SIGNUP PERSISTENCE
+//
+//  Two bugs lived here. First, 'al-pending-signup' was written but never
+//  read back — refresh or close the tab mid-verification and you were
+//  permanently stuck on "Your signup session expired", with a dead key
+//  left in storage forever. Second, what got written included the live
+//  6-digit code AND the plaintext password, so anyone with the browser
+//  console could read the code straight out of localStorage and skip
+//  email verification entirely.
+//
+//  Now: only a salted hash of the code is stored, the password is held
+//  in memory for the verification window only, and the pending signup is
+//  restored on page load so a refresh doesn't strand anyone.
+// ═══════════════════════════════════════════════════════════════
+
+async function hashVerificationCode(code, email) {
+  const data = new TextEncoder().encode('afterlight-otp:' + email.toLowerCase() + ':' + code);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function savePendingSignup() {
+  if (!pendingSignup) return;
+  const safe = {
+    realName: pendingSignup.realName,
+    name: pendingSignup.name,
+    gender: pendingSignup.gender,
+    email: pendingSignup.email,
+    passHash: pendingSignup.passHash,
+    codeHash: await hashVerificationCode(pendingSignup.code, pendingSignup.email),
+    expires: pendingSignup.expires
+  };
+  try { localStorage.setItem('al-pending-signup', JSON.stringify(safe)); } catch (e) { /* quota */ }
+}
+
+// Called once at startup. Brings back an in-progress verification after a
+// refresh, and clears it out if the 15-minute window already elapsed.
+function restorePendingSignup() {
+  let raw;
+  try { raw = localStorage.getItem('al-pending-signup'); } catch (e) { return; }
+  if (!raw) return;
+  let saved;
+  try { saved = JSON.parse(raw); } catch (e) { localStorage.removeItem('al-pending-signup'); return; }
+  if (!saved || !saved.expires || Date.now() > saved.expires) {
+    localStorage.removeItem('al-pending-signup');
+    return;
+  }
+  pendingSignup = saved;         // note: no .code and no .pass — see below
+  pendingSignup.restored = true;
+  showVerifyEmail();
+}
+
+function clearPendingSignup() {
+  pendingSignup = null;
+  try { localStorage.removeItem('al-pending-signup'); } catch (e) { /* ignore */ }
 }
 
 // Sends the real verification email via EmailJS (see config.js for setup steps).
@@ -458,17 +554,25 @@ function showVerifyEmail() {
   if (codeInput) setTimeout(() => codeInput.focus(), 100);
 }
 
+let lastResendAt = 0;
+const RESEND_COOLDOWN_MS = 45000;
+
 async function resendVerificationCode() {
   if (!pendingSignup) return;
+  const wait = RESEND_COOLDOWN_MS - (Date.now() - lastResendAt);
+  if (wait > 0) {
+    showToast('Hold on — you can request another code in ' + Math.ceil(wait / 1000) + 's.', { type: 'error' });
+    return;
+  }
+  lastResendAt = Date.now();
   pendingSignup.code = generateVerificationCode();
   pendingSignup.expires = Date.now() + 15 * 60 * 1000;
-  localStorage.setItem('al-pending-signup', JSON.stringify(pendingSignup));
+  await savePendingSignup();
   await sendVerificationEmail(pendingSignup.email, pendingSignup.code, pendingSignup.name);
 }
 
 function cancelVerification() {
-  pendingSignup = null;
-  localStorage.removeItem('al-pending-signup');
+  clearPendingSignup();
   document.getElementById('verify-email-overlay').classList.remove('open');
   document.body.style.overflow = '';
   showSignup();
@@ -489,7 +593,15 @@ async function handleVerifyEmail() {
     return;
   }
   const entered = document.getElementById('ve-code').value.trim();
-  if (entered !== pendingSignup.code) {
+  if (!/^\d{6}$/.test(entered)) {
+    err.textContent = 'Enter the 6-digit code from your email.';
+    err.style.display = 'block';
+    return;
+  }
+  const enteredHash = await hashVerificationCode(entered, pendingSignup.email);
+  const expectedHash = pendingSignup.codeHash ||
+    (pendingSignup.code ? await hashVerificationCode(pendingSignup.code, pendingSignup.email) : null);
+  if (!expectedHash || enteredHash !== expectedHash) {
     registerFailedVerifyAttempt();
     err.textContent = 'Incorrect code. Double-check it and try again.';
     err.style.display = 'block';
@@ -516,17 +628,29 @@ async function handleVerifyEmail() {
   // the account still works fine on this one device via the local passHash.
   let cloudToken = null;
   if (isDbConnected()) {
-    try {
-      await ensureAnonSession();
-      const { data, error } = await sb.rpc('alias_signup', { p_username: pendingSignup.name, p_password: pendingSignup.pass });
-      if (error) throw error;
-      cloudToken = data;
-    } catch (e) {
-      console.error('Cloud account setup failed — this account will only work on this device until Supabase is set up:', e.message);
+    // After a page refresh we deliberately no longer hold the plaintext
+    // password (it isn't persisted any more), so ask for it once here.
+    // Without this the account would quietly be created on this device
+    // only and would never work anywhere else — exactly the failure mode
+    // that made accounts look like they'd "fallen into local storage".
+    let pw = pendingSignup.pass;
+    if (!pw) {
+      pw = prompt('Almost done — re-enter the password you chose, to finish creating your account:') || '';
+    }
+    if (pw) {
+      try {
+        await ensureAnonSession();
+        const { data, error } = await sb.rpc('alias_signup', { p_username: pendingSignup.name, p_password: pw });
+        if (error) throw error;
+        cloudToken = data;
+      } catch (e) {
+        console.error('Cloud account setup failed:', e.message);
+        showToast('Your account was created on this device, but syncing it to the server failed (' +
+          (e.message || 'unknown error') + '). Log out and back in once to retry.', { type: 'error', duration: 9000 });
+      }
     }
   }
-  pendingSignup = null;
-  localStorage.removeItem('al-pending-signup');
+  clearPendingSignup();
   if (cloudToken) setActiveAliasSession(currentUser.name, cloudToken);
   document.getElementById('verify-email-overlay').classList.remove('open');
   document.body.style.overflow = '';
@@ -540,6 +664,7 @@ async function handleVerifyEmail() {
 }
 
 function handleGoogleLogin() { startGoogleAuth('user'); }
+function handleGoogleSignup() { startGoogleAuth('user'); }
 
 function showGoogleAlias() {
   closeAuth();
@@ -556,20 +681,19 @@ function submitGoogleAlias() {
   if (!isValidAnonName(name)) { err.textContent = 'Invalid name.'; err.style.display = 'block'; return; }
   let users = JSON.parse(localStorage.getItem('al-users') || '[]');
   const existing = users.find(u => u.name === name);
-  // Google is login-only — this fallback (used only while Supabase isn't
-  // connected, so there's no real email to check) can no longer create a
-  // brand-new account either. It only continues if this alias already
-  // belongs to an account previously linked via Google sign-in.
-  if (!existing || existing.password !== 'google_oauth') {
-    err.textContent = 'No Google-linked account found for that name. Sign up with email and password first, then Google sign-in will work for that account.';
+  if (existing && existing.password !== 'google_oauth') {
+    err.textContent = 'That name belongs to a password-protected account. Choose a different alias, or log in with a password instead.';
     err.style.display = 'block';
     return;
   }
-  if (existing.blocked) {
+  if (existing && existing.blocked) {
     err.textContent = 'This account has been blocked by the site owner.';
     err.style.display = 'block';
     return;
   }
+  const isNewAccount = !existing;
+  if (isNewAccount) users.push({ name: name, password: 'google_oauth', created: Date.now(), avatar: null, gender: '', bio: '', totalSeconds: 0, code: generateFriendCode(new Set(users.map(u => u.code).filter(Boolean))) });
+  localStorage.setItem('al-users', JSON.stringify(users));
   currentUser = { name: name };
   saveUser();
   closeAuth();
@@ -578,6 +702,7 @@ function submitGoogleAlias() {
   updateSubmitForm();
   pushUserProfile();
   updateSocialBadge();
+  if (isNewAccount) showForcedAvatarPicker();
 }
 
 function userLogout() {
@@ -851,9 +976,9 @@ function getUsernameChangeStatus(record) {
 function renderUserSettings() {
   if (!currentUser) return;
   const record = getCurrentUserRecord() || {};
-  const display = document.getElementById('settings-username-display');
+  const display = document.getElementById('set-username-display');
   if (display) display.textContent = '@' + currentUser.name;
-  const codeBox = document.getElementById('settings-your-code');
+  const codeBox = document.getElementById('set-your-code');
   if (codeBox) codeBox.innerHTML = yourCodeBoxHTML(record.code);
   const nameInput = document.getElementById('settings-name');
   if (nameInput) nameInput.value = currentUser.name;
@@ -871,10 +996,10 @@ function renderUserSettings() {
     }
   }
 
-  const joinedEl = document.getElementById('settings-joined-display');
+  const joinedEl = document.getElementById('set-joined-display');
   if (joinedEl) joinedEl.textContent = record.created ? new Date(record.created).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
 
-  const usageEl = document.getElementById('settings-usage-display');
+  const usageEl = document.getElementById('set-usage-display');
   if (usageEl) usageEl.textContent = formatUsageTime(record.totalSeconds);
 
   const genderEl = document.getElementById('settings-gender');

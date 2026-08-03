@@ -420,6 +420,18 @@ function showPage(page) {
   document.body.classList.toggle('on-friends-page', page === 'friends' || page === 'dm');
   if (page !== 'topic-chat') currentTopicRoom = null;
   if (page !== 'dm' && page !== 'friends') dmActiveFriend = null;
+
+  // Close realtime channels for pages we're leaving. Without this, every
+  // room you ever visited kept an open websocket subscription for the whole
+  // session — memory climbed, and on a long session Supabase starts
+  // refusing new channels once the per-client limit is hit, which looked
+  // like "chat randomly stops updating after a while".
+  if (page !== 'chat' && page !== 'topic-chat' && typeof teardownRoomRealtime === 'function') {
+    teardownRoomRealtime();
+  }
+  if (page !== 'dm' && typeof teardownDmRealtime === 'function') {
+    teardownDmRealtime();
+  }
   if (page === 'chat') initChat();
   if (page === 'admin') initAdmin();
   if (page === 'social') initSocialHub();

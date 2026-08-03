@@ -45,29 +45,37 @@
   }
 
   :root {
-    --bg:       #08070D;
-    --surface:  #0F0D18;
-    --card:     #141221;
-    --border:   #221F33;
-    --border2:  #342F4A;
-    --text:     #E8E4F8;
-    --muted:    #5E5878;
-    --dim:      #9890B8;
-    --accent:   #C8A96E;
-    --accent2:  #7B6FA0;
-    --accent-glow: rgba(200,169,110,0.18);
-    --accent2-glow: rgba(123,111,160,0.18);
-    --red:      #B85C5C;
-    --green:    #4caf8a;
-    --header-bg: rgba(8,7,13,0.90);
+    /* ── DARK MODE, REWORKED ──
+       The old palette sat at #08070D with #5E5878 muted text — that pairing
+       is about 3.1:1 contrast, below the 4.5:1 readability threshold, which
+       is why secondary text looked washed out and unreadable on phones in
+       daylight. This version lifts the base off pure black to a warmer ink,
+       widens the gap between surface levels so cards actually read as
+       raised, and shifts the accent from flat gold to a warmer amber with a
+       teal counterpoint instead of the muddy purple. */
+    --bg:       #0B0A11;
+    --surface:  #13111C;
+    --card:     #191625;
+    --border:   #2A2639;
+    --border2:  #3D3752;
+    --text:     #EDEAF6;
+    --muted:    #8B84A6;
+    --dim:      #B0A9C8;
+    --accent:   #D9B270;
+    --accent2:  #6FA8A0;
+    --accent-glow: rgba(217,178,112,0.22);
+    --accent2-glow: rgba(111,168,160,0.20);
+    --red:      #D07070;
+    --green:    #5CC49A;
+    --header-bg: rgba(11,10,17,0.92);
     --mono:     'IBM Plex Mono', monospace;
     --serif:    'Playfair Display', Georgia, serif;
     --sans:     'Inter', sans-serif;
-    --shadow-card: 0 4px 24px rgba(0,0,0,0.45), 0 1px 4px rgba(0,0,0,0.3);
-    --shadow-glow: 0 0 40px rgba(200,169,110,0.08);
+    --shadow-card: 0 6px 28px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.35);
+    --shadow-glow: 0 0 48px rgba(217,178,112,0.10);
     --radius: 4px;
-    --card-hover: #1a1730;
-    --modal-grad-start: #131020;
+    --card-hover: #211D31;
+    --modal-grad-start: #1A1727;
   }
 
   #devtools-block-overlay {
@@ -2411,3 +2419,110 @@
     #toast-stack { top: 12px; width: 94vw; }
     .toast { padding: 14px 14px; }
   }
+
+/* ═══════════════════════════════════════════════════════════════
+   ADDITIONS — styling for the newly fixed features
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Rating: change / remove controls ── */
+.rating-actions {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 6px; min-height: 18px; flex-wrap: wrap;
+}
+.rating-clear-btn {
+  background: none; border: 1px solid var(--border2); color: var(--dim);
+  font-family: var(--mono); font-size: 10px; letter-spacing: .04em;
+  padding: 3px 9px; border-radius: var(--radius); cursor: pointer;
+  transition: color .18s ease, border-color .18s ease, background .18s ease;
+}
+.rating-clear-btn:hover { color: var(--red); border-color: var(--red); background: rgba(208,112,112,.08); }
+.rating-changehint { font-family: var(--mono); font-size: 9.5px; color: var(--muted); }
+.rating-note { transition: transform .18s ease, opacity .18s ease; }
+.rating-note:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+/* ── Comment delete ── */
+.comment-delete-btn {
+  margin-left: auto; background: none; border: none; cursor: pointer;
+  font-family: var(--mono); font-size: 10px; color: var(--muted);
+  padding: 2px 6px; border-radius: 3px; transition: color .18s ease, background .18s ease;
+}
+.comment-delete-btn:hover { color: var(--red); background: rgba(208,112,112,.1); }
+.comment-meta { display: flex; align-items: center; gap: 8px; }
+
+/* ── Live-connection indicator in the chat header ── */
+.chat-live-dot {
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--muted); margin-left: 6px; vertical-align: middle;
+  transition: background .25s ease, box-shadow .25s ease;
+}
+.chat-live-dot.is-live  { background: var(--green); box-shadow: 0 0 6px rgba(92,196,154,.7); animation: livePulse 2.4s ease-in-out infinite; }
+.chat-live-dot.is-error { background: var(--red); box-shadow: 0 0 6px rgba(208,112,112,.6); }
+@keyframes livePulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+
+/* A message still in flight to the server reads slightly faded. */
+.chat-msg[data-pending="1"] { opacity: .6; }
+
+/* ── Account summary block in Edit Profile ── */
+.settings-account-summary {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px; margin-bottom: 18px;
+}
+.settings-account-handle {
+  font-family: var(--mono); font-size: 14px; color: var(--accent);
+  letter-spacing: .03em; margin-bottom: 8px;
+}
+.settings-account-meta { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 10px; }
+.settings-account-meta > div { display: flex; flex-direction: column; gap: 2px; }
+.sam-label { font-family: var(--mono); font-size: 9.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+.sam-value { font-family: var(--mono); font-size: 12px; color: var(--text); }
+
+/* ── Safety & Bots: step-by-step setup cards ── */
+.setup-steps { display: flex; flex-direction: column; gap: 0; margin: 14px 0 4px; }
+.setup-step {
+  display: flex; gap: 14px; padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+.setup-step:last-child { border-bottom: none; }
+.setup-step-num {
+  flex: 0 0 26px; height: 26px; border-radius: 50%;
+  background: var(--accent); color: var(--bg);
+  font-family: var(--mono); font-size: 12px; font-weight: 500;
+  display: flex; align-items: center; justify-content: center;
+}
+.setup-step-body { flex: 1; min-width: 0; }
+.setup-step-title { font-family: var(--sans); font-size: 13.5px; color: var(--text); font-weight: 500; margin-bottom: 4px; }
+.setup-step-desc { font-family: var(--sans); font-size: 12.5px; color: var(--dim); line-height: 1.55; }
+.setup-step-desc a { color: var(--accent); }
+.setup-step-desc code {
+  font-family: var(--mono); font-size: 11.5px; background: var(--card);
+  border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; color: var(--accent2);
+}
+.setup-status {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: 11px; padding: 4px 10px;
+  border-radius: 20px; margin-top: 8px;
+}
+.setup-status.is-on   { background: rgba(92,196,154,.12);  color: var(--green);  border: 1px solid rgba(92,196,154,.3); }
+.setup-status.is-off  { background: rgba(139,132,166,.12); color: var(--muted);  border: 1px solid var(--border2); }
+.setup-status.is-warn { background: rgba(208,112,112,.12); color: var(--red);    border: 1px solid rgba(208,112,112,.3); }
+.setup-note {
+  font-family: var(--sans); font-size: 12px; color: var(--dim); line-height: 1.6;
+  background: var(--surface); border-left: 2px solid var(--accent2);
+  padding: 10px 14px; margin: 12px 0; border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+
+/* The global 'user-select: none' at the top of this file is meant to stop
+   accidental text-drag on buttons and cards during touch scrolling. It was
+   applied to * with no exceptions, which meant nobody could select or copy
+   a lyric, a song description, or a chat message — on a site whose entire
+   purpose is archiving lyrics. Re-enabled for actual content. */
+.song-lyrics, #m-lyrics, #m-about, #m-meaning, #m-credit, #m-funfact,
+.song-desc, .comment-text, .chat-msg-text, .dm-bubble-text,
+.setup-step-desc, .setup-step-desc code, pre, code, .sam-value {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}

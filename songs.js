@@ -218,6 +218,7 @@ function renderSongGrid() {
           <span class="rating-locked-msg">✓ Rated</span>
         </div>
         <div class="rating-community" data-role="community">${ratingCommunityHtml(s.number.replace('#',''))}</div>
+        <div class="rating-actions"></div>
       </div>
     `;
     grid.appendChild(card);
@@ -331,53 +332,6 @@ async function pushSongRating(songKey, value) {
   }
 }
 
-function initRatings() {
-  document.querySelectorAll('.rating-wrap').forEach(wrap => {
-    const songKey = wrap.dataset.song;
-    const notes = wrap.querySelectorAll('.rating-note');
-    const countEl = wrap.querySelector('.rating-count');
-    const lockMsg = wrap.querySelector('.rating-locked-msg');
-    const saved = localStorage.getItem('al-rating-' + songKey);
-    let currentRating = saved ? parseInt(saved, 10) : 0;
-    let isLocked = currentRating > 0;
-
-    function render() {
-      notes.forEach((note, idx) => {
-        note.classList.toggle('filled', idx < currentRating);
-      });
-      countEl.textContent = currentRating > 0 ? currentRating + '/5' : '';
-      lockMsg.classList.toggle('visible', isLocked);
-      notes.forEach(n => {
-        n.style.cursor = isLocked ? 'default' : 'pointer';
-        n.style.opacity = isLocked && !n.classList.contains('filled') ? '0.3' : '1';
-      });
-    }
-
-    render();
-
-    notes.forEach((note, idx) => {
-      note.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (isLocked) return;
-        const val = idx + 1;
-        currentRating = val;
-        isLocked = true;
-        localStorage.setItem('al-rating-' + songKey, val);
-        render();
-      });
-      note.addEventListener('mouseenter', () => {
-        if (isLocked) return;
-        notes.forEach((n, i) => n.classList.toggle('filled', i <= idx));
-      });
-    });
-
-    wrap.addEventListener('mouseleave', () => {
-      if (isLocked) return;
-      notes.forEach((n, i) => n.classList.toggle('filled', i < currentRating));
-    });
-  });
-}
-
 // ═══════════════════════════════════════════════════════════════
 //  MOOD FILTER
 // ═══════════════════════════════════════════════════════════════
@@ -411,12 +365,13 @@ function populateMoodSelects() {
 }
 
 function initMoodFilter() {
-  const moodBtns = document.querySelectorAll('.mood-btn');
+  const moodBtns = document.querySelectorAll('.mood-btn:not([data-filter-bound])');
   const cards = document.querySelectorAll('.song-card');
   const countTag = document.getElementById('count-tag');
   moodBtns.forEach(btn => {
+    btn.dataset.filterBound = '1';
     btn.addEventListener('click', () => {
-      moodBtns.forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       const mood = btn.dataset.mood;
       let visible = 0;
@@ -524,9 +479,9 @@ function saveComments(songKey, comments) {
 async function refreshCommentsForSong(songKey) {
   if (typeof sb === 'undefined' || !sb) return;
   try {
-    const { data, error } = await sb.from('comments').select('author,text,created_at').eq('song_key', String(songKey)).order('created_at', { ascending: true });
+    const { data, error } = await sb.from('comments').select('id,author,text,created_at').eq('song_key', String(songKey)).order('created_at', { ascending: true });
     if (!error && data) {
-      saveComments(songKey, data.map(c => ({ author: c.author, text: c.text, time: new Date(c.created_at).getTime() })));
+      saveComments(songKey, data.map(c => ({ id: c.id, author: c.author, text: c.text, time: new Date(c.created_at).getTime() })));
     }
   } catch (e) { console.error('Refresh comments failed:', e); }
 }
@@ -545,6 +500,8 @@ function renderComments(songIdx) {
       <div class="comment-meta">
         <span class="comment-author">${escapeHtml(c.author)}</span>
         <span class="comment-time">${new Date(c.time).toLocaleString()}</span>
+        ${canDeleteComment(c) ? `<button class="comment-delete-btn" title="Delete this comment"
+          onclick="handleDeleteComment('${escapeJs(String(songKey))}', '${escapeJs(String(c.id != null ? c.id : ''))}', ${c.time})">Delete</button>` : ''}
       </div>
       <div class="comment-text">${escapeHtml(c.text)}</div>
     </div>
@@ -570,16 +527,86 @@ async function postComment() {
   const s = songs[currentModalSong];
   const songKey = s ? s.number : currentModalSong;
 
+  if (text.length > 2000) {
+    showToast('That comment is too long (2000 characters max).', { type: 'error' });
+    return;
+  }
+
+  const localTime = Date.now();
   const comments = getComments(songKey);
-  comments.push({ author: currentUser.name, text: text, time: Date.now() });
+  comments.push({ id: null, author: currentUser.name, text: text, time: localTime });
   saveComments(songKey, comments);
   document.getElementById('comment-text').value = '';
   renderComments(currentModalSong);
 
-  if (typeof sb !== 'undefined' && sb) {
-    const err = await pushCommentToSupabase(songKey, currentUser.name, text);
-    if (err) showToast('Comment saved on this device, but failed to sync to Supabase: ' + err, {type:'error'});
+  if (isDbConnected() && sb) {
+    // Ask for the inserted row back, so the comment carries its real
+    // database id immediately and the Delete button works without a
+    // reload. Previously nothing was returned and the local copy had no
+    // id at all, which is why comments could never be removed.
+    const { data, error } = await sb.from('comments')
+      .insert({ song_key: String(songKey), author: currentUser.name, text: text })
+      .select('id, created_at')
+      .single();
+
+    const list = getComments(songKey);
+    const local = list.find(c => c.time === localTime && c.author === currentUser.name);
+
+    if (error) {
+      // Don't leave a comment sitting there looking posted when it never
+      // left the browser — take it back and say why.
+      if (local) saveComments(songKey, list.filter(c => c !== local));
+      renderComments(currentModalSong);
+      showToast(/policy|row-level/i.test(error.message)
+        ? 'Your session expired — log out and back in to comment.'
+        : 'Comment failed to post: ' + error.message, { type: 'error' });
+      document.getElementById('comment-text').value = text;
+      return;
+    }
+    if (local && data) {
+      local.id = data.id;
+      if (data.created_at) local.time = new Date(data.created_at).getTime();
+      saveComments(songKey, list);
+      renderComments(currentModalSong);
+    }
   }
+}
+
+// You can remove your own comments; the admin can remove anyone's. This
+// mirrors the "Owner or admin deletes comments" policy in the setup SQL,
+// so the button only shows where the delete will actually be allowed.
+function canDeleteComment(c) {
+  if (!c) return false;
+  if (currentAdmin) return true;
+  return !!(currentUser && c.author === currentUser.name);
+}
+
+async function handleDeleteComment(songKey, id, time) {
+  if (!confirm('Delete this comment? This cannot be undone.')) return;
+
+  const list = getComments(songKey);
+  const target = id
+    ? list.find(c => String(c.id) === String(id))
+    : list.find(c => c.time === time);
+  if (!target) return;
+  if (!canDeleteComment(target)) {
+    showToast('You can only delete your own comments.', { type: 'error' });
+    return;
+  }
+
+  if (isDbConnected() && sb && target.id != null) {
+    const { error } = await sb.from('comments').delete().eq('id', target.id);
+    if (error) {
+      showToast(/policy|row-level/i.test(error.message)
+        ? 'You can only delete your own comments.'
+        : 'Could not delete comment: ' + error.message, { type: 'error' });
+      return;
+    }
+  }
+
+  saveComments(songKey, list.filter(c => c !== target));
+  if (currentModalSong !== null) renderComments(currentModalSong);
+  showToast('Comment deleted.');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -642,72 +669,216 @@ document.getElementById('submit-form').addEventListener('submit', async function
 //  RATING POP ANIMATION
 // ═══════════════════════════════════════════════════════════════
 
-// Override the original initRatings to add pop animation
-const _originalInitRatings = initRatings;
-initRatings = function() {
-  document.querySelectorAll('.rating-wrap').forEach(wrap => {
-    const songKey = wrap.dataset.song;
-    const starsWrap = wrap.querySelector('.rating-stars');
-    const notes = wrap.querySelectorAll('.rating-note');
-    const countEl = wrap.querySelector('.rating-count');
-    const lockMsg = wrap.querySelector('.rating-locked-msg');
-    const communityEl = wrap.querySelector('.rating-community');
-    const saved = localStorage.getItem('al-rating-' + songKey);
-    let currentRating = saved ? parseInt(saved, 10) : 0;
-    let isLocked = currentRating > 0;
+// ═══════════════════════════════════════════════════════════════
+//  RATING ENGINE
+//
+//  Rewritten. What was wrong before:
+//    · Two competing implementations, one of them dead (removed above).
+//    · A rating was permanent — no way to change it, no way to remove it,
+//      and the database had no UPDATE or DELETE policy to allow either.
+//    · The community average only refreshed on a full page reload.
+//    · Casting a vote wrote an optimistic +1 into a localStorage cache
+//      that was never reconciled if the database write failed, so the
+//      "12 ratings" you saw could be a number only your browser believed.
+//
+//  Now: rate, change your mind, or remove it entirely. Every action goes
+//  to Supabase first and the local cache follows the server, not the
+//  other way round.
+// ═══════════════════════════════════════════════════════════════
 
-    function render() {
-      notes.forEach((note, idx) => {
-        note.classList.toggle('filled', idx < currentRating);
-      });
-      if (countEl) countEl.textContent = currentRating > 0 ? currentRating + '/5' : '';
-      if (lockMsg) lockMsg.classList.toggle('visible', isLocked);
-      if (starsWrap) starsWrap.classList.toggle('is-locked', isLocked);
-      notes.forEach(n => {
-        n.style.cursor = isLocked ? 'default' : 'pointer';
-        n.style.opacity = isLocked && !n.classList.contains('filled') ? '0.3' : '1';
-      });
+// Reads this browser's own rating for a song.
+function getMyRating(songKey) {
+  const v = parseInt(localStorage.getItem('al-rating-' + songKey) || '0', 10);
+  return Number.isFinite(v) && v >= 1 && v <= 5 ? v : 0;
+}
+function setMyRating(songKey, value) {
+  if (value) localStorage.setItem('al-rating-' + songKey, String(value));
+  else localStorage.removeItem('al-rating-' + songKey);
+}
+
+// Recomputes one song's community aggregate straight from the database, so
+// the number on screen is the real shared total rather than a local guess.
+async function refreshRatingStats(songKey) {
+  if (!isDbConnected() || !sb) return false;
+  try {
+    const { data, error } = await sb.from('song_ratings').select('value').eq('song_key', songKey);
+    if (error) throw error;
+    const sum = (data || []).reduce((a, r) => a + r.value, 0);
+    ratingStats[songKey] = { sum: sum, count: (data || []).length };
+    saveRatingStats();
+    return true;
+  } catch (e) {
+    console.error('Rating refresh failed:', e);
+    return false;
+  }
+}
+
+// Casts or changes a vote. Upsert on (song_key, voter_id) means voting
+// again simply replaces the old value instead of being rejected by the
+// unique constraint the way a bare insert was.
+async function saveSongRating(songKey, value) {
+  if (!isDbConnected() || !sb) {
+    // Local-only mode: keep the optimistic cache so the UI still moves.
+    const prev = getMyRating(songKey);
+    if (!ratingStats[songKey]) ratingStats[songKey] = { sum: 0, count: 0 };
+    if (prev) ratingStats[songKey].sum += (value - prev);
+    else { ratingStats[songKey].sum += value; ratingStats[songKey].count += 1; }
+    saveRatingStats();
+    return { ok: true, local: true };
+  }
+  try {
+    const { error } = await sb.from('song_ratings')
+      .upsert({ song_key: songKey, voter_id: getVoterId(), value: value, updated_at: new Date().toISOString() },
+              { onConflict: 'song_key,voter_id' });
+    if (error) throw error;
+    await refreshRatingStats(songKey);
+    return { ok: true };
+  } catch (e) {
+    console.error('Rating save failed:', e);
+    return { ok: false, error: e.message || String(e) };
+  }
+}
+
+// Removes this browser's vote entirely.
+async function removeSongRating(songKey) {
+  const prev = getMyRating(songKey);
+  if (!isDbConnected() || !sb) {
+    if (prev && ratingStats[songKey]) {
+      ratingStats[songKey].sum = Math.max(0, ratingStats[songKey].sum - prev);
+      ratingStats[songKey].count = Math.max(0, ratingStats[songKey].count - 1);
+      saveRatingStats();
     }
+    return { ok: true, local: true };
+  }
+  try {
+    const { error } = await sb.from('song_ratings').delete()
+      .eq('song_key', songKey).eq('voter_id', getVoterId());
+    if (error) throw error;
+    await refreshRatingStats(songKey);
+    return { ok: true };
+  } catch (e) {
+    console.error('Rating delete failed:', e);
+    return { ok: false, error: e.message || String(e) };
+  }
+}
 
-    render();
+// Repaints every visible copy of one song's rating widget (a song can be on
+// screen in the grid and the modal at the same time).
+function repaintRating(songKey) {
+  document.querySelectorAll('.rating-wrap[data-song="' + CSS.escape(songKey) + '"]').forEach(paintRatingWrap);
+}
+
+function paintRatingWrap(wrap) {
+  const songKey = wrap.dataset.song;
+  const mine = getMyRating(songKey);
+  const notes = wrap.querySelectorAll('.rating-note');
+  const countEl = wrap.querySelector('.rating-count');
+  const lockMsg = wrap.querySelector('.rating-locked-msg');
+  const starsWrap = wrap.querySelector('.rating-stars');
+  const communityEl = wrap.querySelector('.rating-community');
+  const actionsEl = wrap.querySelector('.rating-actions');
+
+  notes.forEach((n, i) => {
+    n.classList.toggle('filled', i < mine);
+    n.style.cursor = 'pointer';
+    n.style.opacity = '1';
+    n.setAttribute('role', 'button');
+    n.setAttribute('tabindex', '0');
+    n.setAttribute('aria-label', (i + 1) + ' out of 5');
+  });
+  if (countEl) countEl.textContent = mine > 0 ? mine + '/5' : '';
+  if (lockMsg) lockMsg.classList.toggle('visible', false); // nothing is locked any more
+  if (starsWrap) starsWrap.classList.remove('is-locked');
+  if (communityEl) communityEl.innerHTML = ratingCommunityHtml(songKey);
+  if (actionsEl) {
+    actionsEl.innerHTML = mine > 0
+      ? '<button class="rating-clear-btn" onclick="event.stopPropagation();handleClearRating(\'' + escapeJs(songKey) + '\')">Remove my rating</button>' +
+        '<span class="rating-changehint">Tap a different note to change it</span>'
+      : '';
+  }
+}
+
+async function handleRatingClick(songKey, value) {
+  const previous = getMyRating(songKey);
+  if (previous === value) {
+    // Tapping the note you already picked removes the rating — the same
+    // gesture people expect from every other star widget.
+    return handleClearRating(songKey);
+  }
+  setMyRating(songKey, value);
+  repaintRating(songKey);
+  playRatingPop(songKey, value);
+
+  const res = await saveSongRating(songKey, value);
+  if (!res.ok) {
+    setMyRating(songKey, previous || 0);
+    repaintRating(songKey);
+    showToast('Could not save your rating: ' + res.error, { type: 'error' });
+    return;
+  }
+  repaintRating(songKey);
+  showToast(previous ? 'Rating updated to ' + value + '/5.' : 'Rated ' + value + '/5 — thanks!');
+}
+
+async function handleClearRating(songKey) {
+  const previous = getMyRating(songKey);
+  if (!previous) return;
+  setMyRating(songKey, 0);
+  repaintRating(songKey);
+
+  const res = await removeSongRating(songKey);
+  if (!res.ok) {
+    setMyRating(songKey, previous);
+    repaintRating(songKey);
+    showToast('Could not remove your rating: ' + res.error, { type: 'error' });
+    return;
+  }
+  repaintRating(songKey);
+  showToast('Your rating was removed.');
+}
+
+function playRatingPop(songKey, value) {
+  document.querySelectorAll('.rating-wrap[data-song="' + CSS.escape(songKey) + '"]').forEach(wrap => {
+    wrap.querySelectorAll('.rating-note').forEach((n, i) => {
+      if (i >= value) return;
+      setTimeout(() => {
+        n.classList.add('pop', 'glow');
+        setTimeout(() => n.classList.remove('pop'), 550);
+        setTimeout(() => n.classList.remove('glow'), 1250);
+      }, i * 60);
+    });
+  });
+}
+
+function initRatings() {
+  document.querySelectorAll('.rating-wrap').forEach(wrap => {
+    if (wrap.dataset.bound === '1') { paintRatingWrap(wrap); return; }
+    wrap.dataset.bound = '1';
+
+    const songKey = wrap.dataset.song;
+    const notes = wrap.querySelectorAll('.rating-note');
 
     notes.forEach((note, idx) => {
-      note.addEventListener('click', (e) => {
+      note.addEventListener('click', e => {
         e.stopPropagation();
-        if (isLocked) return;
-        const val = idx + 1;
-        currentRating = val;
-        isLocked = true;
-        localStorage.setItem('al-rating-' + songKey, val);
-        render();
-        // POP ANIMATION (staggered cascade)
-        notes.forEach((n, i) => {
-          if (i < val) {
-            const delay = i * 60;
-            setTimeout(() => {
-              n.classList.add('pop');
-              n.classList.add('glow');
-              setTimeout(() => { n.classList.remove('pop'); }, 550);
-              setTimeout(() => { n.classList.remove('glow'); }, 1250);
-            }, delay);
-          }
-        });
-        // Update (and share) the overall community rating for this song.
-        recordLocalVote(songKey, val);
-        if (communityEl) communityEl.innerHTML = ratingCommunityHtml(songKey);
-        pushSongRating(songKey, val);
+        handleRatingClick(songKey, idx + 1);
+      });
+      note.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault(); e.stopPropagation();
+          handleRatingClick(songKey, idx + 1);
+        }
       });
       note.addEventListener('mouseenter', () => {
-        if (isLocked) return;
         notes.forEach((n, i) => n.classList.toggle('filled', i <= idx));
       });
     });
 
     wrap.addEventListener('mouseleave', () => {
-      if (isLocked) return;
-      notes.forEach((n, i) => n.classList.toggle('filled', i < currentRating));
+      const mine = getMyRating(songKey);
+      notes.forEach((n, i) => n.classList.toggle('filled', i < mine));
     });
-  });
-};
 
-// ═══════════════════════════════════════════════════════════════
+    paintRatingWrap(wrap);
+  });
+}

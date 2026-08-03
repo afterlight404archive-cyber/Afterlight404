@@ -409,16 +409,31 @@ async function setModerationEnabled(val) {
 
 function applyModerationEnabledState() {
   const enabled = isModerationEnabledCached();
+  // Mirror onto the Safety tab's copy of this switch and its status line.
+  const mirror = document.getElementById('adm-moderation-enabled-safety');
+  if (mirror) mirror.checked = enabled;
+  const mirrorStatus = document.getElementById('adm-moderation-status-safety');
+  if (mirrorStatus) {
+    if (!isDbConnected()) {
+      mirrorStatus.textContent = 'Supabase not connected — there is no Edge Function to call. Connect a database first.';
+      mirrorStatus.className = 'setup-status is-warn';
+    } else {
+      mirrorStatus.textContent = enabled ? 'ON — every message is checked before it posts.' : 'OFF — messages post unchecked.';
+      mirrorStatus.className = enabled ? 'setup-status is-on' : 'setup-status is-off';
+    }
+  }
   const checkbox = document.getElementById('adm-moderation-enabled');
   if (checkbox) checkbox.checked = enabled;
   const status = document.getElementById('adm-moderation-status');
   if (status) {
     if (!isDbConnected()) {
-      status.textContent = 'Not connected to Supabase — moderation can\'t run (there\'s no Edge Function to call). Connect a database in the Database tab first.';
+      status.textContent = 'Supabase not connected — there is no Edge Function to call. Connect a database first.';
+      status.className = 'setup-status is-warn';
     } else {
       status.textContent = enabled
-        ? 'Moderation is ON — messages are checked before they post.'
-        : 'Moderation is OFF — messages post unchecked. Turn this back on before going public.';
+        ? 'ON — every message is checked before it posts.'
+        : 'OFF — messages post unchecked.';
+      status.className = enabled ? 'setup-status is-on' : 'setup-status is-off';
     }
   }
 }
@@ -455,6 +470,8 @@ async function refreshTurnstileEnabledFromDb() {
     localStorage.setItem('al-turnstile-enabled', enabled ? 'true' : 'false');
     const { data: keyRow } = await sb.from('site_settings').select('value').eq('key', 'turnstile_sitekey').maybeSingle();
     if (keyRow && keyRow.value) localStorage.setItem('al-turnstile-sitekey', keyRow.value);
+    const { data: strictRow } = await sb.from('site_settings').select('value').eq('key', 'turnstile_strict').maybeSingle();
+    if (strictRow) localStorage.setItem('al-turnstile-strict', strictRow.value === 'true' ? 'true' : 'false');
     applyTurnstileState();
     maybeRenderTurnstileWidget('signup');
   } catch (e) {
@@ -482,16 +499,22 @@ function applyTurnstileState() {
   if (checkbox) checkbox.checked = enabled;
   const keyInput = document.getElementById('adm-turnstile-sitekey');
   if (keyInput) keyInput.value = getTurnstileSiteKeyCached();
+  const strictBox = document.getElementById('adm-turnstile-strict');
+  if (strictBox) strictBox.checked = isTurnstileStrictMode();
   const status = document.getElementById('adm-turnstile-status');
   if (status) {
     if (!enabled) {
-      status.textContent = 'Turnstile is OFF — anyone can submit the signup form (honeypot still runs).';
+      status.textContent = 'OFF — anyone can submit the signup form. The invisible honeypot field still runs.';
+      status.className = 'setup-status is-off';
     } else if (!getTurnstileSiteKeyCached()) {
-      status.textContent = 'Turnstile is ON but no Site Key is saved yet — add one above or the widget won\'t render.';
+      status.textContent = 'ON, but no Site Key saved — go back to step 2. Nothing will render until you do.';
+      status.className = 'setup-status is-warn';
     } else if (!isDbConnected()) {
-      status.textContent = 'Turnstile is ON, but Supabase isn\'t connected — the verify-turnstile function can\'t be reached, so signups will fail. Connect a database first.';
+      status.textContent = 'ON, but Supabase is not connected — verify-turnstile cannot be reached and signups WILL fail. Turn this off or connect a database.';
+      status.className = 'setup-status is-warn';
     } else {
-      status.textContent = 'Turnstile is ON — signups require passing the check below the form.';
+      status.textContent = 'ON and working — signups require passing the check.';
+      status.className = 'setup-status is-on';
     }
   }
 }
@@ -541,6 +564,16 @@ function maybeRenderTurnstileWidget(formKey) {
     turnstileWidgetIds[formKey] = turnstile.render(container, {
       sitekey: getTurnstileSiteKeyCached(),
       theme: 'dark',
+      // A Turnstile token expires after about 5 minutes. Without this, a
+      // form left open longer than that submits an already-dead token and
+      // reports it as a failed bot check — neither true, nor something the
+      // visitor can do anything about. 'auto' silently re-issues instead.
+      'refresh-expired': 'auto',
+      'retry': 'auto',
+      'error-callback': function () {
+        console.error('Turnstile widget error — check the Site Key matches this exact domain.');
+        return true; // keep the widget alive rather than leaving a blank box
+      }
     });
   });
 }
@@ -550,19 +583,91 @@ function getTurnstileToken(formKey) {
   return turnstile.getResponse(turnstileWidgetIds[formKey]) || null;
 }
 
-// Calls the verify-turnstile Edge Function (see Admin → Safety & Bots for
-// the code to deploy). Fails closed: if it can't be verified, treat as not
-// human rather than silently letting the signup through.
+// A Turnstile token is SINGLE USE and expires after ~5 minutes. Once it has
+// been sent to Cloudflare's siteverify endpoint it is spent, and sending it
+// again returns "timeout-or-duplicate" — which the old code reported as
+// "Verification failed", forever, no matter how many times you passed the
+// widget. This forces a brand new token after every attempt.
+function resetTurnstileWidget(formKey) {
+  try {
+    if (window.turnstile && turnstileWidgetIds[formKey]) {
+      turnstile.reset(turnstileWidgetIds[formKey]);
+    }
+  } catch (e) { /* widget already gone — nothing to reset */ }
+}
+
+// Verifies a Turnstile token via the verify-turnstile Edge Function.
+//
+// Returns { ok, reason } instead of a bare boolean, because the old version
+// collapsed FOUR completely different situations into a single "false":
+//   · Supabase not connected
+//   · the Edge Function was never deployed
+//   · the function errored or returned junk
+//   · Cloudflare genuinely judged the visitor to be a bot
+//
+// Only the last of those is the visitor's problem. The first three are
+// server-side faults, and reporting them as "Verification failed — please
+// retry the check above" sent people into an unwinnable loop: the widget
+// says Success (Cloudflare's browser-side challenge passes fine), the site
+// says failed, retrying changes nothing. Nobody could create an account.
 async function verifyTurnstileToken(token) {
-  if (!isDbConnected() || !sb) return false;
+  if (!token) return { ok: false, reason: 'no-token' };
+  if (!isDbConnected() || !sb) return { ok: false, reason: 'infra', detail: 'Supabase is not connected' };
   try {
     const { data, error } = await sb.functions.invoke('verify-turnstile', { body: { token } });
-    if (error || !data) return false;
-    return !!data.success;
+    if (error) {
+      const msg = error.message || String(error);
+      console.error('Turnstile verify call failed:', msg);
+      if (/not ?found|404|does not exist/i.test(msg)) {
+        return { ok: false, reason: 'infra', detail: 'the verify-turnstile function is not deployed' };
+      }
+      return { ok: false, reason: 'infra', detail: msg };
+    }
+    if (!data || typeof data.success === 'undefined') {
+      return { ok: false, reason: 'infra', detail: 'the function returned no verdict' };
+    }
+    if (data.success) return { ok: true };
+    // Cloudflare answered, and said no. Distinguish a spent token — that's
+    // still a mechanical problem, not a bot.
+    const codes = (data['error-codes'] || data.errorCodes || []).join(',');
+    if (/timeout-or-duplicate/i.test(codes)) {
+      return { ok: false, reason: 'stale-token' };
+    }
+    return { ok: false, reason: 'rejected', detail: codes };
   } catch (e) {
-    console.error('Turnstile verification call failed:', e);
-    return false;
+    console.error('Turnstile verify threw:', e);
+    return { ok: false, reason: 'infra', detail: e.message || 'network error' };
   }
+}
+
+// When the bot check itself is broken, should signups be blocked or allowed?
+//
+// The old behaviour was to block, unconditionally. That means a single
+// undeployed Edge Function takes your entire site offline for new users,
+// with no error message anywhere that says why. Default is now to allow
+// through on INFRASTRUCTURE failures only (a real "you are a bot" verdict
+// from Cloudflare still blocks), because:
+//   · the honeypot field, send cooldowns and database rate limits all
+//     still apply, so this is not an unprotected door
+//   · row-level security is what actually guards your data, and it is
+//     unaffected either way
+//   · a site nobody can sign up to is a worse outcome than a site that
+//     briefly leans on its other defences
+// Flip this on in Admin → Safety & Bots if you would rather block.
+function isTurnstileStrictMode() {
+  return localStorage.getItem('al-turnstile-strict') === 'true';
+}
+async function setTurnstileStrictMode(val) {
+  localStorage.setItem('al-turnstile-strict', val ? 'true' : 'false');
+  if (isDbConnected() && sb) {
+    try { await sb.from('site_settings').upsert({ key: 'turnstile_strict', value: val ? 'true' : 'false' }); }
+    catch (e) { console.error('Could not sync strict-mode setting:', e); }
+  }
+  refreshSafetyStatus();
+}
+function toggleTurnstileStrict() {
+  const cb = document.getElementById('adm-turnstile-strict');
+  if (cb) setTurnstileStrictMode(cb.checked);
 }
 
 function copyTurnstileFnCode() {
@@ -847,6 +952,11 @@ function renderAdminOverviewStats() {
 }
 
 function showAdminTab(tab) {
+  // Recompute the Safety & Bots readout whenever that tab is opened, so it
+  // reflects reality instead of whatever it said the last time.
+  if (tab === 'safety' && typeof refreshSafetyStatus === 'function') {
+    setTimeout(refreshSafetyStatus, 0);
+  }
   document.querySelectorAll('.admin-nav-item').forEach(i => i.classList.remove('active'));
   document.querySelectorAll('[id^="admin-tab-"]').forEach(t => t.style.display = 'none');
   document.querySelector('.admin-nav-item[onclick="showAdminTab(\''+tab+'\')"]').classList.add('active');
@@ -1824,3 +1934,93 @@ function hexToRgba(hex, alpha) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+
+
+// ═══════════════════════════════════════════════════════════════
+//  SAFETY & BOTS — status dashboard
+//
+//  The panel used to have no way of telling you what was actually
+//  running. A switch could be ON while the Edge Function it depends on
+//  had never been deployed, and nothing anywhere said so — you found out
+//  when signups started silently failing. This checks each dependency
+//  for real and reports it in plain language.
+// ═══════════════════════════════════════════════════════════════
+
+function toggleModerationFromSafety() {
+  const cb = document.getElementById('adm-moderation-enabled-safety');
+  if (!cb) return;
+  setModerationEnabled(cb.checked);
+  refreshSafetyStatus();
+}
+
+function safetyStatusRow(label, state, detail) {
+  const cls = state === 'on' ? 'is-on' : state === 'warn' ? 'is-warn' : 'is-off';
+  const icon = state === 'on' ? '✓' : state === 'warn' ? '!' : '○';
+  return '<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;">' +
+    '<span class="setup-status ' + cls + '" style="margin-top:0;flex:0 0 auto;">' + icon + ' ' + escapeHtml(label) + '</span>' +
+    '<span style="font-family:var(--sans);font-size:12px;color:var(--dim);line-height:1.6;flex:1;min-width:200px;">' +
+    escapeHtml(detail) + '</span></div>';
+}
+
+async function refreshSafetyStatus() {
+  const el = document.getElementById('safety-status-readout');
+  if (!el) return;
+  el.innerHTML = '<div style="font-family:var(--mono);font-size:11px;color:var(--muted);">Checking…</div>';
+
+  const rows = [];
+
+  // Database — everything else depends on it.
+  if (isDbConnected()) {
+    rows.push(safetyStatusRow('Database', 'on', 'Connected to Supabase. Both systems can reach their Edge Functions.'));
+  } else {
+    rows.push(safetyStatusRow('Database', 'warn', 'Not connected. Neither Turnstile nor AI moderation can work until you connect Supabase in the Database tab.'));
+  }
+
+  // Turnstile.
+  const tsOn = isTurnstileEnabledCached();
+  const tsKey = getTurnstileSiteKeyCached();
+  if (!tsOn) {
+    rows.push(safetyStatusRow('Turnstile', 'off', 'Switched off. The invisible honeypot field still catches simple bots — this is a safe state to leave it in.'));
+  } else if (!tsKey) {
+    rows.push(safetyStatusRow('Turnstile', 'warn', 'Switched on but no Site Key saved (step 2). The widget will not render and signups will be blocked.'));
+  } else if (!isDbConnected()) {
+    rows.push(safetyStatusRow('Turnstile', 'warn', 'Switched on but Supabase is not connected, so tokens cannot be verified. Signups will fail — turn it off or connect a database.'));
+  } else {
+    // Actually call the function rather than assuming it exists.
+    let fnOk = false, fnMsg = '';
+    try {
+      const { error } = await sb.functions.invoke('verify-turnstile', { body: { token: 'status-probe' } });
+      if (error && /not found|404/i.test(error.message || '')) fnMsg = 'the verify-turnstile function is not deployed yet (step 4)';
+      else fnOk = true;
+    } catch (e) { fnMsg = 'could not reach verify-turnstile (' + (e.message || 'network error') + ')'; }
+    rows.push(fnOk
+      ? safetyStatusRow('Turnstile', 'on', 'On, Site Key saved, and the verify-turnstile function responded. Signups are protected.')
+      : safetyStatusRow('Turnstile', 'warn', 'On, but ' + fnMsg + '. ' + (isTurnstileStrictMode() ? 'Strict mode is ON, so NOBODY can sign up right now — deploy the function or turn strict mode off.' : 'Strict mode is off, so signups are being let through without the check for now.')));
+  }
+
+  // Moderation.
+  const modOn = isModerationEnabledCached();
+  if (!modOn) {
+    rows.push(safetyStatusRow('AI Moderation', 'off', 'Switched off. Chat and DM messages post without being screened.'));
+  } else if (!isDbConnected()) {
+    rows.push(safetyStatusRow('AI Moderation', 'warn', 'Switched on but Supabase is not connected. Messages are allowed through unchecked rather than chat breaking.'));
+  } else {
+    let fnOk = false, fnMsg = '';
+    try {
+      const { data, error } = await sb.functions.invoke('moderate-message', { body: { text: 'hello', context: 'status-probe' } });
+      if (error && /not found|404/i.test(error.message || '')) fnMsg = 'the moderate-message function is not deployed yet (step 2)';
+      else if (data) fnOk = true;
+      else fnMsg = 'the function responded but returned nothing usable';
+    } catch (e) { fnMsg = 'could not reach moderate-message (' + (e.message || 'network error') + ')'; }
+    rows.push(fnOk
+      ? safetyStatusRow('AI Moderation', 'on', 'On and the moderate-message function responded. Messages are being screened.')
+      : safetyStatusRow('AI Moderation', 'warn', 'On, but ' + fnMsg + '. Messages are currently posting unchecked.'));
+  }
+
+  // Always-on protections worth naming, so it's clear you are not unprotected
+  // just because both switches are off.
+  rows.push(safetyStatusRow('Always on', 'on',
+    'Honeypot field on signup, per-message send cooldowns, database-level rate limits (1 message/second per person), message length caps, and row-level security on every table.'));
+
+  el.innerHTML = rows.join('<div style="height:2px;"></div>');
+}

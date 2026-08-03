@@ -646,7 +646,7 @@ function startSocialPolling() {
     if (onFriends) pullFriendRequests().then(renderFriendsPage);
     else if (onSocial) pullFriendRequests().then(() => { updateSocialBadge(); renderSocialHubPreview(); });
     else if (onDm && dmActiveFriend) pullDmMessages(dmActiveFriend).then(() => { renderDmMessages(); refreshDmPreviews(); });
-  }, 7000);
+  }, 15000);
 }
 function stopSocialPolling() {
   if (socialPollInterval) { clearInterval(socialPollInterval); socialPollInterval = null; }
@@ -666,6 +666,7 @@ function openDm(name) {
   markDmRead(name);
   renderMessagesTab();
   pullDmMessages(name).then(() => { renderDmMessages(); markDmRead(name); renderMessagesTab(); });
+  subscribeToDm(name);
   renderDmMessages();
   startSocialPolling();
 }
@@ -916,3 +917,67 @@ function openSongModalByNumber(number) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+
+
+// ═══════════════════════════════════════════════════════════════
+//  LIVE DIRECT MESSAGES
+//
+//  DMs previously relied entirely on a 7-second poll that only ran while
+//  the DM page was open. Anywhere else on the site, a message from a
+//  friend was invisible until you happened to navigate back. dm_messages
+//  was also missing from the realtime publication, so there was nothing
+//  to subscribe to even if the code had tried.
+// ═══════════════════════════════════════════════════════════════
+
+let dmChannel = null;
+let dmChannelFriend = null;
+
+function teardownDmRealtime() {
+  if (dmChannel && sb) {
+    try { sb.removeChannel(dmChannel); } catch (e) { /* ignore */ }
+  }
+  dmChannel = null;
+  dmChannelFriend = null;
+}
+
+function subscribeToDm(friendName) {
+  if (!isDbConnected() || !sb || !currentUser || !friendName) { teardownDmRealtime(); return; }
+  if (dmChannelFriend === friendName && dmChannel) return;
+  teardownDmRealtime();
+  dmChannelFriend = friendName;
+
+  const key = pairKey(currentUser.name, friendName);
+  try {
+    dmChannel = sb.channel('dm-' + key)
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'dm_messages', filter: 'pair_key=eq.' + key },
+        payload => {
+          const row = payload.new;
+          if (!row) return;
+          const msgs = getDmMessages(friendName);
+          const dbId = String(row.id);
+          if (msgs.some(m => String(m.id) === dbId)) return;
+          // Skip the echo of a message this browser just sent.
+          if (row.sender === currentUser.name &&
+              msgs.some(m => m.text === row.text && m.author === currentUser.name &&
+                             Math.abs(m.time - new Date(row.created_at).getTime()) < 15000)) {
+            return;
+          }
+          msgs.push({
+            id: dbId,
+            author: row.sender,
+            text: row.text || '',
+            songKey: row.song_key || null,
+            time: new Date(row.created_at).getTime()
+          });
+          msgs.sort((a, b) => a.time - b.time);
+          saveDmMessages(friendName, msgs);
+          if (dmActiveFriend === friendName) { renderDmMessages(); markDmRead(friendName); }
+          refreshDmPreviews();
+          renderMessagesTab();
+        })
+      .subscribe();
+  } catch (e) {
+    console.error('DM realtime subscribe failed:', e);
+  }
+}
