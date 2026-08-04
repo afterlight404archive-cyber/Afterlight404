@@ -913,6 +913,9 @@ async function initAdmin() {
   // Access code + admin login fields are intentionally left blank —
   // secrets are stored as hashes and are never redisplayed, even to the admin.
 
+  await pullUsersFromSupabase();
+  renderAdminUsers();
+
   await pullSubmissionsFromSupabase();
   renderAdminUsers();
   renderAdminSubmissions();
@@ -980,7 +983,7 @@ function showAdminTab(tab) {
     updateDbStatusUI();
   }
   if (tab === 'site') refreshOwnerAdminDisplay();
-  if (tab === 'users') refreshUsersBlockedFromSupabase().then(renderAdminUsers);
+  if (tab === 'users') pullUsersFromSupabase().then(renderAdminUsers);
 
   if (tab === 'livestats') {
     loadLiveStatsCounts();
@@ -993,20 +996,59 @@ function showAdminTab(tab) {
   }
 }
 
-// Pulls current blocked status for every known user down from Supabase, so the
-// admin Users tab reflects blocks/unblocks made from other devices or by the
-// site owner, not just whatever this browser last knew locally.
-async function refreshUsersBlockedFromSupabase() {
+// Pulls the FULL users table down from Supabase and merges it into the local
+// 'al-users' cache that renderAdminUsers() reads from.
+//
+// This used to only refresh the `blocked` flag on users this browser already
+// knew about locally (see git history / old name refreshUsersBlockedFromSupabase)
+// — which meant anyone who signed up on a friend's device was invisible in the
+// admin panel forever, no matter how many times you reloaded. Now it also adds
+// any account that exists in Supabase but not in this browser's local cache.
+//
+// Note the Supabase `users` table only has a subset of the fields the local
+// record carries (no realName/email/totalSeconds/password — those are
+// local-only/device-specific today), so a user pulled in fresh from another
+// device will show "Not provided" for those until they log in on this device.
+// That's a real gap worth knowing about, not a bug in this function.
+async function pullUsersFromSupabase() {
   if (!isDbConnected()) return;
   try {
-    const { data: rows } = await sb.from('users').select('username,blocked');
+    const { data: rows, error } = await sb.from('users').select('*');
+    if (error) throw error;
     if (!rows) return;
-    const blockedSet = new Set(rows.filter(r => r.blocked).map(r => r.username));
     let users = JSON.parse(localStorage.getItem('al-users') || '[]');
-    users = users.map(u => ({ ...u, blocked: blockedSet.has(u.name) }));
+    const byName = new Map(users.map(u => [u.name, u]));
+    rows.forEach(r => {
+      const existing = byName.get(r.username);
+      if (existing) {
+        existing.code = r.code || existing.code;
+        existing.bio = (r.bio != null) ? r.bio : existing.bio;
+        existing.gender = r.gender || existing.gender;
+        existing.avatar = r.avatar || existing.avatar;
+        existing.blocked = !!r.blocked;
+      } else {
+        // Account this browser has never seen before — signed up on another
+        // device. Add a stub so it actually shows up in the Users tab.
+        const stub = {
+          name: r.username,
+          code: r.code || '',
+          bio: r.bio || '',
+          gender: r.gender || '',
+          avatar: r.avatar || null,
+          blocked: !!r.blocked,
+          created: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+          totalSeconds: 0,
+          realName: '',
+          email: '',
+          password: null
+        };
+        users.push(stub);
+        byName.set(r.username, stub);
+      }
+    });
     localStorage.setItem('al-users', JSON.stringify(users));
   } catch (e) {
-    console.error('Refresh blocked statuses failed:', e);
+    console.error('Pull users from Supabase failed:', e);
   }
 }
 

@@ -684,8 +684,14 @@ document.getElementById('submit-form').addEventListener('submit', async function
   };
 
   // Push to Supabase so the admin (on any device) sees it in the review
-  // queue — falls back to local-only storage if not connected or the
-  // write fails for any reason, same pattern used elsewhere on the site.
+  // queue. This is the only copy that matters — admin.js reads the
+  // Submissions tab from Supabase, not from this browser's local cache — so
+  // unlike some other best-effort writes on this site, a failure here is
+  // NOT safe to silently swallow behind a "saved locally only" fallback:
+  // the submission would sit in this browser's localStorage forever,
+  // invisible to the admin, while the visitor was told it worked.
+  let savedToSupabase = false;
+  let submitError = null;
   if (isDbConnected() && sb) {
     try {
       await ensureAnonSession();
@@ -697,15 +703,32 @@ document.getElementById('submit-form').addEventListener('submit', async function
       }).select().single();
       if (error) throw error;
       submission.id = data.id;
+      savedToSupabase = true;
     } catch (e) {
-      console.error('Submit to Supabase failed, saved locally only:', e);
+      console.error('Submit to Supabase failed:', e);
+      submitError = e;
     }
   }
 
   submissions.push(submission);
   saveSubmissions();
-  showToast('Song submitted for review! It will appear after admin approval.');
-  form.reset();
+
+  if (savedToSupabase || !isDbConnected()) {
+    // Either it really reached the shared database, or there is no database
+    // connected at all (pure local-only mode) — in both cases what we told
+    // the visitor is true.
+    showToast('Song submitted for review! It will appear after admin approval.');
+    form.reset();
+  } else {
+    // Supabase IS connected but the write was rejected (commonly: row-level
+    // security blocking the write because this browser doesn't have a real
+    // authenticated session — e.g. anonymous sign-ins are disabled in
+    // Supabase Auth settings). Say so honestly instead of pretending it worked.
+    showToast("Couldn't submit — the site's database rejected the save (" +
+      (submitError && submitError.message ? submitError.message : 'unknown error') +
+      "). It was NOT sent to admin for review. Please try again shortly, or let the site owner know.",
+      { type: 'error', duration: 8000 });
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════
