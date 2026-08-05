@@ -67,6 +67,8 @@
     --accent2-glow: rgba(111,168,160,0.20);
     --red:      #D07070;
     --green:    #5CC49A;
+    --info:     #7FA3D9;
+    --warning:  #D9A054;
     --header-bg: rgba(11,10,17,0.92);
     --mono:     'IBM Plex Mono', monospace;
     --serif:    'Playfair Display', Georgia, serif;
@@ -117,6 +119,8 @@
     --accent2:  #6B5B8A;
     --red:      #9C4A45;
     --green:    #3C7A5C;
+    --info:     #4A6FA0;
+    --warning:  #A87232;
     --header-bg: rgba(234,230,220,0.88);
     --card-hover: #CDC5AC;
     --modal-grad-start: #F1ECDF;
@@ -2477,64 +2481,220 @@
     .auth-modal, .donate-modal { max-height: none; }
   }
 
-  /* ---- Floating toast notifications (replaces window.alert popups) ---- */
+  /* ═══════════════════════════════════════════════════════════════
+     PREMIUM TOAST NOTIFICATIONS
+     Cinematic, glassmorphic, dark-luxury toasts — replaces window.alert
+     popups. Positioning uses a fixed, zero-height stack container; every
+     toast inside is absolutely positioned and moved purely with `transform`
+     (via composed custom properties) so stacking, entrance/exit, hover
+     lift and swipe-drag never trigger layout, only compositing.
+     ═══════════════════════════════════════════════════════════════ */
   #toast-stack {
     position: fixed;
-    top: 22px;
+    top: max(22px, calc(env(safe-area-inset-top, 0px) + 14px));
     left: 50%;
     transform: translateX(-50%);
     z-index: 99999;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    align-items: center;
+    width: min(92vw, 400px);
+    height: 0;
     pointer-events: none;
-    width: min(92vw, 420px);
   }
+
   .toast {
-    pointer-events: auto;
+    position: absolute;
+    top: 0; left: 0;
     width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--accent);
-    border-radius: 8px;
-    box-shadow: 0 12px 32px rgba(0,0,0,0.35), 0 0 0 1px rgba(200,169,110,0.06);
-    padding: 16px 18px;
+    pointer-events: auto;
+    cursor: default;
+    box-sizing: border-box;
     display: flex;
     align-items: flex-start;
-    gap: 12px;
+    gap: 13px;
+    padding: 15px 16px 13px 15px;
+    border-radius: 18px;
+    background: linear-gradient(155deg, rgba(28,25,40,0.70) 0%, rgba(17,15,25,0.66) 100%);
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+    backdrop-filter: blur(22px) saturate(160%);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow:
+      0 10px 34px rgba(0,0,0,0.42),
+      0 2px 8px rgba(0,0,0,0.28),
+      0 0 0 1px var(--toast-tint, rgba(0,0,0,0.18)) inset,
+      0 1px 0 rgba(255,255,255,0.05) inset;
+    overflow: hidden;
+
+    --stack-y: 0px;    /* vertical offset within the stack, set by JS */
+    --drag-x: 0px;      /* horizontal swipe offset, set by JS while dragging */
+    --anim-y: 10px;     /* entrance/exit vertical travel */
+    --anim-scale: 0.96; /* entrance/exit scale */
+    --hover-lift: 0px;  /* set to a negative value on :hover below */
+    --drag-fade: 1;      /* set by JS while dragging, based on distance */
+
     opacity: 0;
-    transform: translateY(-14px) scale(0.98);
-    transition: opacity 0.28s ease, transform 0.28s ease;
+    filter: blur(7px);
+    transform: translate(var(--drag-x), calc(var(--stack-y) + var(--anim-y) + var(--hover-lift))) scale(var(--anim-scale));
+    transition:
+      transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+      opacity 0.36s cubic-bezier(0.34, 1.56, 0.64, 1),
+      filter 0.36s ease,
+      box-shadow 0.25s ease,
+      background 0.25s ease;
+    will-change: transform, opacity, filter;
   }
-  .toast.toast-show { opacity: 1; transform: translateY(0) scale(1); }
-  .toast.toast-hide { opacity: 0; transform: translateY(-10px) scale(0.98); }
-  .toast-icon {
+
+  .toast.toast-show { opacity: var(--drag-fade, 1); filter: blur(0px); --anim-y: 0px; --anim-scale: 1; }
+
+  .toast.toast-hide {
+    opacity: 0;
+    filter: blur(5px);
+    --anim-y: 16px;
+    --anim-scale: 0.97;
+    transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, filter 0.3s ease;
+    pointer-events: none;
+  }
+
+  /* Dragging (swipe-to-dismiss on touch): kill the spring transition so the
+     card tracks the finger 1:1, then it's re-enabled the instant the
+     pointer lifts (dismiss or spring-back both want the transition back). */
+  .toast.toast-dragging { transition: filter 0.2s ease, box-shadow 0.2s ease, background 0.2s ease; }
+
+  .toast:hover { --hover-lift: -3px; }
+  .toast:hover:not(.toast-dragging) {
+    background: linear-gradient(155deg, rgba(34,30,48,0.76) 0%, rgba(21,19,30,0.72) 100%);
+    box-shadow:
+      0 16px 44px rgba(0,0,0,0.48),
+      0 3px 10px rgba(0,0,0,0.3),
+      0 0 0 1px var(--toast-tint, rgba(0,0,0,0.22)) inset,
+      0 1px 0 rgba(255,255,255,0.06) inset;
+  }
+
+  /* ── Type accents ── */
+  .toast-success { --toast-c: var(--green); --toast-tint: rgba(92,196,154,0.16); }
+  .toast-error   { --toast-c: var(--red);   --toast-tint: rgba(208,112,112,0.16); }
+  .toast-info    { --toast-c: var(--info);  --toast-tint: rgba(127,163,217,0.16); }
+  .toast-warning { --toast-c: var(--warning); --toast-tint: rgba(217,160,84,0.16); }
+  .toast-loading { --toast-c: var(--dim);   --toast-tint: rgba(176,169,200,0.14); }
+
+  /* ── Icon ── */
+  .toast-icon-wrap {
     flex-shrink: 0;
-    width: 22px; height: 22px;
+    position: relative;
+    width: 28px; height: 28px;
     border-radius: 50%;
-    background: rgba(200,169,110,0.14);
-    color: var(--accent);
     display: flex; align-items: center; justify-content: center;
-    font-family: var(--mono);
-    font-size: 12px;
+    background: rgba(255,255,255,0.1);
+    background: color-mix(in srgb, var(--toast-c) 16%, transparent);
+    color: var(--toast-c);
     margin-top: 1px;
+    animation: toastIconIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   }
-  .toast.toast-error .toast-icon { background: rgba(200,90,90,0.14); color: #c85a5a; }
-  .toast.toast-error { border-color: #c85a5a; }
-  .toast-body { flex: 1; min-width: 0; }
-  .toast-msg { font-family: var(--sans); font-size: 13px; line-height: 1.55; color: var(--text); font-weight: 300; }
+  .toast-icon-wrap svg { width: 15px; height: 15px; position: relative; z-index: 1; }
+  .toast-icon-wrap::after {
+    content: '';
+    position: absolute; inset: -7px;
+    border-radius: 50%;
+    background: radial-gradient(circle, color-mix(in srgb, var(--toast-c) 55%, transparent) 0%, transparent 72%);
+    opacity: 0;
+    animation: toastGlowPulse 1.6s ease-out 0.15s 1;
+  }
+  @keyframes toastIconIn {
+    0%   { transform: scale(0.4) rotate(-16deg); opacity: 0; }
+    55%  { transform: scale(1.14) rotate(5deg);  opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+  @keyframes toastGlowPulse {
+    0%   { opacity: 0; }
+    35%  { opacity: 0.9; }
+    100% { opacity: 0; }
+  }
+  /* Success checkmark draws itself in */
+  .toast-success .toast-icon-wrap svg path {
+    stroke-dasharray: 20; stroke-dashoffset: 20;
+    animation: toastCheckDraw 0.45s 0.12s cubic-bezier(0.65,0,0.35,1) forwards;
+  }
+  @keyframes toastCheckDraw { to { stroke-dashoffset: 0; } }
+  /* Loading spinner rotates continuously with a slow, subtle pulse */
+  .toast-loading .toast-icon-wrap svg { animation: toastSpin 0.9s linear infinite; }
+  .toast-loading .toast-icon-wrap { animation: toastIconIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both, toastPulse 1.8s ease-in-out 0.5s infinite; }
+  @keyframes toastSpin { to { transform: rotate(360deg); } }
+  @keyframes toastPulse {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--toast-c) 35%, transparent); }
+    50%      { box-shadow: 0 0 0 5px color-mix(in srgb, var(--toast-c) 0%, transparent); }
+  }
+
+  .toast-body { flex: 1; min-width: 0; padding-top: 2px; }
+  .toast-title {
+    font-family: var(--sans); font-size: 12.5px; font-weight: 600;
+    letter-spacing: 0.01em; color: var(--text); margin-bottom: 2px;
+  }
+  .toast-msg { font-family: var(--sans); font-size: 13px; line-height: 1.55; color: var(--dim); font-weight: 300; }
+
   .toast-close {
     flex-shrink: 0;
     background: none; border: none; cursor: pointer;
-    color: var(--muted); font-size: 15px; line-height: 1;
-    padding: 2px; margin-top: 1px;
-    transition: color 0.15s;
+    width: 22px; height: 22px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 14px; line-height: 1;
+    margin-top: 1px;
+    transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
   }
-  .toast-close:hover { color: var(--accent); }
+  .toast-close:hover { color: var(--text); background: rgba(255,255,255,0.06); transform: rotate(90deg); }
+  .toast-close:focus-visible { outline: 1px solid var(--toast-c); outline-offset: 2px; }
+
+  /* ── Progress bar — thin glowing line, shrinks over the toast's duration ── */
+  .toast-progress-track {
+    position: absolute; left: 15px; right: 15px; bottom: 7px; height: 2px;
+    border-radius: 2px; background: rgba(255,255,255,0.07); overflow: hidden;
+  }
+  .toast-progress-bar {
+    height: 100%; width: 100%;
+    border-radius: 2px;
+    transform-origin: left center;
+    transform: scaleX(1);
+    background: var(--toast-c);
+    box-shadow: 0 0 6px var(--toast-c), 0 0 2px var(--toast-c);
+  }
+  .toast-progress-bar.running { transition: transform linear; }
+  .toast-progress-bar.paused { transition: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .toast-icon-wrap, .toast-icon-wrap::after, .toast-loading .toast-icon-wrap svg { animation: none !important; }
+    .toast-success .toast-icon-wrap svg path { stroke-dasharray: none; stroke-dashoffset: 0; animation: none !important; }
+  }
+
   @media (max-width: 640px) {
-    #toast-stack { top: 12px; width: 94vw; }
-    .toast { padding: 14px 14px; }
+    #toast-stack {
+      top: auto;
+      bottom: max(18px, calc(env(safe-area-inset-bottom, 0px) + 14px));
+      width: 94vw;
+    }
+    .toast {
+      padding: 15px 16px 13px;
+      border-radius: 20px;
+    }
+    /* On mobile, new toasts stack upward from the bottom instead of down
+       from the top — repositionToasts() in app.js flips the sign of the
+       computed offsets to match via a body/data attribute. */
   }
+
+  /* Light theme keeps the same frosted-glass language, just lightened —
+     dark chrome on a light page would look like an error state, not luxury. */
+  [data-theme="light"] .toast {
+    background: linear-gradient(155deg, rgba(255,255,255,0.62) 0%, rgba(241,236,223,0.68) 100%);
+    border-color: rgba(43,39,32,0.10);
+    box-shadow:
+      0 10px 34px rgba(80,70,50,0.16),
+      0 2px 8px rgba(80,70,50,0.10),
+      0 0 0 1px var(--toast-tint, rgba(0,0,0,0.06)) inset,
+      0 1px 0 rgba(255,255,255,0.5) inset;
+  }
+  [data-theme="light"] .toast:hover:not(.toast-dragging) {
+    background: linear-gradient(155deg, rgba(255,255,255,0.72) 0%, rgba(241,236,223,0.78) 100%);
+  }
+  [data-theme="light"] .toast-title { color: var(--text); }
+  [data-theme="light"] .toast-msg { color: var(--dim); }
+  [data-theme="light"] .toast-close:hover { background: rgba(43,39,32,0.06); }
+  [data-theme="light"] .toast-progress-track { background: rgba(43,39,32,0.08); }
 
 /* ═══════════════════════════════════════════════════════════════
    ADDITIONS — styling for the newly fixed features

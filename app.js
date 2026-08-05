@@ -1,36 +1,244 @@
 // ═══════════════════════════════════════════════════════════════
-//  FLOATING TOAST NOTIFICATIONS (replaces window.alert popups)
+//  PREMIUM TOAST NOTIFICATIONS (replaces window.alert popups)
+//  Glassmorphic, dark-luxury toast stack. Everything moves via
+//  `transform`/`opacity`/`filter` only (composed from CSS custom
+//  properties set here in JS) so stacking, entrance/exit, hover-lift
+//  and swipe-to-dismiss stay GPU-composited and never touch layout.
 // ═══════════════════════════════════════════════════════════════
+
+const TOAST_MAX_VISIBLE = 4;
+const TOAST_GAP = 12; // px between stacked toasts
+const TOAST_TYPES = ['success', 'error', 'info', 'warning', 'loading'];
+const TOAST_DEFAULT_TITLES = {
+  success: 'Success', error: 'Something went wrong', info: 'Note',
+  warning: 'Heads up', loading: 'Working on it'
+};
+// Small, quiet line-icons — deliberately not filled/bright, to match a
+// calm rather than alarmed tone even for errors and warnings.
+const TOAST_ICONS = {
+  success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6"></path></svg>',
+  error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.25"></circle><path d="M12 7.4v6"></path><circle cx="12" cy="16.3" r="0.9" fill="currentColor" stroke="none"></circle></svg>',
+  warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.6 3.6a1.6 1.6 0 0 1 2.8 0l8.2 14.6a1.6 1.6 0 0 1-1.4 2.4H3.8a1.6 1.6 0 0 1-1.4-2.4z"></path><path d="M12 9.4v4.4"></path><circle cx="12" cy="16.6" r="0.9" fill="currentColor" stroke="none"></circle></svg>',
+  info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.25"></circle><circle cx="12" cy="7.6" r="0.9" fill="currentColor" stroke="none"></circle><path d="M12 11v5.5"></path></svg>',
+  loading: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3a9 9 0 1 1-6.36 2.64"></path></svg>'
+};
+
+let toastStackEl = null;
+let activeToasts = []; // ordered newest-first
+
+// message: string. opts: { type, title, duration }
+//   type: 'success' (default) | 'error' | 'info' | 'warning' | 'loading'
+//   duration: ms before auto-dismiss. Defaults to 3800, or 0 (persists
+//     until manually dismissed/updated) for type 'loading'.
+// Returns { dismiss(), update(message, opts) } so long-running actions can
+// show a loading toast and morph it into a success/error toast when done:
+//   const t = showToast('Uploading…', { type: 'loading' });
+//   ...
+//   t.update('Uploaded!', { type: 'success' });
 function showToast(message, opts) {
   opts = opts || {};
-  const type = opts.type || 'success';
-  const duration = opts.duration || 3800;
-  const stack = document.getElementById('toast-stack');
-  if (!stack) { console.log(message); return; }
+  const type = TOAST_TYPES.includes(opts.type) ? opts.type : 'success';
+  const duration = opts.duration != null ? opts.duration : (type === 'loading' ? 0 : 3800);
+  const title = opts.title || TOAST_DEFAULT_TITLES[type];
 
-  const toast = document.createElement('div');
-  toast.className = 'toast' + (type === 'error' ? ' toast-error' : '');
-  toast.innerHTML = `
-    <div class="toast-icon">${type === 'error' ? '!' : '✓'}</div>
-    <div class="toast-body"><div class="toast-msg"></div></div>
-    <button class="toast-close" aria-label="Dismiss">×</button>
+  toastStackEl = toastStackEl || document.getElementById('toast-stack');
+  if (!toastStackEl) { console.log(message); return null; }
+
+  // Cap visible toasts at 4 — drop the oldest instantly to make room for
+  // the new one rather than letting the stack grow unbounded.
+  while (activeToasts.length >= TOAST_MAX_VISIBLE) {
+    dismissToastRecord(activeToasts[activeToasts.length - 1], true);
+  }
+
+  const el = document.createElement('div');
+  el.className = 'toast toast-' + type;
+  el.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  el.innerHTML = `
+    <div class="toast-icon-wrap">${TOAST_ICONS[type]}</div>
+    <div class="toast-body">
+      <div class="toast-title"></div>
+      <div class="toast-msg"></div>
+    </div>
+    <button type="button" class="toast-close" aria-label="Dismiss notification">
+      <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="4" y1="4" x2="16" y2="16"></line><line x1="16" y1="4" x2="4" y2="16"></line></svg>
+    </button>
+    ${duration > 0 ? '<div class="toast-progress-track"><div class="toast-progress-bar running"></div></div>' : ''}
   `;
-  toast.querySelector('.toast-msg').textContent = message;
+  el.querySelector('.toast-title').textContent = title;
+  el.querySelector('.toast-msg').textContent = message;
 
-  let hideTimer;
-  const remove = () => {
-    clearTimeout(hideTimer);
-    toast.classList.remove('toast-show');
-    toast.classList.add('toast-hide');
-    setTimeout(() => toast.remove(), 260);
+  const record = {
+    el, type, duration, remaining: duration, startedAt: 0, timer: null,
+    progressBar: el.querySelector('.toast-progress-bar'), removed: false
   };
-  toast.querySelector('.toast-close').onclick = remove;
 
-  stack.appendChild(toast);
-  requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('toast-show')));
-  hideTimer = setTimeout(remove, duration);
-  return toast;
+  el.querySelector('.toast-close').addEventListener('click', () => dismissToastRecord(record));
+  if (duration > 0) {
+    el.addEventListener('mouseenter', () => pauseToastTimer(record));
+    el.addEventListener('mouseleave', () => resumeToastTimer(record));
+  }
+  attachToastSwipe(el, record);
+
+  toastStackEl.appendChild(el);
+  activeToasts.unshift(record);
+  repositionToasts();
+
+  // Double rAF so the browser commits the initial (invisible, offset)
+  // state in one frame before we flip to toast-show in the next — without
+  // this the entrance transition can get collapsed/skipped entirely.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (record.removed) return;
+    el.classList.add('toast-show');
+    if (duration > 0) startToastTimer(record);
+  }));
+
+  return {
+    dismiss: () => dismissToastRecord(record),
+    update: (newMessage, newOpts) => updateToastRecord(record, newMessage, newOpts)
+  };
 }
+
+function startToastTimer(record) {
+  record.startedAt = performance.now();
+  if (record.progressBar) {
+    record.progressBar.classList.remove('paused');
+    record.progressBar.classList.add('running');
+    record.progressBar.style.transitionDuration = record.remaining + 'ms';
+    record.progressBar.style.transform = 'scaleX(1)';
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (record.removed) return;
+      record.progressBar.style.transform = 'scaleX(0)';
+    }));
+  }
+  record.timer = setTimeout(() => dismissToastRecord(record), record.remaining);
+}
+
+function pauseToastTimer(record) {
+  if (record.removed || !record.timer) return;
+  clearTimeout(record.timer);
+  record.timer = null;
+  record.remaining = Math.max(0, record.remaining - (performance.now() - record.startedAt));
+  if (record.progressBar) {
+    const frozen = getComputedStyle(record.progressBar).transform;
+    record.progressBar.classList.remove('running');
+    record.progressBar.classList.add('paused');
+    record.progressBar.style.transform = frozen === 'none' ? 'scaleX(1)' : frozen;
+  }
+}
+
+function resumeToastTimer(record) {
+  if (record.removed || record.timer) return;
+  if (record.remaining <= 40) { dismissToastRecord(record); return; }
+  startToastTimer(record);
+}
+
+// skipAnimation is used when a 5th toast bumps the oldest off the stack —
+// that one just needs to be gone, not gracefully animated out.
+function dismissToastRecord(record, skipAnimation) {
+  if (record.removed) return;
+  record.removed = true;
+  clearTimeout(record.timer);
+  activeToasts = activeToasts.filter(r => r !== record);
+  if (skipAnimation) { record.el.remove(); repositionToasts(); return; }
+  record.el.classList.remove('toast-show', 'toast-dragging');
+  record.el.classList.add('toast-hide');
+  repositionToasts();
+  setTimeout(() => record.el.remove(), 340);
+}
+
+// Morphs an existing toast in place (icon, title, message, type, timer) —
+// e.g. turning a persistent "loading" toast into a "success" one.
+function updateToastRecord(record, newMessage, newOpts) {
+  if (record.removed) return;
+  newOpts = newOpts || {};
+  const type = TOAST_TYPES.includes(newOpts.type) ? newOpts.type : record.type;
+  record.type = type;
+  record.el.className = 'toast toast-' + type + ' toast-show';
+  record.el.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  const iconWrap = record.el.querySelector('.toast-icon-wrap');
+  if (iconWrap) iconWrap.outerHTML = `<div class="toast-icon-wrap">${TOAST_ICONS[type]}</div>`;
+  record.el.querySelector('.toast-title').textContent = newOpts.title || TOAST_DEFAULT_TITLES[type];
+  if (newMessage != null) record.el.querySelector('.toast-msg').textContent = newMessage;
+
+  clearTimeout(record.timer);
+  record.timer = null;
+  const duration = newOpts.duration != null ? newOpts.duration : (type === 'loading' ? 0 : 3800);
+  record.duration = duration;
+  record.remaining = duration;
+
+  let track = record.el.querySelector('.toast-progress-track');
+  if (duration > 0) {
+    if (!track) {
+      track = document.createElement('div');
+      track.className = 'toast-progress-track';
+      track.innerHTML = '<div class="toast-progress-bar running"></div>';
+      record.el.appendChild(track);
+    }
+    record.progressBar = track.querySelector('.toast-progress-bar');
+    startToastTimer(record);
+  } else if (track) {
+    track.remove();
+    record.progressBar = null;
+  }
+}
+
+// Repositions every active toast via a per-toast `--stack-y` custom
+// property (consumed by the `transform` in CSS) so the whole stack glides
+// smoothly whenever one is added or removed — no layout, no jumping.
+// On desktop the stack grows downward from the top; on mobile (bottom
+// anchored, thumb-friendly) it grows upward instead.
+function repositionToasts() {
+  const stacksUpward = window.matchMedia('(max-width: 640px)').matches;
+  let cumulative = 0;
+  activeToasts.forEach(record => {
+    const h = record.el.offsetHeight || 0;
+    record.el.style.setProperty('--stack-y', (stacksUpward ? -cumulative : cumulative) + 'px');
+    cumulative += h + TOAST_GAP;
+  });
+}
+
+// Touch/pointer swipe-to-dismiss: the toast tracks the finger 1:1 while
+// dragging, fades proportionally to drag distance, springs back if
+// released short of the threshold, and flies out smoothly if released
+// past it.
+function attachToastSwipe(el, record) {
+  const THRESHOLD = 90;
+  let dragging = false, pointerId = null, startX = 0, dx = 0;
+
+  el.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    dragging = true; pointerId = e.pointerId; startX = e.clientX; dx = 0;
+    el.classList.add('toast-dragging');
+    pauseToastTimer(record);
+    try { el.setPointerCapture(pointerId); } catch (err) {}
+  });
+  el.addEventListener('pointermove', e => {
+    if (!dragging || e.pointerId !== pointerId) return;
+    dx = e.clientX - startX;
+    el.style.setProperty('--drag-x', dx + 'px');
+    el.style.setProperty('--drag-fade', String(Math.max(0, 1 - Math.abs(dx) / 260)));
+  });
+  const endDrag = e => {
+    if (!dragging || (pointerId != null && e.pointerId !== pointerId)) return;
+    dragging = false;
+    el.classList.remove('toast-dragging');
+    if (Math.abs(dx) > THRESHOLD) {
+      el.style.setProperty('--drag-x', (dx > 0 ? 420 : -420) + 'px');
+      el.style.setProperty('--drag-fade', '0');
+      dismissToastRecord(record);
+    } else {
+      el.style.setProperty('--drag-x', '0px');
+      el.style.setProperty('--drag-fade', '1');
+      resumeToastTimer(record);
+    }
+  };
+  el.addEventListener('pointerup', endDrag);
+  el.addEventListener('pointercancel', endDrag);
+}
+
+// Keep the stack correctly positioned across a desktop↔mobile breakpoint
+// crossing (e.g. rotating a tablet, or resizing a browser window).
+window.addEventListener('resize', () => { if (activeToasts.length) repositionToasts(); });
 
 // ═══════════════════════════════════════════════════════════════
 //  STATE
