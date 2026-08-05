@@ -16,10 +16,10 @@ function sanitizeGoogleAlias(rawName) {
 async function startGoogleAuth(intent) {
   if (!isDbConnected()) {
     // No Supabase connection yet — fall back to the simulated flow.
-    if (intent === 'admin') { showAdminGoogleFallback(); } else { showGoogleAlias(); }
+    if (intent === 'admin') { showAdminGoogleFallback(); } else { showGoogleAlias(intent); }
     return;
   }
-  localStorage.setItem('al-google-intent', intent); // 'user' or 'admin', read back after the redirect
+  localStorage.setItem('al-google-intent', intent); // 'login', 'signup', or 'admin' — read back after the redirect
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: window.location.origin + window.location.pathname }
@@ -37,7 +37,7 @@ async function handleGoogleAuthCallback() {
   try {
     const { data: { session } } = await sb.auth.getSession();
     if (!session || !session.user) return;
-    const intent = localStorage.getItem('al-google-intent') || 'user';
+    const intent = localStorage.getItem('al-google-intent') || 'login';
     localStorage.removeItem('al-google-intent');
     const email = session.user.email;
     const displayName = (session.user.user_metadata && (session.user.user_metadata.full_name || session.user.user_metadata.name)) || (email ? email.split('@')[0] : 'user');
@@ -56,7 +56,18 @@ async function handleGoogleAuthCallback() {
       let users = JSON.parse(localStorage.getItem('al-users') || '[]');
       // Returning Google user on this browser — log back into the same local account.
       let account = users.find(u => u.googleEmail === email);
+
+      if (!account && intent === 'login') {
+        // Logging in, not signing up — don't silently create an account for
+        // an email nobody has registered. Send them to sign up instead.
+        await sb.auth.signOut();
+        showToast("No account found for " + email + ". Please sign up first.", {type:'error'});
+        showSignup();
+        return;
+      }
+
       if (!account) {
+        // Signup intent, no existing account — create one for real.
         let alias = sanitizeGoogleAlias(displayName);
         // Don't silently take over an existing name that belongs to a different account.
         if (users.find(u => u.name === alias)) {
@@ -67,7 +78,18 @@ async function handleGoogleAuthCallback() {
         account = { name: alias, password: 'google_oauth', created: Date.now(), avatar: null, gender: '', bio: '', totalSeconds: 0, code: generateFriendCode(new Set(users.map(u => u.code).filter(Boolean))), googleEmail: email };
         users.push(account);
         localStorage.setItem('al-users', JSON.stringify(users));
+      } else if (intent === 'signup') {
+        // Signing up with an email that already has an account — just log
+        // them into the existing one instead of silently making a duplicate.
+        showToast('You already have an account with that Google email — logging you in.');
       }
+
+      if (account.blocked) {
+        await sb.auth.signOut();
+        showToast('This account has been blocked by the site owner.', {type:'error'});
+        return;
+      }
+
       currentUser = { name: account.name };
       saveUser();
       closeAuth();
@@ -663,10 +685,13 @@ async function handleVerifyEmail() {
   showForcedAvatarPicker();
 }
 
-function handleGoogleLogin() { startGoogleAuth('user'); }
-function handleGoogleSignup() { startGoogleAuth('user'); }
+function handleGoogleLogin() { startGoogleAuth('login'); }
+function handleGoogleSignup() { startGoogleAuth('signup'); }
 
-function showGoogleAlias() {
+let googleAliasIntent = 'signup';
+
+function showGoogleAlias(intent) {
+  googleAliasIntent = intent || 'signup';
   closeAuth();
   document.getElementById('google-alias-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -681,6 +706,11 @@ function submitGoogleAlias() {
   if (!isValidAnonName(name)) { err.textContent = 'Invalid name.'; err.style.display = 'block'; return; }
   let users = JSON.parse(localStorage.getItem('al-users') || '[]');
   const existing = users.find(u => u.name === name);
+  if (!existing && googleAliasIntent === 'login') {
+    err.textContent = "No account found with that name. Please sign up first.";
+    err.style.display = 'block';
+    return;
+  }
   if (existing && existing.password !== 'google_oauth') {
     err.textContent = 'That name belongs to a password-protected account. Choose a different alias, or log in with a password instead.';
     err.style.display = 'block';

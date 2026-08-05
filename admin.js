@@ -854,8 +854,14 @@ function viewAdminRoom(name) {
 function adminDeleteMessage(roomName, idx) {
   if (!confirm('Delete this message?')) return;
   const msgs = getMessages(roomName);
+  const msg = msgs[idx];
   msgs.splice(idx, 1);
   saveMessages(roomName, msgs);
+  // Also delete server-side, or syncRoomMessages() will just pull the
+  // "deleted" message straight back out of Supabase on the next load.
+  if (isDbConnected() && msg && msg.id && /^\d+$/.test(String(msg.id))) {
+    sb.from('chat_messages').delete().eq('id', Number(msg.id)).then(() => {});
+  }
   viewAdminRoom(roomName);
   renderAdminChat();
 }
@@ -863,6 +869,11 @@ function adminDeleteMessage(roomName, idx) {
 function adminClearRoom(roomName) {
   if (!confirm('Delete ALL messages in #' + roomName + '? This cannot be undone.')) return;
   saveMessages(roomName, []);
+  // Same reason as adminDeleteMessage: the local cache is only half the
+  // picture. Without this, the room re-fills from Supabase on refresh.
+  if (isDbConnected()) {
+    sb.from('chat_messages').delete().eq('room', roomName).then(() => {});
+  }
   viewAdminRoom(roomName);
   renderAdminChat();
 }
@@ -893,6 +904,14 @@ function adminDeleteRoom(name) {
   const rooms = getRooms().filter(r => r.name !== name);
   saveRooms(rooms);
   localStorage.removeItem('al-chat-' + name);
+  // getRooms() only ever reads from localStorage, but the room row (and its
+  // messages) still exist in Supabase's chat_rooms/chat_messages tables until
+  // deleted here — leaving them meant the channel could reappear wherever
+  // that data still gets read from, and the messages would linger forever.
+  if (isDbConnected()) {
+    sb.from('chat_messages').delete().eq('room', name).then(() => {});
+    sb.from('chat_rooms').delete().eq('name', name).then(() => {});
+  }
   document.getElementById('admin-chat-room-detail').innerHTML = '';
   renderAdminChat();
 }
@@ -1376,6 +1395,18 @@ function deleteUserAccount(idx) {
   const wasCurrent = currentUser && currentUser.name === u.name;
   users.splice(idx, 1);
   localStorage.setItem('al-users', JSON.stringify(users));
+  // Without this, the row survives in Supabase's `users` table, and
+  // pullUsersFromSupabase() (which adds back any account it finds in the DB
+  // that this browser doesn't have locally) re-creates the "deleted" account
+  // the moment the admin panel refreshes or is reopened.
+  if (isDbConnected()) {
+    sb.rpc('admin_delete_user_account', { p_username: u.name }).then(({ error }) => {
+      if (error) {
+        console.error('Server-side account delete failed:', error);
+        showToast('Deleted locally, but the account may reappear — server delete failed: ' + error.message, {type:'error'});
+      }
+    });
+  }
   if (wasCurrent) {
     currentUser = null;
     saveUser();
