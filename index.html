@@ -184,8 +184,13 @@
     </div>
     <div class="form-group">
       <label>Anonymous Name</label>
-      <input class="form-input" type="text" id="us-name" placeholder="e.g. midnight_echo, vinyl_ghost">
-      <p class="anon-hint">Must be 3–20 chars. Letters, numbers, underscores, hyphens only. No offensive terms.</p>
+      <div class="name-field-wrap">
+        <input class="form-input" type="text" id="us-name" placeholder="e.g. midnight_echo, vinyl_ghost">
+        <button type="button" class="dice-roll-btn" onclick="rollRandomAnonName('us-name')" aria-label="Suggest a random name" title="Suggest a random name">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"></rect><circle cx="8" cy="8" r="1.4" fill="currentColor" stroke="none"></circle><circle cx="16" cy="8" r="1.4" fill="currentColor" stroke="none"></circle><circle cx="8" cy="16" r="1.4" fill="currentColor" stroke="none"></circle><circle cx="16" cy="16" r="1.4" fill="currentColor" stroke="none"></circle><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"></circle></svg>
+        </button>
+      </div>
+      <p class="anon-hint">Must be 3–20 chars. Letters, numbers, underscores, hyphens only. No offensive terms. Or roll the dice for a random one.</p>
     </div>
     <div class="form-group">
       <label>Gender</label>
@@ -204,11 +209,23 @@
     </div>
     <div class="form-group">
       <label>Password</label>
-      <input class="form-input" type="password" id="us-pass" placeholder="••••••••">
+      <div class="pass-field-wrap">
+        <input class="form-input" type="password" id="us-pass" placeholder="••••••••">
+        <button type="button" class="pass-toggle-btn" onclick="togglePasswordVisibility('us-pass', this)" aria-label="Show password" title="Show password">
+          <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <svg class="eye-off-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a20.3 20.3 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 7 11 7a20.3 20.3 0 0 1-2.68 3.68"></path><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+        </button>
+      </div>
     </div>
     <div class="form-group">
       <label>Confirm Password</label>
-      <input class="form-input" type="password" id="us-pass2" placeholder="••••••••">
+      <div class="pass-field-wrap">
+        <input class="form-input" type="password" id="us-pass2" placeholder="••••••••">
+        <button type="button" class="pass-toggle-btn" onclick="togglePasswordVisibility('us-pass2', this)" aria-label="Show password" title="Show password">
+          <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <svg class="eye-off-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a20.3 20.3 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 7 11 7a20.3 20.3 0 0 1-2.68 3.68"></path><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+        </button>
+      </div>
     </div>
     <!-- Honeypot: invisible to real people, but a script that fills every
          input on the form will fill this too. If it's non-empty on submit,
@@ -382,6 +399,7 @@
       <div class="sub-detail-field"><label>Mood</label><div class="val" id="sd-mood"></div></div>
       <div class="sub-detail-field"><label>Genres</label><div class="val" id="sd-genres"></div></div>
       <div class="sub-detail-field"><label>Listen Link</label><div class="val" id="sd-link"></div></div>
+      <div class="sub-detail-field"><label>YouTube Link</label><div class="val" id="sd-yt-link"></div></div>
       <div class="sub-detail-field full"><label>Description — what the song is about</label><div class="val" id="sd-about"></div></div>
       <div class="sub-detail-field full"><label>What it really means — interpretation</label><div class="val" id="sd-meaning"></div></div>
       <div class="sub-detail-field full"><label>Key Lyrics</label><div class="val" id="sd-lyrics"></div></div>
@@ -695,6 +713,10 @@
       <div class="form-group full">
         <label>Spotify / Listen Link</label>
         <input class="form-input" type="url" id="sub-link" placeholder="https://open.spotify.com/track/...">
+      </div>
+      <div class="form-group full">
+        <label>YouTube Link <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+        <input class="form-input" type="url" id="sub-youtube" placeholder="https://youtube.com/watch?v=...">
       </div>
       <div class="form-group">
         <label>Genre 1</label>
@@ -1366,6 +1388,10 @@
             <label>Spotify Link</label>
             <input class="form-input" type="url" id="adm-song-spotify">
           </div>
+          <div class="form-group full">
+            <label>YouTube Link</label>
+            <input class="form-input" type="url" id="adm-song-youtube">
+          </div>
           <div class="form-group">
             <label>Genre 1</label>
             <input class="form-input" type="text" id="adm-song-genre1">
@@ -2022,6 +2048,7 @@ serve(async (req) => {
       </div>
       <div class="modal-action-row">
         <a href="#" class="listen-link" id="m-listen" target="_blank" rel="noopener">▶ Listen on Spotify</a>
+        <a href="#" class="listen-link youtube-link" id="m-listen-yt" target="_blank" rel="noopener" style="display:none;">▶ Watch on YouTube</a>
       </div>
 
       <!-- COMMENTS -->

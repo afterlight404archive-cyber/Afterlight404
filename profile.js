@@ -909,6 +909,9 @@ function openSongModalByNumber(number) {
   renderModalFunFact(s.funFact);
   renderModalUploader(s);
   document.getElementById('m-listen').href = s.spotify || '#';
+  const ytLink = document.getElementById('m-listen-yt');
+  if (s.youtube) { ytLink.href = s.youtube; ytLink.style.display = ''; }
+  else { ytLink.style.display = 'none'; ytLink.href = '#'; }
   renderComments(idx);
   updateCommentForm();
   const modal = document.getElementById('modal');

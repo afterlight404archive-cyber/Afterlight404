@@ -143,7 +143,7 @@ async function pullSubmissionsFromSupabase() {
     submissions = (data || []).map(r => ({
       id: r.id, title: r.title, artist: r.artist, year: r.year, mood: r.mood,
       about: r.about, meaning: r.meaning, lyrics: r.lyrics, funFact: r.fun_fact,
-      spotify: r.spotify, genre: r.genre || [], submittedBy: r.submitted_by,
+      spotify: r.spotify, youtube: r.youtube, genre: r.genre || [], submittedBy: r.submitted_by,
       submittedAt: r.created_at ? new Date(r.created_at).getTime() : Date.now()
     }));
     saveSubmissions();
@@ -485,6 +485,9 @@ function initModal() {
     renderModalFunFact(s.funFact);
     renderModalUploader(s);
     document.getElementById('m-listen').href = s.spotify || '#';
+    const ytLink = document.getElementById('m-listen-yt');
+    if (s.youtube) { ytLink.href = s.youtube; ytLink.style.display = ''; }
+    else { ytLink.style.display = 'none'; ytLink.href = '#'; }
     renderComments(idx);
     updateCommentForm();
     modal.classList.add('open');
@@ -677,6 +680,7 @@ document.getElementById('submit-form').addEventListener('submit', async function
     lyrics: document.getElementById('sub-lyrics').value.trim(),
     funFact: document.getElementById('sub-funfact').value.trim(),
     spotify: document.getElementById('sub-link').value.trim(),
+    youtube: document.getElementById('sub-youtube').value.trim(),
     genre: [document.getElementById('sub-genre1').value.trim(), document.getElementById('sub-genre2').value.trim()].filter(Boolean),
     submittedBy: currentUser.name,
     submittedAt: Date.now(),
@@ -698,7 +702,7 @@ document.getElementById('submit-form').addEventListener('submit', async function
       const { data, error } = await sb.from('submissions').insert({
         title: submission.title, artist: submission.artist, year: submission.year, mood: submission.mood,
         about: submission.about, meaning: submission.meaning, lyrics: submission.lyrics,
-        fun_fact: submission.funFact, spotify: submission.spotify, genre: submission.genre,
+        fun_fact: submission.funFact, spotify: submission.spotify, youtube: submission.youtube, genre: submission.genre,
         submitted_by: submission.submittedBy
       }).select().single();
       if (error) throw error;

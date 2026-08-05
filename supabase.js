@@ -416,7 +416,7 @@ async function pushLocalDataToSupabase() {
   const songRows = songs.map(s => ({
     song_key: s.number, title: s.title, artist: s.artist, year: s.year,
     mood: s.mood, about: s.about, meaning: s.meaning, lyrics: s.lyrics,
-    credit: s.credit, spotify: s.spotify, genre: s.genre
+    credit: s.credit, spotify: s.spotify, youtube: s.youtube, genre: s.genre
   }));
   await tryPush('songs', songRows, 'song_key');
 
@@ -480,7 +480,7 @@ async function pullSharedDataFromSupabase() {
       songs = songData.map(s => ({
         number: s.song_key, title: s.title, artist: s.artist, year: s.year,
         mood: s.mood, about: s.about, meaning: s.meaning, lyrics: s.lyrics,
-        credit: s.credit, spotify: s.spotify, genre: s.genre || []
+        credit: s.credit, spotify: s.spotify, youtube: s.youtube, genre: s.genre || []
       }));
       saveSongs();
     }
@@ -575,7 +575,7 @@ create table if not exists songs (
   id bigint generated always as identity primary key,
   song_key text unique not null,
   title text, artist text, year text, mood text,
-  about text, meaning text, lyrics text, credit text, spotify text,
+  about text, meaning text, lyrics text, credit text, spotify text, youtube text,
   genre text[]
 );
 
@@ -690,7 +690,7 @@ create table if not exists notifications (
 create table if not exists submissions (
   id bigint generated always as identity primary key,
   title text, artist text, year text, mood text,
-  about text, meaning text, lyrics text, fun_fact text, spotify text,
+  about text, meaning text, lyrics text, fun_fact text, spotify text, youtube text,
   genre text[],
   submitted_by text not null,
   created_at timestamptz default now()
@@ -715,6 +715,8 @@ alter table users          add  column if not exists owner_id uuid;
 alter table users          add  column if not exists blocked boolean not null default false;
 alter table admin_settings add  column if not exists owner_username text;
 alter table song_ratings   add  column if not exists updated_at timestamptz default now();
+alter table songs          add  column if not exists youtube text;
+alter table submissions    add  column if not exists youtube text;
 
 -- ─────────────────────────── INDEXES ───────────────────────────
 -- Without these, every chat send did a full table scan (the rate-limit

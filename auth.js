@@ -1,3 +1,65 @@
+// ═══════════════════════════════════════════════════════════════
+//  SHOW / HIDE PASSWORD TOGGLE
+//  Flips a password input's type between "password" and "text" and swaps
+//  the eye / eye-off icon on the trigger button. Generic — works for any
+//  password field, but is currently only wired up on the signup form's
+//  Password + Confirm Password fields.
+// ═══════════════════════════════════════════════════════════════
+function togglePasswordVisibility(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const nowVisible = input.type === 'password';
+  input.type = nowVisible ? 'text' : 'password';
+  if (btn) {
+    btn.classList.toggle('is-visible', nowVisible);
+    const label = nowVisible ? 'Hide password' : 'Show password';
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('title', label);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RANDOM ANONYMOUS NAME GENERATOR (dice roll)
+//  Combines a mood/aesthetic-flavoured adjective with a noun, matching the
+//  vibe of the placeholder examples ("midnight_echo", "vinyl_ghost"). Keeps
+//  rolling until it lands on something that passes isValidAnonName (defined
+//  in songs.js) so it can never suggest something offensive or malformed.
+// ═══════════════════════════════════════════════════════════════
+const ANON_NAME_ADJECTIVES = [
+  'midnight','vinyl','hollow','velvet','faded','neon','quiet','static','golden','ghost',
+  'lonely','amber','pale','wandering','drowsy','electric','fractured','wistful','moonlit','rusted',
+  'echoing','dusty','crimson','silent','dizzy','tender','shattered','glowing','restless','frozen'
+];
+const ANON_NAME_NOUNS = [
+  'echo','ghost','static','drifter','wanderer','shadow','signal','feeling','mirage','wildfire',
+  'stardust','hallway','lullaby','heartbeat','wavelength','stranger','daydream','afterglow','wreckage','tideline',
+  'candlelight','windchime','streetlight','harbor','orbit','flicker','vertigo','somber','reverie','skyline'
+];
+
+function generateRandomAnonName() {
+  let attempts = 0;
+  let candidate;
+  do {
+    const adj = ANON_NAME_ADJECTIVES[Math.floor(Math.random() * ANON_NAME_ADJECTIVES.length)];
+    const noun = ANON_NAME_NOUNS[Math.floor(Math.random() * ANON_NAME_NOUNS.length)];
+    candidate = `${adj}_${noun}`;
+    // Occasionally append a short number for extra variety/uniqueness.
+    if (attempts > 0 || Math.random() < 0.3) candidate += String(Math.floor(Math.random() * 90) + 10);
+    attempts++;
+  } while (!isValidAnonName(candidate) && attempts < 20);
+  return candidate;
+}
+
+// Wired to the dice icon button next to an anonymous-name field. Fills the
+// given input with a freshly rolled name and gives the button a quick spin.
+function rollRandomAnonName(inputId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  input.value = generateRandomAnonName();
+  input.focus();
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  REAL GOOGLE SIGN-IN (via Supabase Auth)
 //  Only works once: (1) Supabase is connected, (2) the Google provider is
 //  enabled in that Supabase project with a Google Cloud OAuth client, and

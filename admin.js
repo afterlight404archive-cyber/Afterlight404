@@ -1651,7 +1651,7 @@ async function addApprovedSongFromSubmission(sub) {
     number: songKey, title: sub.title, artist: sub.artist, year: sub.year, mood: sub.mood,
     moodColor: moodData.color, moodBg: moodData.bg, genre: sub.genre,
     about: sub.about, meaning: sub.meaning, lyrics: sub.lyrics, funFact: sub.funFact,
-    credit: 'Submitted by ' + sub.submittedBy, spotify: sub.spotify
+    credit: 'Submitted by ' + sub.submittedBy, spotify: sub.spotify, youtube: sub.youtube
   };
   songs.push(newSong);
 
@@ -1660,7 +1660,7 @@ async function addApprovedSongFromSubmission(sub) {
       await sb.from('songs').upsert({
         song_key: newSong.number, title: newSong.title, artist: newSong.artist, year: newSong.year,
         mood: newSong.mood, about: newSong.about, meaning: newSong.meaning, lyrics: newSong.lyrics,
-        credit: newSong.credit, spotify: newSong.spotify, genre: newSong.genre
+        credit: newSong.credit, spotify: newSong.spotify, youtube: newSong.youtube, genre: newSong.genre
       }, { onConflict: 'song_key' });
       if (sub.id) await sb.from('submissions').delete().eq('id', sub.id);
     } catch (e) { console.error('Approve: Supabase sync failed (kept locally):', e); }
@@ -1680,6 +1680,9 @@ function openSubmissionDetail(idx) {
   const linkEl = document.getElementById('sd-link');
   if (sub.spotify) { linkEl.innerHTML = `<a href="${escapeHtml(sub.spotify)}" target="_blank" rel="noopener">${escapeHtml(sub.spotify)}</a>`; linkEl.classList.remove('empty'); }
   else { linkEl.textContent = 'No link provided'; linkEl.classList.add('empty'); }
+  const ytLinkEl = document.getElementById('sd-yt-link');
+  if (sub.youtube) { ytLinkEl.innerHTML = `<a href="${escapeHtml(sub.youtube)}" target="_blank" rel="noopener">${escapeHtml(sub.youtube)}</a>`; ytLinkEl.classList.remove('empty'); }
+  else { ytLinkEl.textContent = 'No link provided'; ytLinkEl.classList.add('empty'); }
   const setLong = (id, text) => {
     const el = document.getElementById(id);
     if (text && text.trim()) { el.textContent = text; el.classList.remove('empty'); }
@@ -1723,7 +1726,8 @@ function addSongFromAdmin() {
     lyrics: document.getElementById('adm-song-lyrics').value,
     funFact: document.getElementById('adm-song-funfact').value,
     credit: document.getElementById('adm-song-credit').value,
-    spotify: document.getElementById('adm-song-spotify').value
+    spotify: document.getElementById('adm-song-spotify').value,
+    youtube: document.getElementById('adm-song-youtube').value
   };
   songs.push(newSong);
   saveSongs();
@@ -1731,7 +1735,7 @@ function addSongFromAdmin() {
     sb.from('songs').upsert({
       song_key: newSong.number, title: newSong.title, artist: newSong.artist, year: newSong.year,
       mood: newSong.mood, about: newSong.about, meaning: newSong.meaning, lyrics: newSong.lyrics,
-      fun_fact: newSong.funFact, credit: newSong.credit, spotify: newSong.spotify, genre: newSong.genre
+      fun_fact: newSong.funFact, credit: newSong.credit, spotify: newSong.spotify, youtube: newSong.youtube, genre: newSong.genre
     }, { onConflict: 'song_key' }).then(() => {});
   }
   renderSongGrid();
@@ -1746,6 +1750,7 @@ function addSongFromAdmin() {
   document.getElementById('adm-song-funfact').value = '';
   document.getElementById('adm-song-credit').value = '';
   document.getElementById('adm-song-spotify').value = '';
+  document.getElementById('adm-song-youtube').value = '';
   document.getElementById('adm-song-genre1').value = '';
   document.getElementById('adm-song-genre2').value = '';
   showToast('Song added!');
@@ -1776,6 +1781,7 @@ function editSong(idx) {
   document.getElementById('adm-song-funfact').value = s.funFact || '';
   document.getElementById('adm-song-credit').value = s.credit;
   document.getElementById('adm-song-spotify').value = s.spotify;
+  document.getElementById('adm-song-youtube').value = s.youtube || '';
   document.getElementById('adm-song-genre1').value = s.genre[0] || '';
   document.getElementById('adm-song-genre2').value = s.genre[1] || '';
   songs.splice(idx, 1);

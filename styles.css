@@ -693,6 +693,8 @@
   .copyright-notice { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.05em; margin-top: 12px; line-height: 1.6; }
   .listen-link { display: inline-flex; align-items: center; gap: 10px; margin-top: 20px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text); border: 1px solid var(--border2); padding: 10px 20px; text-decoration: none; transition: all 0.18s; }
   .listen-link:hover { border-color: var(--accent); color: var(--accent); }
+  .listen-link.youtube-link { margin-left: 12px; }
+  @media (max-width: 480px) { .listen-link.youtube-link { margin-left: 0; } }
 
   /* ── COMMENTS SECTION ── */
   .comments-section { margin-top: 32px; padding-top: 32px; border-top: 1px solid var(--border); }
@@ -755,6 +757,34 @@
   .auth-close { position: absolute; top: 14px; right: 16px; background: none; border: 1px solid var(--border); color: var(--muted); width: 28px; height: 28px; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; border-radius: 2px; }
   .auth-close:hover { border-color: var(--red); color: var(--red); }
   .anon-hint { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+
+  /* ── PASSWORD FIELD WITH SHOW/HIDE TOGGLE ── */
+  .pass-field-wrap { position: relative; }
+  .pass-field-wrap .form-input { padding-right: 44px; }
+  .pass-toggle-btn {
+    position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+    width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+    background: none; border: none; color: var(--muted); cursor: pointer; padding: 0;
+    transition: color 0.15s;
+  }
+  .pass-toggle-btn:hover { color: var(--accent); }
+  .pass-toggle-btn svg { width: 18px; height: 18px; }
+  .pass-toggle-btn .eye-off-icon { display: none; }
+  .pass-toggle-btn.is-visible .eye-icon { display: none; }
+  .pass-toggle-btn.is-visible .eye-off-icon { display: block; }
+
+  /* ── ANONYMOUS NAME FIELD WITH DICE ROLL ── */
+  .name-field-wrap { position: relative; display: flex; gap: 8px; align-items: stretch; }
+  .name-field-wrap .form-input { flex: 1; }
+  .dice-roll-btn {
+    flex-shrink: 0; width: 42px; background: var(--bg); border: 1px solid var(--border2);
+    color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.18s; border-radius: 2px;
+  }
+  .dice-roll-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .dice-roll-btn:active svg { animation: dice-spin 0.4s ease; }
+  .dice-roll-btn svg { width: 19px; height: 19px; }
+  @keyframes dice-spin { from { transform: rotate(0deg); } to { transform: rotate(180deg); } }
 
   /* ── SUBMIT SONG PAGE ── */
   .submit-section { padding: 64px 48px 80px; border-top: 1px solid var(--border); }
