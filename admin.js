@@ -1612,6 +1612,7 @@ async function approveAllSubmissions() {
   if (subs.length === 0) return;
   if (!confirm(`Approve all ${subs.length} pending submission(s)? This will add them all to the archive.`)) return;
   const count = subs.length;
+  await refreshSongsFromSupabase();
   for (const sub of subs) { await addApprovedSongFromSubmission(sub); }
   saveSongs();
   submissions = [];
@@ -1628,6 +1629,7 @@ async function approveSelectedSubmissions() {
   const indexesToApprove = [...selectedSubmissionIndexes].sort((a,b) => a-b);
   if (!confirm(`Approve ${indexesToApprove.length} selected submission(s)?`)) return;
   const count = indexesToApprove.length;
+  await refreshSongsFromSupabase();
   for (const i of indexesToApprove) { if (submissions[i]) await addApprovedSongFromSubmission(submissions[i]); }
   saveSongs();
   submissions = submissions.filter((sub, i) => !selectedSubmissionIndexes.has(i));
@@ -1641,12 +1643,48 @@ async function approveSelectedSubmissions() {
   showToast(`${count} submission${count === 1 ? '' : 's'} approved and added to the archive!`);
 }
 
+// Works out the next "#00N" song number from whatever's actually loaded in
+// `songs` right now. Using songs.length was the bug: local length silently
+// drifts from what's really in Supabase (stale cache, other devices adding
+// songs, etc), so every "blank number" add kept regenerating "#001" and
+// clobbering the same row via upsert's onConflict instead of creating a new
+// one. Taking the max existing numeric key is safe even with gaps.
+function nextSongKey() {
+  let max = 0;
+  songs.forEach(s => {
+    const n = parseInt(String(s && s.number || '').replace('#', ''), 10);
+    if (Number.isFinite(n) && n > max) max = n;
+  });
+  return '#' + String(max + 1).padStart(3, '0');
+}
+
+// Re-pulls just the songs table from Supabase so `songs` (and therefore
+// nextSongKey()) reflects reality right before we generate a new key —
+// instead of trusting whatever this browser happened to have cached.
+// Best-effort: if it fails or isn't connected, we just fall back to
+// whatever's in memory already.
+async function refreshSongsFromSupabase() {
+  if (!isDbConnected() || !sb) return;
+  try {
+    const { data, error } = await sb.from('songs').select('*');
+    if (error) throw error;
+    if (data) {
+      songs = data.map(s => ({
+        number: s.song_key, title: s.title, artist: s.artist, year: s.year,
+        mood: s.mood, about: s.about, meaning: s.meaning, lyrics: s.lyrics, funFact: s.fun_fact,
+        credit: s.credit, spotify: s.spotify, youtube: s.youtube, genre: s.genre || []
+      }));
+      saveSongs();
+    }
+  } catch (e) { console.error('Refresh songs from Supabase failed:', e); }
+}
+
 // Adds the approved song locally AND (when connected) to the shared Supabase
 // songs table + removes the reviewed row from the shared submissions queue,
 // so the archive and the queue both stay in sync across every browser.
 async function addApprovedSongFromSubmission(sub) {
   const moodData = MOOD_MAP[sub.mood] || MOOD_MAP['3am'];
-  const songKey = '#'+String(songs.length+1).padStart(3,'0');
+  const songKey = nextSongKey();
   const newSong = {
     number: songKey, title: sub.title, artist: sub.artist, year: sub.year, mood: sub.mood,
     moodColor: moodData.color, moodBg: moodData.bg, genre: sub.genre,
@@ -1657,13 +1695,21 @@ async function addApprovedSongFromSubmission(sub) {
 
   if (isDbConnected() && sb) {
     try {
-      await sb.from('songs').upsert({
+      const { error } = await sb.from('songs').upsert({
         song_key: newSong.number, title: newSong.title, artist: newSong.artist, year: newSong.year,
         mood: newSong.mood, about: newSong.about, meaning: newSong.meaning, lyrics: newSong.lyrics,
-        credit: newSong.credit, spotify: newSong.spotify, youtube: newSong.youtube, genre: newSong.genre
+        fun_fact: newSong.funFact, credit: newSong.credit, spotify: newSong.spotify, youtube: newSong.youtube, genre: newSong.genre
       }, { onConflict: 'song_key' });
+      if (error) throw error;
       if (sub.id) await sb.from('submissions').delete().eq('id', sub.id);
-    } catch (e) { console.error('Approve: Supabase sync failed (kept locally):', e); }
+    } catch (e) {
+      console.error('Approve: Supabase sync failed:', e);
+      // Don't leave the admin thinking this actually made it into the shared
+      // archive when it didn't — pull it back out of the local array too.
+      songs = songs.filter(s => s !== newSong);
+      showToast('Failed to save "' + (sub.title || 'song') + '" to the database: ' +
+        (e.message || String(e)) + '. It was NOT approved.', { type: 'error', duration: 8000 });
+    }
   }
 }
 
@@ -1709,11 +1755,21 @@ function closeSubmissionDetail() {
   document.body.style.overflow = '';
 }
 
-function addSongFromAdmin() {
+async function addSongFromAdmin() {
   const mood = document.getElementById('adm-song-mood').value;
   const moodData = MOOD_MAP[mood];
+  const addBtn = document.getElementById('adm-song-add-btn');
+  if (addBtn) { addBtn.disabled = true; }
+
+  // Make sure `songs` reflects what's really in Supabase before picking a
+  // number for a blank field — otherwise a stale local cache regenerates
+  // "#001" every time and each add just overwrites the last one. See
+  // nextSongKey()/refreshSongsFromSupabase() above.
+  await refreshSongsFromSupabase();
+
+  const manualNumber = document.getElementById('adm-song-num').value.trim();
   const newSong = {
-    number: document.getElementById('adm-song-num').value || '#'+String(songs.length+1).padStart(3,'0'),
+    number: manualNumber || nextSongKey(),
     title: document.getElementById('adm-song-title').value,
     artist: document.getElementById('adm-song-artist').value,
     year: document.getElementById('adm-song-year').value,
@@ -1729,15 +1785,40 @@ function addSongFromAdmin() {
     spotify: document.getElementById('adm-song-spotify').value,
     youtube: document.getElementById('adm-song-youtube').value
   };
+
+  if (songs.some(s => s.number === newSong.number)) {
+    if (addBtn) addBtn.disabled = false;
+    showToast('Song number ' + newSong.number + ' is already in use — pick a different one.', { type: 'error' });
+    return;
+  }
+
   songs.push(newSong);
   saveSongs();
-  if (isDbConnected()) {
-    sb.from('songs').upsert({
-      song_key: newSong.number, title: newSong.title, artist: newSong.artist, year: newSong.year,
-      mood: newSong.mood, about: newSong.about, meaning: newSong.meaning, lyrics: newSong.lyrics,
-      fun_fact: newSong.funFact, credit: newSong.credit, spotify: newSong.spotify, youtube: newSong.youtube, genre: newSong.genre
-    }, { onConflict: 'song_key' }).then(() => {});
+
+  if (isDbConnected() && sb) {
+    try {
+      const { error } = await sb.from('songs').upsert({
+        song_key: newSong.number, title: newSong.title, artist: newSong.artist, year: newSong.year,
+        mood: newSong.mood, about: newSong.about, meaning: newSong.meaning, lyrics: newSong.lyrics,
+        fun_fact: newSong.funFact, credit: newSong.credit, spotify: newSong.spotify, youtube: newSong.youtube, genre: newSong.genre
+      }, { onConflict: 'song_key' });
+      if (error) throw error;
+    } catch (e) {
+      console.error('Add song: Supabase sync failed:', e);
+      // Take it back out locally too — it did NOT actually get saved to the
+      // shared archive, so it shouldn't look like it's there.
+      songs = songs.filter(s => s !== newSong);
+      saveSongs();
+      renderSongGrid();
+      renderAdminSongs();
+      if (addBtn) addBtn.disabled = false;
+      showToast('Song was NOT saved — the database rejected it: ' +
+        (e.message || String(e)) + '. Check that you\'re still logged in as admin.',
+        { type: 'error', duration: 8000 });
+      return;
+    }
   }
+
   renderSongGrid();
   renderAdminSongs();
   document.getElementById('adm-song-num').value = '';
@@ -1753,19 +1834,39 @@ function addSongFromAdmin() {
   document.getElementById('adm-song-youtube').value = '';
   document.getElementById('adm-song-genre1').value = '';
   document.getElementById('adm-song-genre2').value = '';
-  showToast('Song added!');
+  if (addBtn) addBtn.disabled = false;
+  showToast(isDbConnected() ? 'Song added to the archive!' : 'Song added locally (no database connected).');
 }
 
-function deleteSong(idx) {
+// Deletes a song and, when connected, calls the admin_delete_song RPC so
+// every song numbered after it shifts down by one server-side (and the
+// same renumber cascades to comments/ratings/DMs tied to those songs) —
+// see admin_delete_song in setup.sql. Local-only mode just removes it with
+// no renumber, since there's no shared numbering to keep consistent.
+async function deleteSong(idx) {
   if (!confirm('Delete this song?')) return;
   const songKey = songs[idx].number;
-  songs.splice(idx, 1);
-  saveSongs();
-  if (isDbConnected()) {
-    sb.from('songs').delete().eq('song_key', songKey).then(() => {});
+
+  if (isDbConnected() && sb) {
+    try {
+      const { error } = await sb.rpc('admin_delete_song', { p_song_key: songKey });
+      if (error) throw error;
+      // Pull the freshly renumbered archive back down rather than trying
+      // to replicate the server's renumbering logic locally.
+      await refreshSongsFromSupabase();
+    } catch (e) {
+      console.error('Delete song failed:', e);
+      showToast('Could not delete song: ' + (e.message || String(e)), { type: 'error' });
+      return;
+    }
+  } else {
+    songs.splice(idx, 1);
+    saveSongs();
   }
+
   renderSongGrid();
   renderAdminSongs();
+  showToast('Song deleted.');
 }
 
 function editSong(idx) {

@@ -196,7 +196,9 @@ function renderSongGrid() {
         </div>
       </div>
       <div class="song-number">${s.number}</div>
-      ${getSongUploader(s) ? `<div class="song-card-uploader" onclick="event.stopPropagation();openUserProfileView('${escapeJs(getSongUploader(s))}')">↑ uploaded by @${escapeHtml(getSongUploader(s))}</div>` : ''}
+      ${getSongUploader(s) ? (isDeletedUploader(getSongUploader(s))
+          ? `<div class="song-card-uploader song-card-uploader-deleted">↑ uploaded by a deleted user</div>`
+          : `<div class="song-card-uploader" onclick="event.stopPropagation();openUserProfileView('${escapeJs(getSongUploader(s))}')">↑ uploaded by @${escapeHtml(getSongUploader(s))}</div>`) : ''}
       <div class="song-desc">${escapeHtml(s.about.split('\\n')[0])}</div>
       <div class="card-footer">
         <div class="genre-pills">
@@ -260,6 +262,14 @@ function getSongUploader(s) {
   if (s.credit.indexOf(prefix) !== 0) return null;
   const name = s.credit.slice(prefix.length).trim();
   return name || null;
+}
+
+// The uploader's account may have since been deleted — see
+// admin_delete_user_account/alias_delete_account in setup.sql, which
+// anonymize (not delete) credit on their approved songs to this marker
+// instead of leaving a link to a profile that no longer exists.
+function isDeletedUploader(name) {
+  return name === '[deleted user]';
 }
 
 // Lyrics are shown to every visitor, and can come from admin edits, approved
@@ -459,6 +469,13 @@ function initModal() {
     const wrap = document.getElementById('m-uploader-wrap');
     const uploader = getSongUploader(s);
     if (!uploader) { wrap.innerHTML = ''; return; }
+    if (isDeletedUploader(uploader)) {
+      wrap.innerHTML = `
+        <div class="song-uploader-row song-uploader-row-deleted">
+          <span class="song-uploader-label">Uploaded by a deleted user</span>
+        </div>`;
+      return;
+    }
     wrap.innerHTML = `
       <div class="song-uploader-row" onclick="openUserProfileView('${escapeJs(uploader)}')">
         ${userPfpHTML(uploader)}
