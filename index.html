@@ -2302,5 +2302,176 @@ document.addEventListener('scroll', () => closeMsgActions(), true);
   // kept because they cost nothing; this one had a real cost.
 })();
 </script>
+
+<!-- COOKIE & PRIVACY CONSENT BANNER -->
+<style>
+  .al-consent-backdrop{
+    position: fixed; inset: 0;
+    background: rgba(6,7,12,0.5);
+    z-index: 99998;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.35s ease;
+  }
+  .al-consent-backdrop.al-visible{ opacity: 1; pointer-events: auto; }
+
+  .al-consent-banner{
+    position: fixed;
+    left: 50%; bottom: 24px;
+    transform: translate(-50%, 16px);
+    width: min(560px, calc(100vw - 32px));
+    background: var(--card);
+    border: 1px solid var(--border2);
+    border-radius: 14px;
+    box-shadow: var(--shadow-card), var(--shadow-glow);
+    padding: 22px 24px 20px;
+    z-index: 99999;
+    opacity: 0;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+    font-family: var(--sans);
+    color: var(--text);
+  }
+  .al-consent-banner.al-visible{ opacity: 1; transform: translate(-50%, 0); }
+
+  .al-consent-eyebrow{
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+  .al-consent-eyebrow::before{
+    content: ""; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px 1px var(--accent-glow);
+    display: inline-block;
+  }
+
+  .al-consent-body{ font-size: 14.5px; line-height: 1.55; color: var(--dim); margin: 0 0 16px; }
+  .al-consent-body a{ color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-glow); }
+  .al-consent-body a:hover{ border-bottom-color: var(--accent); }
+
+  .al-consent-actions{ display: flex; gap: 10px; }
+
+  .al-btn-consent{
+    flex: 1; padding: 11px 16px; font-size: 13.5px; font-weight: 600;
+    border-radius: 8px; cursor: pointer; border: 1px solid transparent;
+    transition: transform 0.15s ease, opacity 0.15s ease, background 0.15s ease;
+    font-family: var(--sans);
+  }
+  .al-btn-consent:active{ transform: scale(0.98); }
+  .al-btn-consent-accept{ background: var(--accent); color: #201305; }
+  .al-btn-consent-accept:hover{ opacity: 0.9; }
+  .al-btn-consent-reject{ background: transparent; color: var(--dim); border-color: var(--border2); }
+  .al-btn-consent-reject:hover{ color: var(--text); border-color: var(--muted); }
+
+  .al-consent-warning{
+    display: none; align-items: flex-start; gap: 10px;
+    margin-top: 14px; padding: 12px 14px; border-radius: 8px;
+    background: var(--accent-glow);
+    border: 1px solid var(--border2);
+    font-size: 12.5px; line-height: 1.5; color: var(--dim);
+  }
+  .al-consent-warning.al-visible{ display: flex; }
+  .al-consent-warning-icon{ font-size: 15px; line-height: 1; color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+
+  .al-consent-warning-actions{ display: flex; gap: 10px; margin-top: 10px; }
+  .al-btn-consent-small{
+    padding: 7px 12px; font-size: 12px; font-weight: 600; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--border2); background: transparent; color: var(--text);
+  }
+  .al-btn-consent-small:hover{ background: var(--surface); }
+  .al-btn-consent-small-primary{ border-color: transparent; background: var(--accent); color: #201305; }
+  .al-btn-consent-small-primary:hover{ opacity: 0.9; }
+
+  @media (max-width: 480px){
+    .al-consent-banner{ padding: 18px 18px 16px; bottom: 12px; }
+    .al-consent-actions{ flex-direction: column; }
+  }
+</style>
+
+<div class="al-consent-backdrop" id="alConsentBackdrop"></div>
+
+<div class="al-consent-banner" id="alConsentBanner" role="dialog" aria-live="polite" aria-label="Cookie and privacy consent">
+  <div class="al-consent-eyebrow">Before you dive in</div>
+  <p class="al-consent-body">
+    AfterLight uses cookies to keep you signed in, remember your preferences, and keep the
+    platform secure. By accepting, you agree to our
+    <a href="privacy-policy.html" target="_blank" rel="noopener">Privacy Policy</a> and
+    <a href="cookie-policy.html" target="_blank" rel="noopener">Cookie Policy</a>.
+  </p>
+
+  <div class="al-consent-actions">
+    <button class="al-btn-consent al-btn-consent-reject" id="alConsentReject" type="button">Reject</button>
+    <button class="al-btn-consent al-btn-consent-accept" id="alConsentAccept" type="button">Accept</button>
+  </div>
+
+  <div class="al-consent-warning" id="alConsentWarning">
+    <span class="al-consent-warning-icon">⚠</span>
+    <div>
+      <div>
+        Rejecting non-essential cookies means things like staying signed in and saving your
+        favorites may not work properly. Essential cookies will still run so AfterLight can
+        function and stay secure.
+      </div>
+      <div class="al-consent-warning-actions">
+        <button class="al-btn-consent-small al-btn-consent-small-primary" id="alConsentAcceptFromWarning" type="button">Accept instead</button>
+        <button class="al-btn-consent-small" id="alConsentConfirmReject" type="button">Continue without them</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var STORAGE_KEY = 'afterlight_consent'; // 'accepted' | 'rejected'
+
+  var backdrop = document.getElementById('alConsentBackdrop');
+  var banner = document.getElementById('alConsentBanner');
+  var warning = document.getElementById('alConsentWarning');
+  var acceptBtn = document.getElementById('alConsentAccept');
+  var rejectBtn = document.getElementById('alConsentReject');
+  var acceptFromWarningBtn = document.getElementById('alConsentAcceptFromWarning');
+  var confirmRejectBtn = document.getElementById('alConsentConfirmReject');
+
+  function getStoredConsent(){
+    try { return localStorage.getItem(STORAGE_KEY); }
+    catch(e){ return null; }
+  }
+  function setStoredConsent(value){
+    try { localStorage.setItem(STORAGE_KEY, value); }
+    catch(e){ /* storage unavailable — banner will just reappear next visit */ }
+  }
+
+  function show(){
+    backdrop.classList.add('al-visible');
+    banner.classList.add('al-visible');
+  }
+  function hide(){
+    backdrop.classList.remove('al-visible');
+    banner.classList.remove('al-visible');
+  }
+
+  if (!getStoredConsent()) { show(); }
+
+  acceptBtn.addEventListener('click', function(){
+    setStoredConsent('accepted');
+    hide();
+  });
+  rejectBtn.addEventListener('click', function(){
+    warning.classList.add('al-visible');
+  });
+  acceptFromWarningBtn.addEventListener('click', function(){
+    setStoredConsent('accepted');
+    warning.classList.remove('al-visible');
+    hide();
+  });
+  confirmRejectBtn.addEventListener('click', function(){
+    setStoredConsent('rejected');
+    warning.classList.remove('al-visible');
+    hide();
+  });
+})();
+</script>
+
 </body>
 </html>
