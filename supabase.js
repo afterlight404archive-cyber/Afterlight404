@@ -479,7 +479,7 @@ async function pullSharedDataFromSupabase() {
     if (songData && songData.length) {
       songs = songData.map(s => ({
         number: s.song_key, title: s.title, artist: s.artist, year: s.year,
-        mood: s.mood, about: s.about, meaning: s.meaning, lyrics: s.lyrics,
+        mood: s.mood, about: s.about, meaning: s.meaning, lyrics: s.lyrics, funFact: s.fun_fact,
         credit: s.credit, spotify: s.spotify, youtube: s.youtube, genre: s.genre || []
       }));
       saveSongs();
@@ -716,6 +716,7 @@ alter table users          add  column if not exists blocked boolean not null de
 alter table admin_settings add  column if not exists owner_username text;
 alter table song_ratings   add  column if not exists updated_at timestamptz default now();
 alter table songs          add  column if not exists youtube text;
+alter table songs          add  column if not exists fun_fact text;
 alter table submissions    add  column if not exists youtube text;
 
 -- ─────────────────────────── INDEXES ───────────────────────────
