@@ -121,7 +121,7 @@
 <!-- DONATE MODAL -->
 <div class="donate-overlay" id="donate-overlay">
   <div class="donate-modal">
-    <button class="donate-close" id="close-donate">✕</button>
+    <button class="donate-close" id="close-donate" aria-label="Close">✕</button>
     <div class="donate-modal-title">Support JK ♡</div>
     <p class="donate-modal-sub">
       AfterLight:404Archive is made with love &amp; zero ads.<br>
@@ -148,7 +148,7 @@
 <!-- USER LOGIN -->
 <div class="auth-overlay" id="user-login-overlay">
   <div class="auth-modal">
-    <button class="auth-close" onclick="closeAuth()">✕</button>
+    <button class="auth-close" onclick="closeAuth()" aria-label="Close">✕</button>
     <div class="auth-modal-title">Welcome back</div>
     <p class="auth-modal-sub">Log in to comment, chat, and submit songs.</p>
     <div class="form-group">
@@ -174,7 +174,7 @@
 <!-- USER SIGNUP -->
 <div class="auth-overlay" id="user-signup-overlay">
   <div class="auth-modal">
-    <button class="auth-close" onclick="closeAuth()">✕</button>
+    <button class="auth-close" onclick="closeAuth()" aria-label="Close">✕</button>
     <div class="auth-modal-title">Join the archive</div>
     <p class="auth-modal-sub">Create an account to participate.</p>
     <div class="form-group">
@@ -269,7 +269,7 @@
 <!-- GOOGLE ALIAS (used by both "Continue with Google" and "Sign up with Google") -->
 <div class="auth-overlay" id="google-alias-overlay">
   <div class="auth-modal">
-    <button class="auth-close" onclick="closeAuth()">✕</button>
+    <button class="auth-close" onclick="closeAuth()" aria-label="Close">✕</button>
     <div class="auth-modal-title">Continue with Google</div>
     <p class="auth-modal-sub">Pick an anonymous alias to finish signing in.</p>
     <div class="form-group">
@@ -335,7 +335,7 @@
 <!-- ADMIN ACCESS CODE -->
 <div class="auth-overlay" id="admin-code-overlay">
   <div class="auth-modal">
-    <button class="auth-close" onclick="closeAuth()">✕</button>
+    <button class="auth-close" onclick="closeAuth()" aria-label="Close">✕</button>
     <div class="auth-modal-title">Admin Access</div>
     <p class="auth-modal-sub">Enter the admin access code to proceed.</p>
     <div class="form-group">
@@ -350,7 +350,7 @@
 <!-- ADMIN LOGIN -->
 <div class="auth-overlay" id="admin-login-overlay">
   <div class="auth-modal">
-    <button class="auth-close" onclick="closeAuth()">✕</button>
+    <button class="auth-close" onclick="closeAuth()" aria-label="Close">✕</button>
     <div class="auth-modal-title">Admin Access</div>
     <p class="auth-modal-sub">Restricted to site administrators only.</p>
     <div class="form-group">
@@ -374,7 +374,7 @@
 <!-- ADMIN GOOGLE EMAIL -->
 <div class="auth-overlay" id="admin-google-overlay">
   <div class="auth-modal">
-    <button class="auth-close" onclick="closeAuth()">✕</button>
+    <button class="auth-close" onclick="closeAuth()" aria-label="Close">✕</button>
     <div class="auth-modal-title">Admin Google Access</div>
     <p class="auth-modal-sub">Enter the authorized admin Gmail to continue.</p>
     <div class="form-group">
@@ -389,7 +389,7 @@
 <!-- SUBMISSION DETAIL MODAL (admin: click a submission to see everything) -->
 <div class="auth-overlay" id="submission-detail-overlay">
   <div class="auth-modal sub-detail-modal">
-    <button class="auth-close" onclick="closeSubmissionDetail()">✕</button>
+    <button class="auth-close" onclick="closeSubmissionDetail()" aria-label="Close">✕</button>
     <div class="auth-modal-title" id="sd-title">Submission</div>
     <div class="sub-detail-status" id="sd-status">Pending</div>
     <div class="sub-detail-grid">
@@ -417,7 +417,7 @@
 <!-- ADMIN: USER DETAIL -->
 <div class="auth-overlay" id="user-detail-overlay">
   <div class="auth-modal sub-detail-modal">
-    <button class="auth-close" onclick="closeUserDetail()">✕</button>
+    <button class="auth-close" onclick="closeUserDetail()" aria-label="Close">✕</button>
     <div class="auth-modal-title" id="ud-title">User</div>
     <div class="sub-detail-status" id="ud-status">Active</div>
     <div class="sub-detail-grid">
@@ -442,7 +442,7 @@
 <!-- REPORT USER / MESSAGE -->
 <div class="auth-overlay" id="report-overlay">
   <div class="auth-modal">
-    <button class="auth-close" onclick="closeReportModal()">✕</button>
+    <button class="auth-close" onclick="closeReportModal()" aria-label="Close">✕</button>
     <div class="auth-modal-title">Report</div>
     <p class="auth-modal-sub" id="report-modal-sub">Tell us what's going on. Reports are only visible to admins.</p>
     <div class="form-group">
@@ -481,7 +481,7 @@
   <div class="emoji-picker-sheet">
     <div class="emoji-picker-header">
       <span>Choose a reaction</span>
-      <button class="reply-banner-cancel" onclick="closeEmojiPicker()">✕</button>
+      <button class="reply-banner-cancel" onclick="closeEmojiPicker()" aria-label="Close emoji picker">✕</button>
     </div>
     <div class="emoji-picker-body" id="emoji-picker-body"></div>
   </div>
@@ -490,7 +490,7 @@
 <!-- USER SETTINGS OVERLAY -->
 <div class="auth-overlay" id="user-settings-overlay" style="z-index:4000;">
   <div class="auth-modal" style="max-width:420px;">
-    <button class="auth-close" onclick="closeUserSettings()">✕</button>
+    <button class="auth-close" onclick="closeUserSettings()" aria-label="Close">✕</button>
     <div class="auth-modal-title">Site Settings</div>
     <p class="auth-modal-sub">Preview layout &amp; theme preferences.</p>
 
@@ -761,7 +761,7 @@
       <div class="chat-messages" id="chat-messages"></div>
       <div class="reply-banner" id="chat-reply-banner" style="display:none;">
         <div class="reply-banner-text">Replying to <span id="chat-reply-author"></span>: <span id="chat-reply-preview"></span></div>
-        <button class="reply-banner-cancel" onclick="cancelReply('global')">✕</button>
+        <button class="reply-banner-cancel" onclick="cancelReply('global')" aria-label="Cancel reply">✕</button>
       </div>
       <div class="chat-input-wrap" id="chat-input-wrap" style="position:relative;">
         <div class="mention-dropdown" id="chat-mention-dropdown"></div>
@@ -933,7 +933,7 @@
   </div>
   <div class="ig-page-body">
     <div class="avatar-edit-hero">
-      <img class="avatar-current" id="settings-avatar-preview" style="display:none;">
+      <img class="avatar-current" id="settings-avatar-preview" alt="Your current avatar" style="display:none;">
       <div class="avatar-current-fallback" id="settings-avatar-preview-fallback">?</div>
       <button type="button" class="avatar-edit-link" onclick="toggleAvatarEditPicker()">Edit picture or avatar</button>
       <div class="avatar-edit-picker" id="avatar-edit-picker">
@@ -1019,7 +1019,7 @@
 <!-- DELETE ACCOUNT — 2-step confirmation with a 5s hold before the final button unlocks -->
 <div class="auth-overlay" id="delete-account-overlay" style="z-index:4500;">
   <div class="auth-modal" style="max-width:380px;">
-    <button class="auth-close" onclick="closeDeleteAccountOverlay()">✕</button>
+    <button class="auth-close" onclick="closeDeleteAccountOverlay()" aria-label="Close">✕</button>
 
     <div id="da-step1">
       <div class="auth-modal-title">Delete Account</div>
@@ -1065,7 +1065,7 @@
 <!-- ── USER PROFILE VIEW MODAL ── -->
 <div class="auth-overlay" id="user-profile-overlay">
   <div class="auth-modal" style="max-width:400px;text-align:center;">
-    <button class="auth-close" onclick="closeUserProfileView()">✕</button>
+    <button class="auth-close" onclick="closeUserProfileView()" aria-label="Close">✕</button>
     <div class="profile-view-avatar" id="profile-view-avatar">??</div>
     <div class="auth-modal-title" id="profile-view-name" style="margin-top:14px;">@user</div>
     <div class="profile-view-code" id="profile-view-code">#000-000</div>
@@ -1081,7 +1081,7 @@
 <!-- ── SONG SHARE PICKER MODAL ── -->
 <div class="auth-overlay" id="song-share-overlay">
   <div class="auth-modal" style="max-width:460px;">
-    <button class="auth-close" onclick="closeSongSharePicker()">✕</button>
+    <button class="auth-close" onclick="closeSongSharePicker()" aria-label="Close">✕</button>
     <div class="auth-modal-title">Share a song</div>
     <p class="auth-modal-sub">Send a track from the archive to <span id="song-share-target-name">your friend</span> as a recommendation.</p>
     <input type="text" class="chat-search" id="song-share-search" oninput="renderSongSharePicker()" placeholder="Search the archive...">
@@ -1098,7 +1098,7 @@
         <div class="sheet-title">Send to a friend</div>
         <div class="sheet-sub" id="song-recipient-sheet-sub">Sending — as a DM</div>
       </div>
-      <button class="sheet-close" onclick="closeSongRecipientSheet()">✕</button>
+      <button class="sheet-close" onclick="closeSongRecipientSheet()" aria-label="Close">✕</button>
     </div>
     <div class="sheet-list" id="song-recipient-list"></div>
   </div>
@@ -1121,7 +1121,7 @@
     <div class="topic-chat-messages" id="topic-chat-messages"></div>
     <div class="reply-banner" id="topic-chat-reply-banner" style="display:none;">
       <div class="reply-banner-text">Replying to <span id="topic-chat-reply-author"></span>: <span id="topic-chat-reply-preview"></span></div>
-      <button class="reply-banner-cancel" onclick="cancelReply('topic')">✕</button>
+      <button class="reply-banner-cancel" onclick="cancelReply('topic')" aria-label="Cancel reply">✕</button>
     </div>
     <div class="topic-chat-input-wrap" id="topic-chat-input-wrap" style="position:relative;">
       <div class="mention-dropdown" id="topic-chat-mention-dropdown"></div>
@@ -2026,7 +2026,7 @@ serve(async (req) => {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.6" y1="10.6" x2="15.4" y2="6.4"></line><line x1="8.6" y1="13.4" x2="15.4" y2="17.6"></line></svg>
         Share
       </button>
-      <button class="close-btn" id="close-modal">✕</button>
+      <button class="close-btn" id="close-modal" aria-label="Close">✕</button>
     </div>
     <div class="modal-body">
       <div class="modal-section">
