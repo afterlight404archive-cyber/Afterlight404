@@ -8,7 +8,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>AfterLight</title>
+<title>AfterLight | An archive for Music Nerds</title>
 <meta name="description" content="A personal archive of niche indie, alternative & pop songs — with meanings, lyrics, and the moods they live in. Curated by JK.">
 <meta name="apple-mobile-web-app-title" content="AfterLight">
 <meta name="application-name" content="AfterLight">
@@ -1759,132 +1759,32 @@ serve(async (req) => {
 
         <div class="settings-divider"></div>
 
-        <h4 style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin:24px 0 4px;">Part 2 — AI Moderation (screens chat messages)</h4>
-        <p style="font-family:var(--sans);font-size:12.5px;color:var(--dim);line-height:1.7;margin-bottom:10px;">
-          Checks every chat and DM message against OpenAI's moderation endpoint before it posts.
-          The endpoint itself is free. Same rule as Part 1 — finish the setup steps before flipping the switch.
-          <strong style="color:var(--text);">You do not need Part 1 for this to work</strong>, or the other way round.
+        <h4 style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin:24px 0 4px;">Part 2 — Word Filter (screens chat messages)</h4>
+        <p style="font-family:var(--sans);font-size:12.5px;color:var(--dim);line-height:1.7;margin-bottom:16px;">
+          Checks every chat and DM message against the word list below before it posts — no OpenAI key, no external
+          API call. Already deployed and live. Set each word to either <strong style="color:var(--text);">mask</strong>
+          (swaps the letters for <code>#####</code> and still posts the message) or <strong style="color:var(--text);">block</strong>
+          (the message doesn't post at all). Add words any time — no redeploy needed.
         </p>
 
-        <div class="setup-steps">
-          <div class="setup-step">
-            <div class="setup-step-num">1</div>
-            <div class="setup-step-body">
-              <div class="setup-step-title">Get an OpenAI API key</div>
-              <div class="setup-step-desc">
-                <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com → API Keys</a> → Create new secret key.
-                Copy it (starts with <code>sk-</code>). Same warning as before —
-                <strong style="color:var(--red);">this never goes in this page or your repo.</strong>
-              </div>
-            </div>
-          </div>
-          <div class="setup-step">
-            <div class="setup-step-num">2</div>
-            <div class="setup-step-body">
-              <div class="setup-step-title">Deploy the moderation function</div>
-              <div class="setup-step-desc">
-                Copy the code further down, then run:<br><br>
-                <code>supabase functions new moderate-message</code><br>
-                <span style="color:var(--muted);">↳ paste the copied code in</span><br>
-                <code>supabase secrets set OPENAI_API_KEY=sk-...</code><br>
-                <code>supabase functions deploy moderate-message</code>
-              </div>
-            </div>
-          </div>
-          <div class="setup-step">
-            <div class="setup-step-num">3</div>
-            <div class="setup-step-body">
-              <div class="setup-step-title">Choose what happens to a flagged message</div>
-              <div class="setup-step-desc">Set these two, then Save.</div>
-            </div>
-          </div>
-          <div class="setup-step">
-            <div class="setup-step-num">4</div>
-            <div class="setup-step-body">
-              <div class="setup-step-title">Turn it on</div>
-              <div class="setup-step-desc">
-                This is the same switch that used to sit in the Chat System tab — it's here now,
-                next to the instructions it depends on. If the function isn't deployed, messages are
-                allowed through unchecked rather than chat breaking.
-              </div>
-              <div class="admin-row" style="margin-top:12px;">
-                <div><div style="font-family:var(--mono);font-size:12px;color:var(--text);font-weight:600;">AI moderation enabled</div></div>
-                <label class="chat-enable-switch">
-                  <input type="checkbox" id="adm-moderation-enabled-safety" onchange="toggleModerationFromSafety()">
-                  <span class="chat-enable-track"><span class="chat-enable-thumb"></span></span>
-                </label>
-              </div>
-              <div id="adm-moderation-status-safety" class="setup-status is-off" style="margin-top:10px;"></div>
-            </div>
-          </div>
-        </div>
-
-
-        <div class="admin-form" style="grid-template-columns: 1fr 1fr;margin-bottom:12px;">
+        <div class="admin-form" style="grid-template-columns: 2fr 1fr auto; align-items:end; margin-bottom:16px;">
           <div class="form-group">
-            <label>Model</label>
-            <select class="form-input" id="adm-moderation-model">
-              <option value="omni-moderation-latest" selected>omni-moderation-latest</option>
-              <option value="text-moderation-latest">text-moderation-latest (legacy)</option>
-            </select>
+            <label>Word</label>
+            <input class="form-input" id="new-banned-word" placeholder="add a word…" onkeydown="if(event.key==='Enter'){addBannedWord();}">
           </div>
           <div class="form-group">
-            <label>On flagged message</label>
-            <select class="form-input" id="adm-moderation-action">
-              <option value="block" selected>Block from posting</option>
-              <option value="flag">Allow, but flag for admin review</option>
+            <label>Action</label>
+            <select class="form-input" id="new-banned-word-action">
+              <option value="mask" selected>Mask with #####</option>
+              <option value="block">Block message</option>
             </select>
           </div>
+          <button class="form-btn secondary" style="max-width:120px;" onclick="addBannedWord()">Add</button>
         </div>
-        <button class="form-btn secondary" style="max-width:200px;margin-bottom:24px;" onclick="saveModerationConfig()">Save Config</button>
 
-        <h4 style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin:24px 0 10px;">Code for step 2 — moderate-message</h4>
-        <div style="font-family:var(--sans);font-size:13px;color:var(--dim);line-height:1.8;margin-bottom:16px;">
-          <p style="margin-bottom:10px;"><strong style="color:var(--text);">1.</strong> Get an API key at <span style="color:var(--accent);">platform.openai.com</span> → API Keys. The Moderation endpoint is free to call.</p>
-          <p style="margin-bottom:10px;"><strong style="color:var(--text);">2.</strong> <code style="color:var(--accent2);">supabase functions new moderate-message</code>, paste the code below, then <code style="color:var(--accent2);">supabase secrets set OPENAI_API_KEY=sk-...</code> and <code style="color:var(--accent2);">supabase functions deploy moderate-message</code>.</p>
-          <p><strong style="color:var(--text);">3.</strong> Make sure Database (Supabase) is connected above and the AI moderation toggle in Chat System is on — <code style="color:var(--accent2);">moderateText()</code> already calls this function for every chat/DM send.</p>
+        <div id="banned-words-list">
+          <p style="font-family:var(--mono);font-size:11px;color:var(--muted);">Loading…</p>
         </div>
-        <pre style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:14px;font-family:var(--mono);font-size:10px;color:var(--dim);overflow-x:auto;white-space:pre;line-height:1.6;margin-bottom:8px;" id="moderation-fn-code">// supabase/functions/moderate-message/index.ts
-// Deno Edge Function — screens one chat message with OpenAI's Moderation
-// endpoint and returns a verdict the client already knows how to handle:
-// { action: 'allow' | 'block' | 'self_harm', text, supportMessage? }
-import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
-
-const ACTION_ON_FLAG = "block"; // or "flag" — mirrors the admin dropdown
-
-serve(async (req) => {
-  const { text } = await req.json();
-  const apiKey = Deno.env.get("OPENAI_API_KEY");
-
-  const res = await fetch("https://api.openai.com/v1/moderations", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ model: "omni-moderation-latest", input: text }),
-  });
-  const data = await res.json();
-  const result = data.results?.[0];
-
-  if (!result) {
-    return Response.json({ action: "allow", text });
-  }
-  if (result.categories?.["self-harm"] || result.categories?.["self-harm/intent"]) {
-    return Response.json({
-      action: "self_harm",
-      text,
-      supportMessage:
-        "If you're struggling, you don't have to go through it alone — reach out to someone you trust or a crisis line.",
-    });
-  }
-  if (result.flagged) {
-    return Response.json({ action: ACTION_ON_FLAG, text });
-  }
-  return Response.json({ action: "allow", text });
-});</pre>
-        <button class="form-btn secondary" style="max-width:200px;" onclick="copyModerationFnCode()">Copy Function Code</button>
-        <p style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:8px;" id="moderation-copy-confirm"></p>
       </div>
 
       <!-- Database / Supabase -->

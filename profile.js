@@ -742,32 +742,58 @@ function sendDmText() {
   input.classList.add('input-sent-pulse');
 }
 
+// Moderates a DM AFTER it's already been sent/shown, so sending doesn't wait
+// on the moderate-message round trip. Deletes the message (locally + DB) if
+// it's later flagged.
+async function moderateDmAfterSend(friend, text, localId) {
+  if (!text) return;
+  const verdict = await moderateText(text, 'dm', pairKey(currentUser.name, friend));
+  if (verdict.action !== 'block' && verdict.action !== 'self_harm') {
+    if (verdict.text && verdict.text !== text) {
+      const msgs = getDmMessages(friend);
+      const target = msgs.find(m => m.id === localId);
+      if (target) {
+        target.text = verdict.text;
+        saveDmMessages(friend, msgs);
+        if (friend === dmActiveFriend) renderDmMessages();
+      }
+    }
+    return;
+  }
+  const msgs = getDmMessages(friend).filter(m => m.id !== localId);
+  saveDmMessages(friend, msgs);
+  if (friend === dmActiveFriend) renderDmMessages();
+  if (verdict.action === 'self_harm') {
+    showToast(verdict.supportMessage || "If you're struggling, you don't have to go through it alone — reach out to someone you trust or a crisis line.", { type: 'error', duration: 9000 });
+  } else {
+    showToast("That message was removed — it doesn't meet our community guidelines.", { type: 'error' });
+  }
+}
+
 async function sendDmMessage(text, songKey) {
   if (!currentUser || !dmActiveFriend) return;
   if (!canSendMessageNow()) return;
-  let finalText = text || '';
-  if (finalText) {
-    const verdict = await moderateText(finalText, 'dm', pairKey(currentUser.name, dmActiveFriend));
-    const moderated = handleModerationVerdict(verdict, finalText);
-    if (moderated === null) return;
-    finalText = moderated;
-  }
-  const msgs = getDmMessages(dmActiveFriend);
-  const newMsg = { id: 'local_' + Date.now(), from: currentUser.name, to: dmActiveFriend, text: finalText, songKey: songKey || null, time: Date.now() };
+  const finalText = text || '';
+  const friend = dmActiveFriend;
+  const msgs = getDmMessages(friend);
+  const newMsg = { id: 'local_' + Date.now(), from: currentUser.name, to: friend, text: finalText, songKey: songKey || null, time: Date.now() };
   msgs.push(newMsg);
-  saveDmMessages(dmActiveFriend, msgs);
+  saveDmMessages(friend, msgs);
   if (isDbConnected()) {
     sb.from('dm_messages').insert({
-      pair_key: pairKey(currentUser.name, dmActiveFriend), sender: currentUser.name, recipient: dmActiveFriend,
+      pair_key: pairKey(currentUser.name, friend), sender: currentUser.name, recipient: friend,
       text: finalText || null, song_key: songKey || null
     }).then(() => {});
-    notifyUser(dmActiveFriend, 'dm', '@' + currentUser.name + ' sent you a message',
+    notifyUser(friend, 'dm', '@' + currentUser.name + ' sent you a message',
       (finalText || (songKey ? 'Shared a song 🎵' : '')).slice(0, 140), 'dm', currentUser.name, currentUser.name);
   }
   lastSentMsgId = newMsg.id;
   renderDmMessages();
-  markDmRead(dmActiveFriend);
+  markDmRead(friend);
   renderMessagesTab();
+
+  // Moderate in the background — doesn't block the send.
+  if (finalText) moderateDmAfterSend(friend, finalText, newMsg.id);
 }
 
 document.getElementById('dm-input').addEventListener('keydown', e => {

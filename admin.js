@@ -444,6 +444,84 @@ function toggleModerationSystem() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  WORD FILTER — the banned_words table the moderate-message Edge
+//  Function reads on every call. No redeploy needed to add/remove a
+//  word; the function reads the table fresh each time it runs.
+// ═══════════════════════════════════════════════════════════════
+let bannedWordsCache = [];
+
+async function loadBannedWords() {
+  const list = document.getElementById('banned-words-list');
+  if (!list) return;
+  if (!isDbConnected() || !sb) {
+    list.innerHTML = '<p style="font-family:var(--mono);font-size:11px;color:var(--muted);">Connect Supabase first.</p>';
+    return;
+  }
+  try {
+    const { data, error } = await sb.from('banned_words').select('id, word, action').order('word');
+    if (error) throw error;
+    bannedWordsCache = data || [];
+    renderBannedWords();
+  } catch (e) {
+    console.error('Could not load word filter list:', e);
+    list.innerHTML = '<p style="font-family:var(--mono);font-size:11px;color:var(--muted);">Could not load the word list.</p>';
+  }
+}
+
+function renderBannedWords() {
+  const list = document.getElementById('banned-words-list');
+  if (!list) return;
+  if (bannedWordsCache.length === 0) {
+    list.innerHTML = '<p style="font-family:var(--mono);font-size:11px;color:var(--muted);">No words added yet.</p>';
+    return;
+  }
+  list.innerHTML = bannedWordsCache.map(w => `
+    <div class="admin-row" style="padding:8px 0;">
+      <div style="font-family:var(--mono);font-size:13px;color:var(--text);">
+        ${escapeHtml(w.word)}
+        <span style="color:var(--dim);font-size:11px;margin-left:8px;">${w.action === 'block' ? 'blocks message' : 'masks with #####'}</span>
+      </div>
+      <button class="form-btn secondary" style="padding:4px 10px;font-size:11px;max-width:80px;" onclick="removeBannedWord(${w.id})">Remove</button>
+    </div>
+  `).join('');
+}
+
+async function addBannedWord() {
+  const input = document.getElementById('new-banned-word');
+  const actionSelect = document.getElementById('new-banned-word-action');
+  if (!input) return;
+  const word = input.value.trim().toLowerCase();
+  if (!word) return;
+  if (!isDbConnected() || !sb) { showToast('Connect Supabase first.', { type: 'error' }); return; }
+  try {
+    const { error } = await sb.from('banned_words').upsert(
+      { word, action: actionSelect ? actionSelect.value : 'mask' },
+      { onConflict: 'word' }
+    );
+    if (error) throw error;
+    input.value = '';
+    showToast(`Added "${word}" to the filter.`);
+    loadBannedWords();
+  } catch (e) {
+    console.error('Could not add word:', e);
+    showToast('Could not add that word — check the console.', { type: 'error' });
+  }
+}
+
+async function removeBannedWord(id) {
+  if (!isDbConnected() || !sb) return;
+  try {
+    const { error } = await sb.from('banned_words').delete().eq('id', id);
+    if (error) throw error;
+    bannedWordsCache = bannedWordsCache.filter(w => w.id !== id);
+    renderBannedWords();
+  } catch (e) {
+    console.error('Could not remove word:', e);
+    showToast('Could not remove that word — check the console.', { type: 'error' });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  CLOUDFLARE TURNSTILE — bot check on signup. Same local-cache-plus-
 //  Supabase-sync pattern as AI moderation above: the ON/OFF flag and the
 //  (public) site key sync through site_settings so every visitor's browser
@@ -678,26 +756,6 @@ function copyTurnstileFnCode() {
   });
 }
 
-function saveModerationConfig() {
-  const model = document.getElementById('adm-moderation-model').value;
-  const action = document.getElementById('adm-moderation-action').value;
-  localStorage.setItem('al-moderation-model', model);
-  localStorage.setItem('al-moderation-action', action);
-  if (isDbConnected() && sb) {
-    sb.from('site_settings').upsert({ key: 'moderation_model', value: model }).then(() => {});
-    sb.from('site_settings').upsert({ key: 'moderation_action', value: action }).then(() => {});
-  }
-  showToast('Saved — remember to redeploy the Edge Function if you changed the on-flag action.');
-}
-
-function copyModerationFnCode() {
-  const code = document.getElementById('moderation-fn-code').textContent;
-  navigator.clipboard.writeText(code).then(() => {
-    const c = document.getElementById('moderation-copy-confirm');
-    if (c) { c.textContent = 'Copied.'; setTimeout(() => c.textContent = '', 2500); }
-  });
-}
-
 // ═══════════════════════════════════════════════════════════════
 //  EMAILJS — sends the real signup verification code by email instead of
 //  just showing it on-screen. Same local-cache-plus-Supabase-sync pattern
@@ -792,16 +850,13 @@ async function saveEmailjsConfig() {
 function renderAdminSafety() {
   applyTurnstileState();
   refreshTurnstileEnabledFromDb();
-  const savedModel = localStorage.getItem('al-moderation-model');
-  const savedAction = localStorage.getItem('al-moderation-action');
-  if (savedModel) document.getElementById('adm-moderation-model').value = savedModel;
-  if (savedAction) document.getElementById('adm-moderation-action').value = savedAction;
 }
 
 function renderAdminChat() {
   applyChatEnabledState();
   applyModerationEnabledState();
   refreshModerationEnabledFromDb();
+  loadBannedWords();
   renderAdminOverviewStats();
   const list = document.getElementById('admin-chat-rooms-list');
   if (!list) return;
