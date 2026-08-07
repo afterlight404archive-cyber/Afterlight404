@@ -1661,7 +1661,7 @@
   .dm-empty-icon { font-size: 38px; opacity: 0.5; }
   .dm-empty-title { font-family: var(--serif); font-size: 18px; font-weight: 700; color: var(--text); }
   .dm-empty-sub { font-family: var(--sans); font-size: 12.5px; color: var(--muted); }
-  .dm-content { flex: 1; min-height: 0; flex-direction: column; }
+  .dm-content { display: flex; flex: 1; min-height: 0; flex-direction: column; }
 
   /* ── DESKTOP: Friends list becomes a persistent left column, DM the right panel ──
      Mirrors the same trick used for the chat room drawer above. */

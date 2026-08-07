@@ -545,21 +545,6 @@ async function pullSharedDataFromSupabase() {
   }
 }
 
-// Sends a single comment straight to Supabase the moment it's posted (not batched with
-// the rest of Sync Now) so other visitors see it without the poster having to hit Sync.
-// Returns an error message string on failure, or null on success/not-connected.
-async function pushCommentToSupabase(songKey, author, text) {
-  if (!sb) return null;
-  try {
-    const { error } = await sb.from('comments').insert({ song_key: String(songKey), author, text });
-    if (error) { console.error('Push comment failed:', error); return error.message; }
-    return null;
-  } catch (e) {
-    console.error('Push comment failed:', e);
-    return e.message || String(e);
-  }
-}
-
 function copySetupSQL() {
   const sql = `-- ═══════════════════════════════════════════════════════════════════════
 --  AfterLight:404Archive — Supabase setup  (v2, fully re-runnable)
