@@ -323,6 +323,17 @@ function getRatingDisplay(songKey) {
   return { avg: s.sum / s.count, count: s.count };
 }
 
+// Optimistic local bump the instant someone votes, so the bar/score/count
+// update immediately instead of waiting on a round trip — the next real
+// pull from Supabase (on reload, or after a manual sync) reconciles it
+// against the authoritative shared total.
+function recordLocalVote(songKey, value) {
+  if (!ratingStats[songKey]) ratingStats[songKey] = { sum: 0, count: 0 };
+  ratingStats[songKey].sum += value;
+  ratingStats[songKey].count += 1;
+  saveRatingStats();
+}
+
 function ratingCommunityHtml(songKey) {
   const { avg, count } = getRatingDisplay(songKey);
   if (!count) return `<span class="rating-empty">No ratings yet — be the first</span>`;
@@ -332,6 +343,19 @@ function ratingCommunityHtml(songKey) {
     <span class="rating-bar-track"><span class="rating-bar-fill" style="width:${pct}%"></span></span>
     <span class="rating-count-text">${count} rating${count === 1 ? '' : 's'}</span>
   `;
+}
+
+// Writes this browser's vote to the shared song_ratings table (public insert,
+// no update/delete — see copySetupSQL — so once cast it's locked server-side
+// too, matching the locked-after-vote UI). No-ops silently if Supabase isn't
+// connected, or if this voter already has a row for this song.
+async function pushSongRating(songKey, value) {
+  if (!sb) return;
+  try {
+    await sb.from('song_ratings').insert({ song_key: songKey, voter_id: getVoterId(), value });
+  } catch (e) {
+    console.error('Rating sync failed:', e);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -395,26 +419,20 @@ function populateMoodSelects() {
 
 function initMoodFilter() {
   const moodBtns = document.querySelectorAll('.mood-btn:not([data-filter-bound])');
+  const cards = document.querySelectorAll('.song-card');
+  const countTag = document.getElementById('count-tag');
   moodBtns.forEach(btn => {
     btn.dataset.filterBound = '1';
     btn.addEventListener('click', () => {
       document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       const mood = btn.dataset.mood;
-      // Re-query .song-card live at click time rather than capturing it once
-      // at bind time. renderSongGrid() (song approved/added/deleted, or a
-      // manual sync) recreates every .song-card node without necessarily
-      // re-running renderMoodBar() — a stale captured NodeList here pointed
-      // at cards that no longer exist in the DOM, so filtering silently did
-      // nothing after any of those actions until a full page reload.
-      const cards = document.querySelectorAll('.song-card');
       let visible = 0;
       cards.forEach(card => {
         const match = mood === 'all' || card.dataset.mood === mood;
         card.classList.toggle('hidden', !match);
         if (match) visible++;
       });
-      const countTag = document.getElementById('count-tag');
       if (countTag) countTag.textContent = String(visible).padStart(2, '0') + ' entries';
     });
   });
@@ -500,17 +518,9 @@ function initModal() {
     currentModalSong = null;
   }
 
-  // initModal() runs on every renderSongGrid() (every admin add/approve/delete,
-  // every manual sync) but #modal, #close-modal and document itself are never
-  // recreated — binding these unconditionally stacked a fresh listener on top
-  // of every previous one each time, so a single Escape press or backdrop tap
-  // fired closeModal() once per prior render. Bind these three exactly once.
-  if (!modal.dataset.staticListenersBound) {
-    modal.dataset.staticListenersBound = '1';
-    closeBtn.addEventListener('click', closeModal);
-    modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
-  }
+  closeBtn.addEventListener('click', closeModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 }
 
 // ═══════════════════════════════════════════════════════════════

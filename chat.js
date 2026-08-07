@@ -354,6 +354,20 @@ async function moderateText(text, context, roomOrThreadId) {
   }
 }
 
+// Shared handling for a moderation verdict. Returns the (possibly masked)
+// text to actually send, or null if the message should NOT be posted.
+function handleModerationVerdict(verdict, originalText) {
+  if (verdict.action === 'self_harm') {
+    showToast(verdict.supportMessage || "If you're struggling, you don't have to go through it alone — reach out to someone you trust or a crisis line.", { type: 'error', duration: 9000 });
+    return null;
+  }
+  if (verdict.action === 'block') {
+    showToast("That message was removed — it doesn't meet our community guidelines.", { type: 'error' });
+    return null;
+  }
+  return verdict.text || originalText;
+}
+
 async function sendChat() {
   await sendChatToRoom(currentRoom, 'chat-input', 'global', renderChatMessages);
 }
@@ -431,6 +445,11 @@ function openTopicChat(name) {
   attachMentionAutocomplete('topic-chat-input', 'topic-chat-mention-dropdown');
   renderRoomList();
   closeChatDrawer();
+}
+
+function backToGlobalChat() {
+  currentTopicRoom = null;
+  showPage('chat');
 }
 
 function renderTopicChatMessages() {
@@ -517,63 +536,30 @@ function applyMention(inputId, name) {
 // ═══════════════════════════════════════════════════════════════
 
 const QUICK_EMOJIS = ['❤️', '😂', '😮', '😢', '🔥', '👍'];
-let activeMsgAction = null; // { type: 'room', room, id } or { type: 'dm', friend, id }
-let replyContext = { global: null, topic: null, dm: null };
+let activeMsgAction = null; // { room, id }
+let replyContext = { global: null, topic: null };
 
 function findMessage(room, id) {
   return getMessages(room).find(m => m.id === id) || null;
 }
 
-// Resolves activeMsgAction to the actual message object, whichever kind it is.
-function findActiveActionMessage() {
-  if (!activeMsgAction) return null;
-  if (activeMsgAction.type === 'dm') {
-    return getDmMessages(activeMsgAction.friend).find(m => m.id === activeMsgAction.id) || null;
-  }
-  return findMessage(activeMsgAction.room, activeMsgAction.id);
-}
-
 function openMsgActions(room, id, anchorEl) {
   const msg = findMessage(room, id);
   if (!msg) return;
-  activeMsgAction = { type: 'room', room, id };
-  openMsgActionsShared(anchorEl, {
-    canDelete: currentUser && (msg.author === currentUser.name || currentAdmin),
-    canReport: currentUser && msg.author !== currentUser.name,
-    showReactions: true
-  });
-}
+  activeMsgAction = { room, id };
 
-// DM equivalent of openMsgActions — same shared bubble UI, no reactions
-// (DMs are 1:1, reactions don't add much and the app has no storage for
-// them on dm_messages yet), and only the sender can delete their own DM.
-function openDmMsgActions(id, anchorEl) {
-  if (!dmActiveFriend) return;
-  const msg = getDmMessages(dmActiveFriend).find(m => m.id === id);
-  if (!msg) return;
-  activeMsgAction = { type: 'dm', friend: dmActiveFriend, id };
-  openMsgActionsShared(anchorEl, {
-    canDelete: currentUser && msg.from === currentUser.name,
-    canReport: currentUser && msg.from !== currentUser.name,
-    showReactions: false
-  });
-}
-
-function openMsgActionsShared(anchorEl, { canDelete, canReport, showReactions }) {
   // populate emoji row
   const quickRow = document.getElementById('bubble-emoji-row');
-  quickRow.style.display = showReactions ? 'flex' : 'none';
-  if (showReactions) {
-    quickRow.innerHTML = QUICK_EMOJIS.map(e => `<button class="bubble-emoji-btn" onclick="quickReact('${e}')">${e}</button>`).join('');
-  }
+  quickRow.innerHTML = QUICK_EMOJIS.map(e => `<button class="bubble-emoji-btn" onclick="quickReact('${e}')">${e}</button>`).join('');
 
   // show/hide delete
   const deleteBtn = document.getElementById('msg-action-delete');
+  const canDelete = currentUser && (msg.author === currentUser.name || currentAdmin);
   deleteBtn.style.display = canDelete ? 'flex' : 'none';
 
   // show report only for messages that aren't your own
   const reportBtn = document.getElementById('msg-action-report');
-  reportBtn.style.display = canReport ? 'flex' : 'none';
+  reportBtn.style.display = (currentUser && msg.author !== currentUser.name) ? 'flex' : 'none';
 
   // position bubble near the message
   const bubble = document.getElementById('msg-action-bubble');
@@ -641,37 +627,6 @@ function attachLongPress(container) {
   });
 }
 
-// DM equivalent of attachLongPress — targets .dm-msg bubbles and opens the
-// same shared action bubble via openDmMsgActions.
-function attachDmLongPress(container) {
-  container.querySelectorAll('.dm-msg').forEach(el => {
-    let timer = null;
-    let moved = false;
-
-    const start = (e) => {
-      moved = false;
-      timer = setTimeout(() => {
-        if (!moved) {
-          e.preventDefault();
-          openDmMsgActions(el.dataset.msgId, el);
-        }
-      }, 420);
-    };
-    const cancel = () => { clearTimeout(timer); };
-    const move = () => { moved = true; clearTimeout(timer); };
-
-    el.addEventListener('pointerdown', start, { passive: true });
-    el.addEventListener('pointerup', cancel);
-    el.addEventListener('pointercancel', cancel);
-    el.addEventListener('pointermove', move);
-
-    el.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      openDmMsgActions(el.dataset.msgId, el);
-    });
-  });
-}
-
 function toggleReaction(room, id, emoji) {
   if (!currentUser) return;
   const msgs = getMessages(room);
@@ -689,7 +644,7 @@ function toggleReaction(room, id, emoji) {
 }
 
 function quickReact(emoji) {
-  if (!activeMsgAction || activeMsgAction.type === 'dm') return;
+  if (!activeMsgAction) return;
   toggleReaction(activeMsgAction.room, activeMsgAction.id, emoji);
   closeMsgActions();
 }
@@ -701,21 +656,6 @@ function refreshChatView(room) {
 
 function startReplyFromSheet() {
   if (!activeMsgAction) return;
-
-  if (activeMsgAction.type === 'dm') {
-    const { friend, id } = activeMsgAction;
-    const msg = getDmMessages(friend).find(m => m.id === id);
-    if (!msg) return;
-    replyContext.dm = id;
-    const preview = msg.text ? (msg.text.length > 40 ? msg.text.slice(0, 40) + '…' : msg.text) : (msg.songKey ? '🎵 Shared a song' : '');
-    document.getElementById('dm-reply-author').textContent = msg.from === currentUser.name ? 'yourself' : '@' + msg.from;
-    document.getElementById('dm-reply-preview').textContent = preview;
-    document.getElementById('dm-reply-banner').style.display = 'flex';
-    closeMsgActions();
-    document.getElementById('dm-input').focus();
-    return;
-  }
-
   const { room, id } = activeMsgAction;
   const msg = findMessage(room, id);
   if (!msg) return;
@@ -736,7 +676,7 @@ function startReplyFromSheet() {
 
 function cancelReply(which) {
   replyContext[which] = null;
-  const prefix = which === 'global' ? 'chat' : which === 'dm' ? 'dm' : 'topic-chat';
+  const prefix = which === 'global' ? 'chat' : 'topic-chat';
   const bannerEl = document.getElementById(prefix + '-reply-banner');
   if (bannerEl) bannerEl.style.display = 'none';
 }

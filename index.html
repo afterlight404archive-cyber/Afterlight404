@@ -2226,11 +2226,12 @@ document.addEventListener('scroll', () => closeMsgActions(), true);
     padding: 22px 24px 20px;
     z-index: 99999;
     opacity: 0;
+    pointer-events: none;
     transition: opacity 0.35s ease, transform 0.35s ease;
     font-family: var(--sans);
     color: var(--text);
   }
-  .al-consent-banner.al-visible{ opacity: 1; transform: translate(-50%, 0); }
+  .al-consent-banner.al-visible{ opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
 
   .al-consent-eyebrow{
     display: flex; align-items: center; gap: 8px;

@@ -885,7 +885,6 @@ function closeModalIfOpen() {
   const modal = document.getElementById('modal');
   if (modal && modal.classList.contains('open')) {
     modal.classList.remove('open');
-    document.body.style.overflow = '';
     currentModalSong = null;
   }
 }
