@@ -28,7 +28,7 @@ function initSupabaseClient() {
   if (!cfg || !cfg.url || !cfg.key) { sb = null; return; }
   try {
     sb = window.supabase.createClient(cfg.url, cfg.key);
-    ensureAnonSession();
+
   } catch (e) {
     console.error('Supabase init failed:', e);
     sb = null;
@@ -158,23 +158,17 @@ async function ensureSupabaseAuthSession() {
   }
 }
 
-// Gives this browser a real, anonymous Supabase Auth session the first time it needs
-// one — no email or password involved, invisible to the visitor. This is what lets the
-// database tell "a real visitor's browser" apart from "someone who only has the public
-// anon key", for chat messages, DMs, friend requests, and profile edits. Supabase
-// stores the session in this browser's localStorage, so the same browser keeps the
-// same identity on future visits.
-async function ensureAnonSession() {
-  if (!sb) return;
-  try {
-    const { data } = await sb.auth.getSession();
-    if (data && data.session) return;
-    const { error } = await sb.auth.signInAnonymously();
-    if (error) console.error('Anonymous session setup failed:', error.message);
-  } catch (e) {
-    console.error('Anonymous session setup failed:', e);
-  }
-}
+// DEPRECATED — kept as a harmless no-op only in case something still calls it.
+//
+// AfterLight used to give every browser an invisible anonymous Supabase Auth
+// session here, and relied on it for chat, DMs, comments, ratings, and
+// profile writes. That's incompatible with a project that has anonymous
+// sign-ins turned off (which this one deliberately does), and was the root
+// cause of "session expired" / "no account found" errors. Every account
+// (alias name+password AND Google) now gets a REAL, non-anonymous Supabase
+// Auth session at login/signup instead — see aliasAuthEmail() and
+// handleGoogleAuthCallback() in auth.js. No anonymous session is ever needed.
+async function ensureAnonSession() { return; }
 
 // ═══════════════════════════════════════════════════════════════
 //  LIVE STATS (Supabase Realtime Presence + aggregate counts)

@@ -208,7 +208,7 @@ function friendshipStatusWith(name) {
 // browser send chat messages, DMs, or friend requests, or edit this profile again.
 async function pushUserProfile() {
   if (!isDbConnected() || !currentUser) return;
-  await ensureAnonSession();
+
   let ownerId = null;
   try {
     const { data } = await sb.auth.getSession();
@@ -255,7 +255,7 @@ async function searchUsersRemote(query) {
 
 async function pullFriendRequests() {
   if (!isDbConnected() || !currentUser) return;
-  await ensureAnonSession();
+
   try {
     const { data } = await sb.from('friend_requests').select('*')
       .or('from_user.eq.' + currentUser.name + ',to_user.eq.' + currentUser.name);
@@ -270,7 +270,7 @@ async function pullFriendRequests() {
 
 async function pullDmMessages(withUser) {
   if (!isDbConnected() || !currentUser) return;
-  await ensureAnonSession();
+
   try {
     const key = pairKey(currentUser.name, withUser);
     const { data } = await sb.from('dm_messages').select('*').eq('pair_key', key).order('created_at', { ascending: true });

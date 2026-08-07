@@ -115,34 +115,63 @@ async function handleGoogleAuthCallback() {
         await sb.auth.signOut();
       }
     } else {
-      let users = JSON.parse(localStorage.getItem('al-users') || '[]');
-      // Returning Google user on this browser — log back into the same local account.
-      let account = users.find(u => u.googleEmail === email);
+      // The account lookup used to check ONLY this browser's localStorage
+      // (u.googleEmail === email) — so signing in with Google on a second
+      // device or a fresh browser always came back "no account found," even
+      // though the Google login itself succeeded and the account genuinely
+      // existed. Google sign-in is a REAL Supabase Auth session, so the
+      // correct source of truth is the `users` row owned by this session's
+      // real, permanent user id — not anything stored on-device.
+      const ownerId = session.user.id;
+      let account = null;
+      try {
+        const { data: rows, error: lookupErr } = await sb.from('users')
+          .select('username,code,bio,gender,avatar,blocked')
+          .eq('owner_id', ownerId).limit(1);
+        if (lookupErr) throw lookupErr;
+        account = rows && rows[0] ? { name: rows[0].username, blocked: rows[0].blocked, code: rows[0].code, bio: rows[0].bio, gender: rows[0].gender, avatar: rows[0].avatar } : null;
+      } catch (e) {
+        console.error('Account lookup failed:', e);
+        showToast('Could not reach the server to check your account — try again.', {type:'error'});
+        await sb.auth.signOut();
+        return;
+      }
 
       if (!account && intent === 'login') {
         // Logging in, not signing up — don't silently create an account for
-        // an email nobody has registered. Send them to sign up instead.
+        // a Google identity nobody has registered. Send them to sign up instead.
         await sb.auth.signOut();
         showToast("No account found for " + email + ". Please sign up first.", {type:'error'});
         showSignup();
         return;
       }
 
+      let users = JSON.parse(localStorage.getItem('al-users') || '[]');
+
       if (!account) {
-        // Signup intent, no existing account — create one for real.
+        // Signup intent, no existing account — create one for real, in Supabase.
         let alias = sanitizeGoogleAlias(displayName);
         // Don't silently take over an existing name that belongs to a different account.
-        if (users.find(u => u.name === alias)) {
+        let takenLocally = (n) => users.find(u => u.name === n);
+        if (takenLocally(alias)) {
           let suffix = 2;
-          while (users.find(u => u.name === (alias + suffix).slice(0, 20))) suffix++;
+          while (takenLocally((alias + suffix).slice(0, 20))) suffix++;
           alias = (alias + suffix).slice(0, 20);
         }
-        account = { name: alias, password: 'google_oauth', created: Date.now(), avatar: null, gender: '', bio: '', totalSeconds: 0, code: generateFriendCode(new Set(users.map(u => u.code).filter(Boolean))), googleEmail: email };
-        users.push(account);
-        localStorage.setItem('al-users', JSON.stringify(users));
+        try {
+          const { error: insertErr } = await sb.from('users')
+            .insert({ username: alias, owner_id: ownerId, code: generateFriendCode(new Set()) });
+          if (insertErr) throw insertErr;
+        } catch (e) {
+          console.error('Account creation failed:', e);
+          showToast('Could not create your account on the server (' + (e.message || 'unknown error') + '). Try again.', {type:'error'});
+          await sb.auth.signOut();
+          return;
+        }
+        account = { name: alias, blocked: false };
       } else if (intent === 'signup') {
-        // Signing up with an email that already has an account — just log
-        // them into the existing one instead of silently making a duplicate.
+        // Signing up with a Google account that already has an account — just
+        // log them into the existing one instead of silently making a duplicate.
         showToast('You already have an account with that Google email — logging you in.');
       }
 
@@ -151,6 +180,17 @@ async function handleGoogleAuthCallback() {
         showToast('This account has been blocked by the site owner.', {type:'error'});
         return;
       }
+
+      // Keep a local mirror so avatar/bio editing UI and offline reads still
+      // work instantly, but Supabase (via owner_id above) is the source of truth.
+      let localRec = users.find(u => u.name === account.name);
+      if (!localRec) {
+        localRec = { name: account.name, password: 'google_oauth', created: Date.now(), avatar: account.avatar || null, gender: account.gender || '', bio: account.bio || '', totalSeconds: 0, code: account.code || null, googleEmail: email };
+        users.push(localRec);
+      } else {
+        localRec.googleEmail = email;
+      }
+      localStorage.setItem('al-users', JSON.stringify(users));
 
       currentUser = { name: account.name };
       saveUser();
@@ -214,6 +254,29 @@ function closeAuth() {
 // produce identical hashes.
 async function hashUserPassword(name, pass) {
   return hashText(String(name || '').toLowerCase() + ':' + pass);
+}
+
+// ── REAL SUPABASE AUTH FOR ALIAS (name+password) ACCOUNTS ───────────────
+// AfterLight used to give every browser an invisible ANONYMOUS Supabase Auth
+// session (signInAnonymously) and treat that as "logged in enough" to satisfy
+// the database's row-level security. If anonymous sign-ins are disabled on
+// the Supabase project — which they are here, deliberately — that call fails
+// silently and every write (chat, comments, DMs, profile edits...) gets
+// rejected by the database with no real explanation, which is what showed up
+// as "session expired, log out and back in."
+//
+// Fix: every alias account now gets a REAL (non-anonymous) Supabase Auth
+// session, using a deterministic, made-up email built from the username —
+// nobody ever sees or types this email, it just gives Supabase Auth
+// something unique to key the account on. The account's actual email
+// (collected at signup, used only for the verification code) is never used
+// for this. This requires "Confirm email" to be turned OFF in your Supabase
+// project (Authentication → Sign In / Providers → Email), since AfterLight
+// already verifies real ownership of the person's real email itself via the
+// 6-digit code — Supabase doesn't need to also confirm this made-up address.
+const ALIAS_AUTH_DOMAIN = 'alias.afterlight.internal';
+function aliasAuthEmail(name) {
+  return String(name || '').toLowerCase() + '@' + ALIAS_AUTH_DOMAIN;
 }
 
 // ── SINGLE-DEVICE SESSION TRACKING (alias+password accounts) ────────────
@@ -296,34 +359,59 @@ async function handleUserLogin() {
   let local = users.find(u => u.name === name);
 
   if (isDbConnected()) {
-    await ensureAnonSession();
     try {
-      const { data: token, error } = await sb.rpc('alias_login', { p_username: name, p_password: pass });
-      if (!error && token) { await finishAliasLogin(name, token, users, local); return; }
-      // Not in the cloud yet — could be a real invalid login, or an older
-      // local-only account made before cross-device sync existed. Only take
-      // the local fallback (and silently migrate it to the cloud) if we
-      // actually have a matching local record with a matching password.
-      if (local && local.password !== 'google_oauth' && local.password !== 'cloud') {
-        const enteredHash = await hashUserPassword(local.name, pass);
-        if (local.password === enteredHash) {
-          if (local.blocked) { err.textContent = 'This account has been blocked by the site owner.'; err.style.display = 'block'; return; }
-          try {
-            const { data: newToken, error: migrateErr } = await sb.rpc('alias_signup', { p_username: name, p_password: pass });
-            if (!migrateErr && newToken) { await finishAliasLogin(name, newToken, users, local); return; }
-          } catch (e) { console.error('Cloud migration failed:', e); }
-          // Cloud unavailable or name already claimed elsewhere — still let them
-          // in locally on this device rather than lock them out entirely.
-          currentUser = { name: local.name };
-          saveUser(); closeAuth(); updateAuthUI(); updateCommentForm(); updateSubmitForm();
-          await pushUserProfile(); updateSocialBadge();
+      // Step 1 — establish a REAL Supabase Auth session for this account (see
+      // aliasAuthEmail above). This is what makes the login work on ANY
+      // browser/device, not just the one that originally signed up, and is
+      // what lets chat/comments/DMs actually write to the database afterward.
+      const { data: signInData, error: signInErr } = await sb.auth.signInWithPassword({
+        email: aliasAuthEmail(name), password: pass
+      });
+
+      if (!signInErr && signInData && signInData.session) {
+        // Real session established. Confirm/refresh ownership + get a fresh
+        // single-device session token via the existing server-side check.
+        const { data: token, error } = await sb.rpc('alias_login', { p_username: name, p_password: pass });
+        if (!error && token) { await finishAliasLogin(name, token, users, local); return; }
+        err.textContent = (error && error.message) ? error.message : 'Invalid name or password.';
+        err.style.display = 'block';
+        return;
+      }
+
+      // No real Supabase Auth account under this name yet. Two possibilities:
+      // (a) this is simply an invalid login, or (b) this is an older account
+      // created before real per-account sessions existed, verified only by
+      // the legacy password check below. Only attempt (b), and only if that
+      // legacy check actually passes — never create an account here.
+      const { data: legacyToken, error: legacyErr } = await sb.rpc('alias_login', { p_username: name, p_password: pass });
+      if (!legacyErr && legacyToken) {
+        // Legacy password is correct — migrate this account to a real
+        // session now, silently, so it works everywhere from now on.
+        const { data: signUpData, error: signUpErr } = await sb.auth.signUp({
+          email: aliasAuthEmail(name), password: pass
+        });
+        if (!signUpErr && signUpData && signUpData.session) {
+          // Reclaim ownership of the existing row under the new real session.
+          const { data: newToken, error: reclaimErr } = await sb.rpc('alias_login', { p_username: name, p_password: pass });
+          if (!reclaimErr && newToken) { await finishAliasLogin(name, newToken, users, local); return; }
+        } else if (!signUpErr) {
+          // Supabase created the account but is holding it for email
+          // confirmation — this project still has "Confirm email" ON.
+          err.textContent = 'Your account needs a one-time server setting fixed before login works everywhere (Supabase → Authentication → Email → turn off "Confirm email"). Contact the site owner.';
+          err.style.display = 'block';
           return;
         }
+        // Migration to a real session failed for some other reason — still
+        // let them in on this browser rather than lock them out entirely.
+        await finishAliasLogin(name, legacyToken, users, local);
+        return;
       }
-      err.textContent = (error && error.message) ? error.message : 'Invalid name or password.';
+
+      err.textContent = 'Invalid name or password.';
       err.style.display = 'block';
       return;
     } catch (e) {
+      console.error('Login failed:', e);
       err.textContent = 'Could not reach the server — try again.';
       err.style.display = 'block';
       return;
@@ -723,10 +811,25 @@ async function handleVerifyEmail() {
     }
     if (pw) {
       try {
-        await ensureAnonSession();
-        const { data, error } = await sb.rpc('alias_signup', { p_username: pendingSignup.name, p_password: pw });
-        if (error) throw error;
-        cloudToken = data;
+        // Create a REAL Supabase Auth account for this alias (see
+        // aliasAuthEmail above) — no anonymous session involved. This is
+        // what makes the account log in successfully on any device, and
+        // what lets the database accept chat/comments/DMs from it.
+        const { data: signUpData, error: signUpErr } = await sb.auth.signUp({
+          email: aliasAuthEmail(pendingSignup.name), password: pw
+        });
+        if (signUpErr) throw signUpErr;
+        if (!signUpData || !signUpData.session) {
+          // Supabase accepted the signup but is waiting on ITS OWN email
+          // confirmation — redundant, since AfterLight already just verified
+          // the person's real email with the 6-digit code. This one-time
+          // project setting needs to be flipped off by the site owner.
+          showToast('Your account was created on this device, but a server setting is blocking full sync (Supabase → Authentication → Email → turn off "Confirm email"). Let the site owner know.', { type: 'error', duration: 10000 });
+        } else {
+          const { data, error } = await sb.rpc('alias_signup', { p_username: pendingSignup.name, p_password: pw });
+          if (error) throw error;
+          cloudToken = data;
+        }
       } catch (e) {
         console.error('Cloud account setup failed:', e.message);
         showToast('Your account was created on this device, but syncing it to the server failed (' +
@@ -820,7 +923,7 @@ async function deleteMyAccount() {
 
   if (isDbConnected() && sb) {
     try {
-      await ensureAnonSession();
+
       const { error } = await sb.rpc('alias_delete_account', { p_username: name });
       if (error) {
         showToast(error.message || 'Could not delete your account on the server. Please try again.', { type: 'error' });

@@ -105,7 +105,7 @@ async function fileReport(reportedUser, category, details, contextType, contextR
   };
   if (isDbConnected() && sb) {
     try {
-      await ensureAnonSession();
+
       const { data, error } = await sb.from('reports').insert({
         reporter: report.reporter, reported_user: report.reportedUser, category: report.category,
         details: report.details, context_type: report.contextType, context_ref: report.contextRef

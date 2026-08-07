@@ -715,7 +715,7 @@ document.getElementById('submit-form').addEventListener('submit', async function
   let submitError = null;
   if (isDbConnected() && sb) {
     try {
-      await ensureAnonSession();
+
       const { data, error } = await sb.from('submissions').insert({
         title: submission.title, artist: submission.artist, year: submission.year, mood: submission.mood,
         about: submission.about, meaning: submission.meaning, lyrics: submission.lyrics,
