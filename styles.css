@@ -2649,8 +2649,18 @@
   @media (max-width: 640px) {
     #toast-stack {
       top: auto;
-      bottom: max(18px, calc(env(safe-area-inset-bottom, 0px) + 14px));
+      /* Cleared above BOTH the bottom-nav bar (which sits at ~14px + safe-area
+         and is roughly 56-64px tall) and whatever the browser's own bottom UI
+         is currently covering (--vv-bottom-gap, synced live from
+         visualViewport in index.html — safe-area-inset-bottom alone only
+         accounts for iOS notches/home-indicator, not Android's docked URL
+         bar, which was swallowing toasts entirely). */
+      bottom: calc(max(18px, env(safe-area-inset-bottom, 0px) + 14px) + 64px + var(--vv-bottom-gap, 0px));
       width: 94vw;
+    }
+    body.on-chat-page #toast-stack {
+      /* Bottom nav is hidden on chat/social pages, so no need to clear it. */
+      bottom: calc(max(18px, env(safe-area-inset-bottom, 0px) + 14px) + var(--vv-bottom-gap, 0px));
     }
     .toast {
       padding: 15px 16px 13px;

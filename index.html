@@ -2053,6 +2053,13 @@ if (isDbConnected()) {
     if (!vv) return;
     root.style.setProperty('--vvh', vv.height + 'px');
     root.style.setProperty('--vv-top', vv.offsetTop + 'px');
+    // How much of the bottom of the layout viewport is currently hidden by
+    // the browser's own UI (Android Chrome's docked URL bar, etc). Unlike
+    // env(safe-area-inset-bottom) — which is iOS-notch/home-indicator only —
+    // this is live and covers Android too. Used to keep the toast stack
+    // (and anything else bottom-anchored) inside the actually-visible area.
+    const bottomGap = Math.max(0, window.innerHeight - (vv.offsetTop + vv.height));
+    root.style.setProperty('--vv-bottom-gap', bottomGap + 'px');
   }
 
   function scrollActiveIntoView() {
