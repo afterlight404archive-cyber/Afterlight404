@@ -832,6 +832,19 @@ function syncVinylToBGM() {
       ? `<span>${escapeHtml(trackName)}</span> — background music`
       : '— click play to spin —';
   }
+
+  // Mobile-only track bar (below the hero captions) mirrors the same state.
+  const mtbPlayBtn = document.getElementById('mtb-play-btn');
+  const mtbTrackName = document.getElementById('mtb-track-name');
+  if (mtbPlayBtn) {
+    mtbPlayBtn.textContent = playing ? '⏸' : '▶';
+    mtbPlayBtn.classList.toggle('is-playing', playing);
+    mtbPlayBtn.setAttribute('aria-label', playing ? 'Pause background music' : 'Play background music');
+    mtbPlayBtn.title = playing ? 'Pause background music' : 'Play background music';
+  }
+  if (mtbTrackName) {
+    mtbTrackName.textContent = trackName ? trackName : '— tap play to start music —';
+  }
 }
 
 document.addEventListener('afterlight-bgm-trackchange', syncVinylToBGM);

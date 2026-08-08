@@ -16,15 +16,20 @@
    entry onto TRACKS — nothing else needs to change.
 
    Tracks included so far:
-     1. "Ambient Piano"        — soft, endless, never-repeating piano
-                                  wander (the original track).
-     2. "Retro Arcade (Slow)"  — a slow, chill 16-bit-arcade-style
-                                  loop. It's a genuinely composed
-                                  16-chord progression, 75s per chord,
-                                  so it plays as one continuous, no-gap
-                                  20-minute loop before wrapping back
-                                  to the top — it just keeps looping
-                                  like that until Next/Prev is pressed.
+     1. "Ambient Piano"           — soft, endless, never-repeating
+                                     piano wander (the original track).
+     2. "Retro Arcade"            — an actual 8-bit chiptune loop:
+                                     pulse-wave arpeggios, a bouncy
+                                     triangle bassline, and a soft
+                                     noise hi-hat moving at a real
+                                     arcade tempo (100 BPM), filtered
+                                     and kept gentle so it still reads
+                                     as calm rather than frantic.
+     3. "Acoustic Fingerpicking"  — a Travis-picking guitar loop built
+                                     from real Karplus-Strong plucked-
+                                     string synthesis (no samples),
+                                     played over a soft, familiar
+                                     chord progression.
 
    Plays as soon as the visitor lands, if the browser allows it; if
    the browser's autoplay policy blocks audio before any interaction
@@ -220,19 +225,22 @@
   }
 
   // ═══════════════════════════════════════════════════════════════
-  //  TRACK 2 — "Retro Arcade (Slow)"
-  //  A slow, chill take on a 16-bit arcade/overworld loop: a gentle
-  //  square-wave arpeggio + sustained triangle bassline over a fixed
-  //  16-chord progression. Each chord holds for 75 seconds, so the
-  //  whole progression is exactly 16 × 75s = 1200s — a real, seamless
-  //  20-minute loop with zero gap between chords or on wraparound.
-  //  It just keeps looping like that until Next/Prev is pressed.
+  //  TRACK 2 — "Retro Arcade"
+  //  A proper 8-bit overworld-style loop: real chiptune instruments
+  //  (pulse-wave arpeggios, a bouncy triangle bassline, a soft noise
+  //  hi-hat) moving at an actual arcade tempo, so it reads instantly
+  //  as "retro game" — but everything is kept soft, filtered, and
+  //  harmonically simple so the vibe stays calm and easy to sit with
+  //  rather than frantic. Chords last a full bar each, so it still
+  //  breathes, it just isn't dead air between notes anymore.
   // ═══════════════════════════════════════════════════════════════
 
-  const ARCADE_BAR_SECONDS = 75; // 16 bars × 75s = 1200s = 20:00 exactly
-  // [root, third, fifth] triads in Hz — a simple i–VI–III–VII-flavoured
-  // natural-minor progression, easy on the ear and unmistakably
-  // "game overworld" without ever picking up tempo.
+  const ARCADE_BPM = 100;
+  const ARCADE_BEAT = 60 / ARCADE_BPM;         // seconds per beat
+  const ARCADE_STEP = ARCADE_BEAT / 4;          // 16th-note step
+  const ARCADE_BAR_SECONDS = ARCADE_BEAT * 4;   // 4 beats per bar
+  // [root, third, fifth] triads in Hz — the same easy, unmistakably
+  // "game overworld" natural-minor progression as before.
   const ARCADE_PROGRESSION = [
     [220.00, 261.63, 329.63], // Am
     [174.61, 220.00, 261.63], // F
@@ -251,18 +259,24 @@
     [220.00, 261.63, 329.63], // Am
     [164.81, 207.65, 246.94], // E — gentle tension right before the loop resets
   ];
-  const ARCADE_ARP_PATTERN = [0, 1, 2, 1, 0, 2]; // indices into the triad
+  // Classic NES-style 16-step arpeggio shape: root-third-fifth-third,
+  // with an octave "flourish" on the last step of every other bar.
+  const ARCADE_ARP_PATTERN = [0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 3];
 
   let arcadeTimer = null;
   let arcadeBarIdx = 0;
+  let arcadeFilter = null; // shared lowpass so the pulse lead stays soft, not harsh
 
   function playArcadeBlip(freq, startTime, velocity, dur) {
+    // Punchy, fast-decaying pulse note — the classic 8-bit "plink" —
+    // but routed through a gentle lowpass so it stays warm and calm
+    // rather than buzzy.
     const g = ctx.createGain();
-    const peak = 0.1 * velocity;
+    const peak = 0.09 * velocity;
     g.gain.setValueAtTime(0, startTime);
-    g.gain.linearRampToValueAtTime(peak, startTime + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0006, startTime + dur);
-    g.connect(dry);
+    g.gain.linearRampToValueAtTime(peak, startTime + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0008, startTime + dur);
+    g.connect(arcadeFilter);
     g.connect(convolver);
 
     const osc = ctx.createOscillator();
@@ -270,17 +284,16 @@
     osc.frequency.value = freq;
     osc.connect(g);
     osc.start(startTime);
-    osc.stop(startTime + dur + 0.05);
+    osc.stop(startTime + dur + 0.02);
   }
 
   function playArcadeBass(freq, startTime, dur) {
-    // One long, softly-sustained root note under the whole bar — the
-    // "no pause" part: it never actually goes silent between chords.
+    // A bouncy, staccato-ish triangle bass note on the downbeat of
+    // each bar — gives real rhythmic lift instead of one long drone.
     const g = ctx.createGain();
     g.gain.setValueAtTime(0, startTime);
-    g.gain.linearRampToValueAtTime(0.085, startTime + 3);
-    g.gain.setValueAtTime(0.085, startTime + dur - 3);
-    g.gain.linearRampToValueAtTime(0, startTime + dur);
+    g.gain.linearRampToValueAtTime(0.11, startTime + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
     g.connect(dry);
     g.connect(convolver);
 
@@ -289,40 +302,182 @@
     osc.frequency.value = freq / 2; // an octave down
     osc.connect(g);
     osc.start(startTime);
-    osc.stop(startTime + dur + 0.1);
+    osc.stop(startTime + dur + 0.05);
+  }
+
+  function playArcadeHat(startTime, velocity) {
+    // A very soft filtered-noise tick on the off-beats — just enough
+    // rhythmic texture to feel like a game loop, never loud enough to
+    // break the calm mood.
+    const bufSize = Math.floor(ctx.sampleRate * 0.05);
+    const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 5000;
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.02 * velocity, startTime);
+    g.gain.exponentialRampToValueAtTime(0.0005, startTime + 0.045);
+
+    src.connect(hp);
+    hp.connect(g);
+    g.connect(dry);
+    src.start(startTime);
+    src.stop(startTime + 0.06);
   }
 
   function playArcadeBar() {
     if (!playing || currentTrackIndex !== 1) return;
     const chord = ARCADE_PROGRESSION[arcadeBarIdx % ARCADE_PROGRESSION.length];
-    const barStart = ctx.currentTime + 0.05;
+    const barStart = ctx.currentTime + 0.03;
 
-    playArcadeBass(chord[0], barStart, ARCADE_BAR_SECONDS);
+    playArcadeBass(chord[0], barStart, ARCADE_BAR_SECONDS * 0.9);
 
-    // A deliberately slow, spaced-out arpeggio — this is the "slow"
-    // part: notes land roughly every ~6s rather than a fast chiptune
-    // gallop, leaving plenty of open air around each blip.
-    const noteGap = ARCADE_BAR_SECONDS / (ARCADE_ARP_PATTERN.length * 2);
-    let t = barStart + 0.6;
+    // A proper 16th-note arpeggio across the bar — real arcade motion
+    // — while the harmony itself only changes once per bar, which is
+    // what keeps the whole thing feeling unhurried and calm.
     ARCADE_ARP_PATTERN.forEach((idx, i) => {
-      const accentHigh = i % 3 === 2; // occasional higher blip for character
-      const freq = chord[idx] * (accentHigh ? 2 : 1);
-      playArcadeBlip(freq, t, accentHigh ? 0.5 : 0.8, 1.8);
-      t += noteGap;
+      const t = barStart + i * ARCADE_STEP;
+      const isFlourish = idx === 3;
+      const freq = isFlourish ? chord[0] * 2 : chord[idx];
+      const velocity = (i % 4 === 0) ? 0.85 : 0.55; // gentle accent on the beat
+      playArcadeBlip(freq, t, velocity, ARCADE_STEP * 1.7);
+      if (i % 2 === 1) playArcadeHat(t, 0.6);
     });
 
     arcadeBarIdx = (arcadeBarIdx + 1) % ARCADE_PROGRESSION.length;
-    // Next chord is scheduled to start exactly as this one ends —
-    // zero gap, so the 20-minute loop never has a silent seam.
     arcadeTimer = setTimeout(() => { if (playing) playArcadeBar(); }, ARCADE_BAR_SECONDS * 1000);
   }
 
   function startArcadeTrack() {
+    if (!arcadeFilter) {
+      arcadeFilter = ctx.createBiquadFilter();
+      arcadeFilter.type = 'lowpass';
+      arcadeFilter.frequency.value = 3200;
+      arcadeFilter.Q.value = 0.7;
+      arcadeFilter.connect(master);
+    }
     arcadeBarIdx = 0;
     playArcadeBar();
   }
   function stopArcadeTrack() {
     if (arcadeTimer) { clearTimeout(arcadeTimer); arcadeTimer = null; }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  TRACK 3 — "Acoustic Fingerpicking"
+  //  A gentle fingerstyle guitar loop synthesized with real
+  //  Karplus-Strong string physical modeling (a short filtered noise
+  //  burst fed through a decaying delay line) — not a sample, an
+  //  actual plucked-string algorithm — playing a classic alternating-
+  //  bass Travis-picking pattern over a soft, familiar chord
+  //  progression.
+  // ═══════════════════════════════════════════════════════════════
+
+  const GUITAR_BPM = 76;
+  const GUITAR_STEP = 60 / GUITAR_BPM / 2; // 8th-note step
+
+  // Each chord: two alternating bass notes (root/fifth, low strings)
+  // plus three treble notes picked in the higher register — real
+  // open-position guitar-chord pitches.
+  const GUITAR_PROGRESSION = [
+    { bass: [110.00, 164.81], treble: [261.63, 329.63, 440.00] }, // Am
+    { bass: [87.31, 130.81], treble: [220.00, 261.63, 349.23] },  // F
+    { bass: [130.81, 196.00], treble: [329.63, 392.00, 523.25] }, // C
+    { bass: [98.00, 146.83], treble: [246.94, 293.66, 392.00] },  // G
+    { bass: [82.41, 123.47], treble: [196.00, 246.94, 329.63] },  // Em
+    { bass: [110.00, 164.81], treble: [261.63, 329.63, 440.00] }, // Am
+    { bass: [87.31, 130.81], treble: [220.00, 261.63, 349.23] },  // F
+    { bass: [98.00, 146.83], treble: [246.94, 293.66, 392.00] },  // G
+  ];
+  // Classic Travis pattern across 8 eighth-notes per bar:
+  // bass, treble, treble, treble, bass(fifth), treble, treble, treble
+  const GUITAR_PATTERN = [
+    { src: 'bass', i: 0 }, { src: 'treble', i: 0 }, { src: 'treble', i: 1 }, { src: 'treble', i: 0 },
+    { src: 'bass', i: 1 }, { src: 'treble', i: 2 }, { src: 'treble', i: 1 }, { src: 'treble', i: 0 },
+  ];
+
+  let guitarTimer = null;
+  let guitarBarIdx = 0;
+  const pluckBufferCache = new Map();
+
+  function getPluckBuffer(freq) {
+    // Karplus-Strong plucked-string synthesis: seed a short buffer
+    // with filtered noise (the "pick" excitation), then repeatedly
+    // feed it through an averaging delay line the length of one
+    // period of the note — that averaging + decay is what physically
+    // produces a plucked-string timbre.
+    const key = Math.round(freq * 10);
+    if (pluckBufferCache.has(key)) return pluckBufferCache.get(key);
+
+    const sr = ctx.sampleRate;
+    const period = Math.max(2, Math.round(sr / freq));
+    const duration = 2.6;
+    const length = Math.floor(sr * duration);
+    const buf = ctx.createBuffer(1, length, sr);
+    const data = buf.getChannelData(0);
+
+    // Seed: band-limited noise burst (simple one-pole smoothing gives
+    // it a softer, warmer "nylon-ish" pluck rather than a harsh click).
+    let lp = 0;
+    for (let i = 0; i < period; i++) {
+      const white = Math.random() * 2 - 1;
+      lp += 0.5 * (white - lp);
+      data[i] = lp;
+    }
+    const decay = 0.9965; // higher = longer sustain
+    for (let i = period; i < length; i++) {
+      data[i] = decay * 0.5 * (data[i - period] + data[i - period + 1] || 0);
+    }
+    pluckBufferCache.set(key, buf);
+    return buf;
+  }
+
+  function playPluck(freq, startTime, velocity) {
+    const buf = getPluckBuffer(freq);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, startTime);
+    g.gain.linearRampToValueAtTime(0.5 * velocity, startTime + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0008, startTime + 2.4);
+
+    src.connect(g);
+    g.connect(dry);
+    g.connect(convolver);
+    src.start(startTime);
+    src.stop(startTime + 2.6);
+  }
+
+  function playGuitarBar() {
+    if (!playing || currentTrackIndex !== 2) return;
+    const chord = GUITAR_PROGRESSION[guitarBarIdx % GUITAR_PROGRESSION.length];
+    const barStart = ctx.currentTime + 0.03;
+
+    GUITAR_PATTERN.forEach((note, i) => {
+      const t = barStart + i * GUITAR_STEP;
+      const freq = chord[note.src][note.i];
+      const velocity = note.src === 'bass' ? 0.85 : (0.5 + Math.random() * 0.2);
+      playPluck(freq, t, velocity);
+    });
+
+    guitarBarIdx = (guitarBarIdx + 1) % GUITAR_PROGRESSION.length;
+    guitarTimer = setTimeout(() => { if (playing) playGuitarBar(); }, GUITAR_PATTERN.length * GUITAR_STEP * 1000);
+  }
+
+  function startGuitarTrack() {
+    guitarBarIdx = 0;
+    playGuitarBar();
+  }
+  function stopGuitarTrack() {
+    if (guitarTimer) { clearTimeout(guitarTimer); guitarTimer = null; }
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -333,7 +488,8 @@
 
   const TRACKS = [
     { id: 'piano', name: 'Ambient Piano', start: startPianoTrack, stop: stopPianoTrack },
-    { id: 'arcade', name: 'Retro Arcade (Slow)', start: startArcadeTrack, stop: stopArcadeTrack },
+    { id: 'arcade', name: 'Retro Arcade', start: startArcadeTrack, stop: stopArcadeTrack },
+    { id: 'guitar', name: 'Acoustic Fingerpicking', start: startGuitarTrack, stop: stopGuitarTrack },
   ];
 
   let currentTrackIndex = 0;

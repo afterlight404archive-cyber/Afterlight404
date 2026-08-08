@@ -97,6 +97,9 @@
       <span class="theme-icon">☀</span>
       <button class="theme-mode-btn active-mode" id="sys-btn" title="Follow system preference">sys</button>
     </div>
+    <!-- Mobile-only track skip controls: hidden on desktop by default,
+         only shown under the mobile breakpoint in CSS, since the
+         hero vinyl widget's Prev/Next buttons are hidden on phones. -->
     <button class="bgm-toggle-btn" id="bgm-toggle-btn" aria-pressed="false" aria-label="Play background music" title="Play background music">
       <svg class="bgm-icon-note" viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true">
         <path d="M9 17V4.5c0-.28.2-.52.48-.58l9-2C18.83 1.85 19 2.02 19 2.24V15c0 1.66-1.79 3-4 3s-4-1.34-4-3 1.79-3 4-3c.35 0 .69.03 1 .1V6.1L10 7.8V17c0 1.66-1.79 3-4 3s-4-1.34-4-3 1.79-3 4-3c.35 0 .69.04 1 .11z"/>
@@ -616,6 +619,18 @@
         <div class="vinyl-now-playing" id="vinyl-now-playing">— click play to spin —</div>
       </div>
     </div>
+  </div>
+
+  <!-- MOBILE-ONLY background-music bar: sits just below the hero
+       captions. Hidden on desktop/tablet (the hero-vinyl-side widget
+       there already has its own controls); only shown on phones,
+       where that widget is hidden. Wired to the same AfterlightBGM
+       engine, kept in sync via syncVinylToBGM() in app.js. -->
+  <div class="mobile-track-bar" id="mobile-track-bar">
+    <button class="mtb-btn" id="mtb-prev-btn" onclick="vinylPrev()" aria-label="Previous background track" title="Previous background track">⏮</button>
+    <button class="mtb-btn mtb-play-btn" id="mtb-play-btn" onclick="toggleVinyl()" aria-label="Play background music" title="Play background music">▶</button>
+    <span class="mtb-track-name" id="mtb-track-name">— tap play to start music —</span>
+    <button class="mtb-btn" id="mtb-next-btn" onclick="vinylNext()" aria-label="Next background track" title="Next background track">⏭</button>
   </div>
 
   <div class="hero-track-bar">

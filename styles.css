@@ -399,6 +399,57 @@
   .waveform-deco span:nth-child(4) { animation-delay: 0.1s; height: 14px; }
   .waveform-deco span:nth-child(5) { animation-delay: 0s; height: 8px; }
 
+  /* ── MOBILE-ONLY BACKGROUND-MUSIC BAR ──
+     Hidden by default (desktop/tablet keep the hero-vinyl-side
+     widget); revealed only under the mobile breakpoint below, the
+     same one that already hides that widget. */
+  .mobile-track-bar {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    max-width: 480px;
+    margin: 20px auto 0;
+    padding: 8px 12px;
+    background: var(--card);
+    border: 1px solid var(--border2);
+    border-radius: 999px;
+  }
+  .mtb-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid var(--border2);
+    border-radius: 50%;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    transition: border-color 0.18s, color 0.18s, box-shadow 0.18s;
+  }
+  .mtb-btn:active { border-color: var(--accent2); color: var(--accent2); }
+  .mtb-play-btn.is-playing { border-color: var(--accent2); color: var(--accent2); box-shadow: 0 0 10px var(--accent2-glow); }
+  .mtb-track-name {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  @media (max-width: 900px) {
+    .mobile-track-bar { display: flex; }
+  }
+  [data-device="mobile"] .mobile-track-bar { display: flex !important; }
+
   /* ── HERO VISUAL TRACK ── */
   .hero-track-bar {
     position: absolute;
