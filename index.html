@@ -88,37 +88,45 @@
         <div class="notif-dropdown-list" id="notif-dropdown-list"></div>
       </div>
     </div>
-    <div class="theme-toggle-wrap">
-      <span class="theme-icon">☽</span>
+    <nav id="desktop-nav">
+      <a href="#archive" class="active" onclick="goToHomeSection('archive');return false;">Archive</a>
+      <a href="#about" onclick="goToHomeSection('about');return false;">About</a>
+      <a href="#submit" class="nav-note-link" onclick="showPage('submit');return false;">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><path d="M9 17V4.5c0-.28.2-.52.48-.58l9-2C18.83 1.85 19 2.02 19 2.24V15c0 1.66-1.79 3-4 3s-4-1.34-4-3 1.79-3 4-3c.35 0 .69.03 1 .1V6.1L10 7.8V17c0 1.66-1.79 3-4 3s-4-1.34-4-3 1.79-3 4-3c.35 0 .69.04 1 .11z"/></svg>
+        Submit a Song
+      </a>
+      <a href="#social" onclick="showPage('social');return false;">Social</a>
+    </nav>
+    <span class="header-divider" aria-hidden="true"></span>
+    <div class="header-icon-cluster">
+      <button class="icon-circle-btn" id="btn-header-search" onclick="showToast('Search coming soon.')" aria-label="Search">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+      <button class="icon-circle-btn" id="btn-header-theme" aria-label="Toggle theme">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"/></svg>
+      </button>
+      <button class="volume-pill" id="volume-pill" aria-label="Toggle background music">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M4 9v6h4l5 5V4L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <span id="volume-pill-label">75%</span>
+      </button>
+      <button class="analog-pill" id="bgm-toggle-btn" aria-pressed="false" aria-label="Play background music" title="Play background music">
+        <span class="analog-pill-dot" aria-hidden="true"></span>
+        <span class="analog-bars" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="analog-pill-label">Analog HQ</span>
+      </button>
+    </div>
+    <!-- Hidden legacy theme controls kept in the DOM for existing app.js logic;
+         the visible theme toggle is the moon icon button above, which just
+         clicks this checkbox so no JS logic needed to change. -->
+    <div class="theme-toggle-wrap" style="display:none;">
       <label class="theme-switch">
         <input type="checkbox" id="theme-checkbox">
         <span class="theme-track"></span>
       </label>
-      <span class="theme-icon">☀</span>
       <button class="theme-mode-btn active-mode" id="sys-btn" title="Follow system preference">sys</button>
     </div>
-    <!-- Mobile-only track skip controls: hidden on desktop by default,
-         only shown under the mobile breakpoint in CSS, since the
-         hero vinyl widget's Prev/Next buttons are hidden on phones. -->
-    <button class="bgm-toggle-btn" id="bgm-toggle-btn" aria-pressed="false" aria-label="Play background music" title="Play background music">
-      <svg class="bgm-icon-note" viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true">
-        <path d="M9 17V4.5c0-.28.2-.52.48-.58l9-2C18.83 1.85 19 2.02 19 2.24V15c0 1.66-1.79 3-4 3s-4-1.34-4-3 1.79-3 4-3c.35 0 .69.03 1 .1V6.1L10 7.8V17c0 1.66-1.79 3-4 3s-4-1.34-4-3 1.79-3 4-3c.35 0 .69.04 1 .11z"/>
-      </svg>
-      <span class="bgm-bars" aria-hidden="true"><i></i><i></i><i></i></span>
-      <svg class="bgm-icon-muted" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-        <line x1="4" y1="4" x2="20" y2="20"/>
-      </svg>
-    </button>
   </div>
 </header>
-<div class="subnav-row" id="desktop-nav-row">
-  <nav id="desktop-nav">
-    <a href="#archive" onclick="goToHomeSection('archive');return false;">Archive</a>
-    <a href="#about" onclick="goToHomeSection('about');return false;">About</a>
-    <a href="#submit" onclick="showPage('submit');return false;">Submit a Song</a>
-    <a href="#social" onclick="showPage('social');return false;">Social</a>
-  </nav>
-</div>
 
 
 <!-- DONATE MODAL -->

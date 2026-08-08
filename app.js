@@ -709,6 +709,33 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
   if ((localStorage.getItem('al-theme') || 'system') === 'system') applyTheme('system');
 });
 
+// Header moon-icon button just drives the (visually hidden) legacy theme
+// checkbox above, so the existing applyTheme()/localStorage logic doesn't
+// need to change at all.
+const btnHeaderTheme = document.getElementById('btn-header-theme');
+if (btnHeaderTheme) {
+  btnHeaderTheme.addEventListener('click', () => { themeCheckbox.click(); });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  HEADER VOLUME PILL (mirrors the Analog HQ background-music toggle)
+// ═══════════════════════════════════════════════════════════════
+const volumePill = document.getElementById('volume-pill');
+const volumePillLabel = document.getElementById('volume-pill-label');
+function updateVolumePillLabel(playing) {
+  if (!volumePillLabel) return;
+  volumePillLabel.textContent = playing ? '75%' : 'Muted';
+}
+if (volumePill) {
+  volumePill.addEventListener('click', () => {
+    if (window.AfterlightBGM) window.AfterlightBGM.toggle();
+  });
+}
+document.addEventListener('afterlight-bgm-trackchange', (e) => {
+  updateVolumePillLabel(!!(e.detail && e.detail.playing));
+});
+if (window.AfterlightBGM) updateVolumePillLabel(window.AfterlightBGM.isPlaying());
+
 // ═══════════════════════════════════════════════════════════════
 //  DONATE
 // ═══════════════════════════════════════════════════════════════
