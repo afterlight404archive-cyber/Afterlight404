@@ -1,36 +1,53 @@
 /* ===================================================================
-   bgmusic.js — original ambient piano, in the spirit of C418's
-   Minecraft soundtrack (soft piano tone, long reverb tails) — but a
-   fully original composition generated live in the browser, so
-   there's no melody or sample being copied and nothing to claim
-   rights over.
+   bgmusic.js — original, fully browser-generated background music.
+   Nothing here is a sample or a file — every note is synthesized
+   live with the Web Audio API, so there's no melody being copied and
+   nothing to claim rights over.
    ===================================================================
-   How it works:
-   - A continuous, never-stopping stream of soft piano-style notes,
-     picked from a simple major scale via a gentle random walk (mostly
-     small steps, occasional bigger leaps) — one flowing line with no
-     silent gaps, rather than short phrases separated by pauses.
-   - A long, generous reverb tail (built procedurally, not sampled
-     from anywhere) on every note gives it that big, airy "room" sound.
-   - A slow, continuously-overlapping low drone underneath for warmth,
-     so the low end never actually goes quiet either.
-   - Notes and the melodic shape are randomized with no fixed cycle,
-     so a 20–30 minute sit never repeats itself.
+   This is a small PLAYLIST of independent tracks (see TRACKS below).
+   Only one plays at a time; the vinyl widget on the homepage (and the
+   speaker icon in the header) control the same shared engine:
+
+     - Play/Pause  → toggle()
+     - Next        → next()   (switches to the next track in TRACKS)
+     - Prev        → prev()   (switches to the previous track)
+
+   Add more tracks over time by pushing another { name, start, stop }
+   entry onto TRACKS — nothing else needs to change.
+
+   Tracks included so far:
+     1. "Ambient Piano"        — soft, endless, never-repeating piano
+                                  wander (the original track).
+     2. "Retro Arcade (Slow)"  — a slow, chill 16-bit-arcade-style
+                                  loop. It's a genuinely composed
+                                  16-chord progression, 75s per chord,
+                                  so it plays as one continuous, no-gap
+                                  20-minute loop before wrapping back
+                                  to the top — it just keeps looping
+                                  like that until Next/Prev is pressed.
 
    Plays as soon as the visitor lands, if the browser allows it; if
    the browser's autoplay policy blocks audio before any interaction
    (most do), it starts the instant they first click/tap/scroll
    anywhere on the page. It only stops when they hit mute, and that
-   choice is remembered for next time.
+   choice (and the last track picked) is remembered for next time.
 
-   Public API (used by index.html):
+   Public API (used by index.html / app.js's vinyl widget):
      window.AfterlightBGM.toggle()
      window.AfterlightBGM.isPlaying()
+     window.AfterlightBGM.next()
+     window.AfterlightBGM.prev()
+     window.AfterlightBGM.getCurrentTrackName()
+     window.AfterlightBGM.getTracks()
+   Fires a 'afterlight-bgm-trackchange' event on `document` (detail:
+   { name, index, playing }) whenever play state or track changes, so
+   any UI (like the vinyl widget) can stay in sync without polling.
    ================================================================= */
 (function () {
   'use strict';
 
   const STORAGE_KEY = 'al-bgm-enabled';
+  const TRACK_STORAGE_KEY = 'al-bgm-track';
 
   let ctx = null;
   let master = null;
@@ -39,18 +56,12 @@
   let wetGain = null;
   let wetFilter = null;
   let playing = false;
-  let started = false;
-  let phraseTimer = null;
-  let droneTimer = null;
 
-  // A simple, warm major scale (C major, two octaves) — deliberately
-  // plain and consonant, the way the Minecraft soundtrack leans on
-  // open, unresolved-feeling piano tones rather than busy harmony.
-  const SCALE = [
-    130.81, 146.83, 164.81, 196.00, 220.00,           // C3 D3 E3 G3 A3
-    261.63, 293.66, 329.63, 392.00, 440.00, 523.25,   // C4 D4 E4 G4 A4 C5
-  ];
-  const DRONE_NOTES = [65.41, 73.42, 87.31, 98.00];   // C2 D2 F2 G2 — root tones
+  // ═══════════════════════════════════════════════════════════════
+  //  SHARED AUDIO GRAPH (every track routes through this same
+  //  dry + procedural-reverb chain, so switching tracks doesn't
+  //  change the overall "room" feel)
+  // ═══════════════════════════════════════════════════════════════
 
   function buildReverbImpulse() {
     // A procedurally-generated reverb tail (no sample, no file) — soft,
@@ -102,9 +113,29 @@
     wetGain.connect(master);
   }
 
+  function fadeTo(value, seconds) {
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    master.gain.cancelScheduledValues(now);
+    master.gain.setValueAtTime(master.gain.value, now);
+    master.gain.linearRampToValueAtTime(value, now + seconds);
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  TRACK 1 — "Ambient Piano" (the original track, unchanged)
+  // ═══════════════════════════════════════════════════════════════
+
+  const SCALE = [
+    130.81, 146.83, 164.81, 196.00, 220.00,           // C3 D3 E3 G3 A3
+    261.63, 293.66, 329.63, 392.00, 440.00, 523.25,   // C4 D4 E4 G4 A4 C5
+  ];
+  const DRONE_NOTES = [65.41, 73.42, 87.31, 98.00];   // C2 D2 F2 G2 — root tones
+
+  let phraseTimer = null;
+  let droneTimer = null;
+  let melodyIdx = Math.floor(Math.random() * SCALE.length);
+
   function playPianoNote(freq, startTime, velocity) {
-    // Two slightly detuned tones (a soft fundamental + a quiet octave
-    // partial) with a fast attack and a slow piano-like decay.
     const g = ctx.createGain();
     const peak = 0.16 * velocity;
     g.gain.setValueAtTime(0, startTime);
@@ -136,7 +167,7 @@
   }
 
   function playDrone() {
-    if (!playing) return;
+    if (!playing || currentTrackIndex !== 0) return;
     const freq = DRONE_NOTES[Math.floor(Math.random() * DRONE_NOTES.length)];
     const start = ctx.currentTime + 0.2;
     const dur = 22 + Math.random() * 14; // 22–36s, very slow
@@ -154,24 +185,16 @@
     osc.start(start);
     osc.stop(start + dur + 0.5);
 
-    // Next drone note overlaps well before this one fully fades, so the
-    // low end never actually goes silent — one continuous bed of sound.
     droneTimer = setTimeout(playDrone, dur * 1000 * 0.55);
   }
 
-  let melodyIdx = Math.floor(Math.random() * SCALE.length);
-
   function playPhrase() {
-    if (!playing) return;
+    if (!playing || currentTrackIndex !== 0) return;
     const now = ctx.currentTime;
     const noteCount = 4 + Math.floor(Math.random() * 5); // 4–8 notes
     let t = now + 0.05;
 
     for (let i = 0; i < noteCount; i++) {
-      // Mostly small steps up or down the scale, occasionally a leap —
-      // gives a gentle, wandering melodic shape rather than randomness.
-      // melodyIdx is kept across phrases (not reset each time) so the
-      // line keeps flowing instead of jumping after every "phrase".
       const step = Math.random() < 0.7
         ? (Math.random() < 0.5 ? -1 : 1) * (Math.random() < 0.8 ? 1 : 2)
         : (Math.random() < 0.5 ? -1 : 1) * 3;
@@ -179,48 +202,174 @@
 
       const velocity = 0.6 + Math.random() * 0.4;
       playPianoNote(SCALE[melodyIdx], t, velocity);
-
-      // Notes don't fall on a strict grid — small timing variation
-      // keeps it feeling played, not sequenced — but they now follow
-      // right on each other's heels instead of leaving a gap.
       t += 0.5 + Math.random() * 0.6;
     }
 
-    // No long silence anymore — the next run of notes picks up almost
-    // immediately, so it reads as one continuous, ever-flowing piece
-    // rather than a phrase-then-pause pattern.
     const gap = 0.15 + Math.random() * 0.35;
     const totalWait = (t - now) + gap;
     phraseTimer = setTimeout(() => { if (playing) playPhrase(); }, totalWait * 1000);
   }
 
-  function fadeTo(value, seconds) {
-    if (!ctx) return;
-    const now = ctx.currentTime;
-    master.gain.cancelScheduledValues(now);
-    master.gain.setValueAtTime(master.gain.value, now);
-    master.gain.linearRampToValueAtTime(value, now + seconds);
+  function startPianoTrack() {
+    playPhrase();
+    droneTimer = setTimeout(playDrone, 3000);
   }
+  function stopPianoTrack() {
+    if (phraseTimer) { clearTimeout(phraseTimer); phraseTimer = null; }
+    if (droneTimer) { clearTimeout(droneTimer); droneTimer = null; }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  TRACK 2 — "Retro Arcade (Slow)"
+  //  A slow, chill take on a 16-bit arcade/overworld loop: a gentle
+  //  square-wave arpeggio + sustained triangle bassline over a fixed
+  //  16-chord progression. Each chord holds for 75 seconds, so the
+  //  whole progression is exactly 16 × 75s = 1200s — a real, seamless
+  //  20-minute loop with zero gap between chords or on wraparound.
+  //  It just keeps looping like that until Next/Prev is pressed.
+  // ═══════════════════════════════════════════════════════════════
+
+  const ARCADE_BAR_SECONDS = 75; // 16 bars × 75s = 1200s = 20:00 exactly
+  // [root, third, fifth] triads in Hz — a simple i–VI–III–VII-flavoured
+  // natural-minor progression, easy on the ear and unmistakably
+  // "game overworld" without ever picking up tempo.
+  const ARCADE_PROGRESSION = [
+    [220.00, 261.63, 329.63], // Am
+    [174.61, 220.00, 261.63], // F
+    [130.81, 164.81, 196.00], // C
+    [196.00, 246.94, 293.66], // G
+    [220.00, 261.63, 329.63], // Am
+    [146.83, 174.61, 220.00], // Dm
+    [196.00, 246.94, 293.66], // G
+    [130.81, 164.81, 196.00], // C
+    [220.00, 261.63, 329.63], // Am
+    [174.61, 220.00, 261.63], // F
+    [130.81, 164.81, 196.00], // C
+    [164.81, 196.00, 246.94], // Em
+    [146.83, 174.61, 220.00], // Dm
+    [196.00, 246.94, 293.66], // G
+    [220.00, 261.63, 329.63], // Am
+    [164.81, 207.65, 246.94], // E — gentle tension right before the loop resets
+  ];
+  const ARCADE_ARP_PATTERN = [0, 1, 2, 1, 0, 2]; // indices into the triad
+
+  let arcadeTimer = null;
+  let arcadeBarIdx = 0;
+
+  function playArcadeBlip(freq, startTime, velocity, dur) {
+    const g = ctx.createGain();
+    const peak = 0.1 * velocity;
+    g.gain.setValueAtTime(0, startTime);
+    g.gain.linearRampToValueAtTime(peak, startTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0006, startTime + dur);
+    g.connect(dry);
+    g.connect(convolver);
+
+    const osc = ctx.createOscillator();
+    osc.type = 'square';
+    osc.frequency.value = freq;
+    osc.connect(g);
+    osc.start(startTime);
+    osc.stop(startTime + dur + 0.05);
+  }
+
+  function playArcadeBass(freq, startTime, dur) {
+    // One long, softly-sustained root note under the whole bar — the
+    // "no pause" part: it never actually goes silent between chords.
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, startTime);
+    g.gain.linearRampToValueAtTime(0.085, startTime + 3);
+    g.gain.setValueAtTime(0.085, startTime + dur - 3);
+    g.gain.linearRampToValueAtTime(0, startTime + dur);
+    g.connect(dry);
+    g.connect(convolver);
+
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.value = freq / 2; // an octave down
+    osc.connect(g);
+    osc.start(startTime);
+    osc.stop(startTime + dur + 0.1);
+  }
+
+  function playArcadeBar() {
+    if (!playing || currentTrackIndex !== 1) return;
+    const chord = ARCADE_PROGRESSION[arcadeBarIdx % ARCADE_PROGRESSION.length];
+    const barStart = ctx.currentTime + 0.05;
+
+    playArcadeBass(chord[0], barStart, ARCADE_BAR_SECONDS);
+
+    // A deliberately slow, spaced-out arpeggio — this is the "slow"
+    // part: notes land roughly every ~6s rather than a fast chiptune
+    // gallop, leaving plenty of open air around each blip.
+    const noteGap = ARCADE_BAR_SECONDS / (ARCADE_ARP_PATTERN.length * 2);
+    let t = barStart + 0.6;
+    ARCADE_ARP_PATTERN.forEach((idx, i) => {
+      const accentHigh = i % 3 === 2; // occasional higher blip for character
+      const freq = chord[idx] * (accentHigh ? 2 : 1);
+      playArcadeBlip(freq, t, accentHigh ? 0.5 : 0.8, 1.8);
+      t += noteGap;
+    });
+
+    arcadeBarIdx = (arcadeBarIdx + 1) % ARCADE_PROGRESSION.length;
+    // Next chord is scheduled to start exactly as this one ends —
+    // zero gap, so the 20-minute loop never has a silent seam.
+    arcadeTimer = setTimeout(() => { if (playing) playArcadeBar(); }, ARCADE_BAR_SECONDS * 1000);
+  }
+
+  function startArcadeTrack() {
+    arcadeBarIdx = 0;
+    playArcadeBar();
+  }
+  function stopArcadeTrack() {
+    if (arcadeTimer) { clearTimeout(arcadeTimer); arcadeTimer = null; }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  PLAYLIST — add more tracks here later, nothing else needs to
+  //  change (Next/Prev, persistence, and the vinyl widget all just
+  //  read from this array).
+  // ═══════════════════════════════════════════════════════════════
+
+  const TRACKS = [
+    { id: 'piano', name: 'Ambient Piano', start: startPianoTrack, stop: stopPianoTrack },
+    { id: 'arcade', name: 'Retro Arcade (Slow)', start: startArcadeTrack, stop: stopArcadeTrack },
+  ];
+
+  let currentTrackIndex = 0;
+  try {
+    const saved = parseInt(localStorage.getItem(TRACK_STORAGE_KEY), 10);
+    if (!isNaN(saved) && saved >= 0 && saved < TRACKS.length) currentTrackIndex = saved;
+  } catch (e) {}
+
+  function notifyBGMState() {
+    document.dispatchEvent(new CustomEvent('afterlight-bgm-trackchange', {
+      detail: { name: TRACKS[currentTrackIndex].name, index: currentTrackIndex, playing }
+    }));
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  PLAYBACK CONTROL
+  // ═══════════════════════════════════════════════════════════════
 
   function start() {
     ensureContext();
     if (ctx.state === 'suspended') ctx.resume();
+    const wasAlreadyPlaying = playing;
     playing = true;
     fadeTo(0.8, 2.0);
-    if (!started) {
-      started = true;
-      playPhrase();
-      droneTimer = setTimeout(playDrone, 3000);
-    }
+    if (!wasAlreadyPlaying) TRACKS[currentTrackIndex].start();
     updateIcon();
+    notifyBGMState();
   }
 
   function stop() {
+    if (!playing) { updateIcon(); return; }
     playing = false;
-    if (phraseTimer) { clearTimeout(phraseTimer); phraseTimer = null; }
-    if (droneTimer) { clearTimeout(droneTimer); droneTimer = null; }
+    TRACKS[currentTrackIndex].stop();
     if (ctx) fadeTo(0, 0.6);
     updateIcon();
+    notifyBGMState();
   }
 
   function toggle() {
@@ -232,6 +381,28 @@
       try { localStorage.setItem(STORAGE_KEY, '1'); } catch (e) {}
     }
   }
+
+  // Switches to a different track in the playlist. If music is
+  // currently playing, dips the volume briefly (so the switch doesn't
+  // click/pop), stops the old track's scheduling, and starts the new
+  // one. If paused, just remembers the new choice for next play.
+  function switchTrack(newIndex) {
+    TRACKS[currentTrackIndex].stop();
+    currentTrackIndex = (newIndex + TRACKS.length) % TRACKS.length;
+    try { localStorage.setItem(TRACK_STORAGE_KEY, String(currentTrackIndex)); } catch (e) {}
+
+    if (playing) {
+      fadeTo(0, 0.25);
+      setTimeout(() => {
+        TRACKS[currentTrackIndex].start();
+        fadeTo(0.8, 0.6);
+      }, 260);
+    }
+    notifyBGMState();
+  }
+
+  function next() { switchTrack(currentTrackIndex + 1); }
+  function prev() { switchTrack(currentTrackIndex - 1); }
 
   function updateIcon() {
     const btn = document.getElementById('bgm-toggle-btn');
@@ -247,7 +418,7 @@
   }
 
   function attemptAutoplay() {
-    if (wasExplicitlyMuted()) { updateIcon(); return; }
+    if (wasExplicitlyMuted()) { updateIcon(); notifyBGMState(); return; }
 
     ensureContext();
     start();
@@ -270,5 +441,12 @@
     attemptAutoplay();
   });
 
-  window.AfterlightBGM = { toggle, isPlaying: () => playing };
+  window.AfterlightBGM = {
+    toggle,
+    isPlaying: () => playing,
+    next,
+    prev,
+    getCurrentTrackName: () => TRACKS[currentTrackIndex].name,
+    getTracks: () => TRACKS.map(t => t.name),
+  };
 })();

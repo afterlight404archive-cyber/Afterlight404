@@ -207,6 +207,12 @@ function attachToastSwipe(el, record) {
 
   el.addEventListener('pointerdown', e => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    // Don't hijack taps on the close (X) button — setPointerCapture below
+    // retargets the browser's follow-up "click" to `el` instead of the
+    // button, so the button's own click handler never fires and tapping
+    // "cancel" on a toast silently does nothing. Let the button handle its
+    // own click/tap normally instead of starting a swipe-drag.
+    if (e.target.closest('.toast-close')) return;
     dragging = true; pointerId = e.pointerId; startX = e.clientX; dx = 0;
     el.classList.add('toast-dragging');
     pauseToastTimer(record);
@@ -784,65 +790,51 @@ document.addEventListener('visibilitychange', () => {
 
 // ═══════════════════════════════════════════════════════════════
 //  VINYL PLAYER (HERO DECORATION)
+//  Wired to the real background-music engine (bgmusic.js) rather
+//  than a fake simulated progress bar. Play/Pause here IS the site's
+//  background music toggle; Prev/Next switch between BACKGROUND
+//  MUSIC TRACKS (e.g. "Ambient Piano", "Retro Arcade (Slow)") — not
+//  archive song titles. The "now playing" label shows the current
+//  track's name. All visual state (spin, play icon, progress sweep)
+//  simply mirrors window.AfterlightBGM, kept in sync via the
+//  'afterlight-bgm-trackchange' event it fires.
 // ═══════════════════════════════════════════════════════════════
 
-let vinylPlaying = false;
-let vinylSongIndex = 0;
-let vinylTrackInterval = null;
-let vinylProgress = 0;
-
 function toggleVinyl() {
-  vinylPlaying = !vinylPlaying;
-  const vinyl = document.getElementById('hero-vinyl');
-  const playBtn = document.getElementById('vinyl-play-btn');
-  const waveform = document.getElementById('hero-waveform');
-  if (!vinyl) return;
-  if (vinylPlaying) {
-    vinyl.classList.add('spinning');
-    if (playBtn) playBtn.textContent = '⏸';
-    if (waveform) { waveform.querySelectorAll('span').forEach(s => s.style.animationPlayState = 'running'); }
-    updateVinylLabel();
-    startVinylProgress();
-  } else {
-    vinyl.classList.remove('spinning');
-    if (playBtn) playBtn.textContent = '▶';
-    if (waveform) { waveform.querySelectorAll('span').forEach(s => s.style.animationPlayState = 'paused'); }
-    clearInterval(vinylTrackInterval);
-  }
-}
-
-function startVinylProgress() {
-  clearInterval(vinylTrackInterval);
-  const progressBar = document.getElementById('hero-track-progress');
-  const needle = document.getElementById('hero-track-needle');
-  vinylTrackInterval = setInterval(() => {
-    vinylProgress = (vinylProgress + 0.15) % 100;
-    if (progressBar) progressBar.style.width = vinylProgress + '%';
-    if (needle) needle.style.left = vinylProgress + '%';
-    if (vinylProgress >= 99.85) vinylNext();
-  }, 100);
-}
-
-function updateVinylLabel() {
-  const nowPlaying = document.getElementById('vinyl-now-playing');
-  if (!nowPlaying) return;
-  const s = songs[vinylSongIndex % Math.max(songs.length, 1)];
-  if (s) nowPlaying.innerHTML = `<span>${escapeHtml(s.title)}</span> — ${escapeHtml(s.artist)}`;
-  else nowPlaying.innerHTML = '— click play to spin —';
+  if (window.AfterlightBGM) window.AfterlightBGM.toggle();
 }
 
 function vinylNext() {
-  vinylSongIndex = (vinylSongIndex + 1) % Math.max(songs.length, 1);
-  vinylProgress = 0;
-  updateVinylLabel();
-  if (vinylPlaying) startVinylProgress();
+  if (window.AfterlightBGM) window.AfterlightBGM.next();
 }
 
 function vinylPrev() {
-  vinylSongIndex = (vinylSongIndex - 1 + Math.max(songs.length, 1)) % Math.max(songs.length, 1);
-  vinylProgress = 0;
-  updateVinylLabel();
-  if (vinylPlaying) startVinylProgress();
+  if (window.AfterlightBGM) window.AfterlightBGM.prev();
 }
+
+function syncVinylToBGM() {
+  if (!window.AfterlightBGM) return;
+  const vinyl = document.getElementById('hero-vinyl');
+  const playBtn = document.getElementById('vinyl-play-btn');
+  const waveform = document.getElementById('hero-waveform');
+  const trackBar = document.querySelector('.hero-track-bar');
+  const nowPlaying = document.getElementById('vinyl-now-playing');
+
+  const playing = window.AfterlightBGM.isPlaying();
+  const trackName = window.AfterlightBGM.getCurrentTrackName();
+
+  if (vinyl) vinyl.classList.toggle('spinning', playing);
+  if (playBtn) playBtn.textContent = playing ? '⏸' : '▶';
+  if (waveform) waveform.querySelectorAll('span').forEach(s => s.style.animationPlayState = playing ? 'running' : 'paused');
+  if (trackBar) trackBar.classList.toggle('playing', playing);
+  if (nowPlaying) {
+    nowPlaying.innerHTML = trackName
+      ? `<span>${escapeHtml(trackName)}</span> — background music`
+      : '— click play to spin —';
+  }
+}
+
+document.addEventListener('afterlight-bgm-trackchange', syncVinylToBGM);
+document.addEventListener('DOMContentLoaded', syncVinylToBGM);
 
 // ═══════════════════════════════════════════════════════════════

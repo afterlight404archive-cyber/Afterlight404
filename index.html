@@ -609,9 +609,9 @@
           <div class="vinyl-arm" id="hero-vinyl-arm"></div>
         </div>
         <div class="vinyl-controls">
-          <button class="vinyl-btn" onclick="vinylPrev()" title="Prev">⏮</button>
+          <button class="vinyl-btn" onclick="vinylPrev()" title="Previous background track">⏮</button>
           <button class="vinyl-btn vinyl-play-btn" id="vinyl-play-btn" onclick="toggleVinyl()">▶</button>
-          <button class="vinyl-btn" onclick="vinylNext()" title="Next">⏭</button>
+          <button class="vinyl-btn" onclick="vinylNext()" title="Next background track">⏭</button>
         </div>
         <div class="vinyl-now-playing" id="vinyl-now-playing">— click play to spin —</div>
       </div>
@@ -2024,7 +2024,9 @@ document.querySelectorAll('.waveform-deco span').forEach(s => {
   s.style.animationPlayState = 'paused';
   s.style.height = '4px';
 });
-updateVinylLabel();
+// Reflects the real bg-music engine's current track/play state into the
+// vinyl widget (label, spin, play icon) — see syncVinylToBGM in app.js.
+if (typeof syncVinylToBGM === 'function') syncVinylToBGM();
 
 if (isDbConnected()) {
   pullSharedDataFromSupabase().then(() => {

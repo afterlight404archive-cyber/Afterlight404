@@ -427,6 +427,21 @@
     background: linear-gradient(90deg, transparent, var(--accent));
     opacity: 0.6;
   }
+  /* Slow decorative sweep while background music is actually playing —
+     driven purely by CSS (no per-frame JS) and toggled by a single
+     `.playing` class kept in sync with the real bg-music engine. */
+  .hero-track-bar.playing .hero-track-progress,
+  .hero-track-bar.playing .hero-track-needle {
+    animation: heroTrackSweep 46s linear infinite;
+  }
+  @keyframes heroTrackSweep {
+    0%   { left: 0%; }
+    100% { left: 96%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-track-bar.playing .hero-track-progress,
+    .hero-track-bar.playing .hero-track-needle { animation: none; }
+  }
 
   /* ── GLASSMORPHISM CARDS ── */
   .glass-card {
@@ -2665,6 +2680,14 @@
     .toast {
       padding: 15px 16px 13px;
       border-radius: 20px;
+      /* The stack is bottom-anchored on mobile (see #toast-stack above),
+         but the base rule anchors each toast with `top: 0`, so the box
+         grows DOWNWARD from that safe line — straight back through the
+         bottom nav and off the edge of the screen. Anchor to the bottom
+         instead so it grows upward from the safe line, matching the
+         upward stacking direction repositionToasts() already computes. */
+      top: auto;
+      bottom: 0;
     }
     /* On mobile, new toasts stack upward from the bottom instead of down
        from the top — repositionToasts() in app.js flips the sign of the
