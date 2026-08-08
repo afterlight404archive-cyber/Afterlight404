@@ -721,10 +721,11 @@ if (btnHeaderTheme) {
 //  HEADER VOLUME PILL (mirrors the Analog HQ background-music toggle)
 // ═══════════════════════════════════════════════════════════════
 const volumePill = document.getElementById('volume-pill');
-const volumePillLabel = document.getElementById('volume-pill-label');
 function updateVolumePillLabel(playing) {
-  if (!volumePillLabel) return;
-  volumePillLabel.textContent = playing ? '75%' : 'Muted';
+  if (!volumePill) return;
+  volumePill.classList.toggle('is-muted', !playing);
+  volumePill.setAttribute('aria-label', playing ? 'Mute background music' : 'Unmute background music');
+  volumePill.title = playing ? 'Mute background music' : 'Unmute background music';
 }
 if (volumePill) {
   volumePill.addEventListener('click', () => {
@@ -851,7 +852,11 @@ function syncVinylToBGM() {
   const trackName = window.AfterlightBGM.getCurrentTrackName();
 
   if (vinyl) vinyl.classList.toggle('spinning', playing);
-  if (playBtn) playBtn.textContent = playing ? '⏸' : '▶';
+  if (playBtn) {
+    playBtn.classList.toggle('is-playing', playing);
+    playBtn.setAttribute('aria-label', playing ? 'Pause background music' : 'Play background music');
+    playBtn.title = playing ? 'Pause background music' : 'Play background music';
+  }
   if (waveform) waveform.querySelectorAll('span').forEach(s => s.style.animationPlayState = playing ? 'running' : 'paused');
   if (trackBar) trackBar.classList.toggle('playing', playing);
   if (nowPlaying) {
@@ -864,7 +869,6 @@ function syncVinylToBGM() {
   const mtbPlayBtn = document.getElementById('mtb-play-btn');
   const mtbTrackName = document.getElementById('mtb-track-name');
   if (mtbPlayBtn) {
-    mtbPlayBtn.textContent = playing ? '⏸' : '▶';
     mtbPlayBtn.classList.toggle('is-playing', playing);
     mtbPlayBtn.setAttribute('aria-label', playing ? 'Pause background music' : 'Play background music');
     mtbPlayBtn.title = playing ? 'Pause background music' : 'Play background music';
