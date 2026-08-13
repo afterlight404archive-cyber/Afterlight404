@@ -817,15 +817,17 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-//  VINYL PLAYER (HERO DECORATION)
+//  BACKGROUND-MUSIC PLAYER CARD (HERO)
 //  Wired to the real background-music engine (bgmusic.js) rather
 //  than a fake simulated progress bar. Play/Pause here IS the site's
 //  background music toggle; Prev/Next switch between BACKGROUND
-//  MUSIC TRACKS (e.g. "Ambient Piano", "Retro Arcade (Slow)") — not
-//  archive song titles. The "now playing" label shows the current
-//  track's name. All visual state (spin, play icon, progress sweep)
-//  simply mirrors window.AfterlightBGM, kept in sync via the
-//  'afterlight-bgm-trackchange' event it fires.
+//  MUSIC TRACKS (e.g. "Ambient Piano", "Retro Arcade") — not archive
+//  song titles. The card's title shows the current track's name. All
+//  visual state (play icon, progress sweep) simply mirrors
+//  window.AfterlightBGM, kept in sync via the
+//  'afterlight-bgm-trackchange' event it fires. One card, same
+//  markup, on every breakpoint — no separate mobile widget to
+//  maintain.
 // ═══════════════════════════════════════════════════════════════
 
 function toggleVinyl() {
@@ -842,16 +844,17 @@ function vinylPrev() {
 
 function syncVinylToBGM() {
   if (!window.AfterlightBGM) return;
-  const vinyl = document.getElementById('hero-vinyl');
   const playBtn = document.getElementById('vinyl-play-btn');
   const waveform = document.getElementById('hero-waveform');
   const trackBar = document.querySelector('.hero-track-bar');
-  const nowPlaying = document.getElementById('vinyl-now-playing');
+  const card = document.getElementById('player-card');
+  const title = document.getElementById('player-track-title');
+  const progressTrack = document.getElementById('player-progress-track');
+  const liveTime = document.getElementById('player-time-live');
 
   const playing = window.AfterlightBGM.isPlaying();
   const trackName = window.AfterlightBGM.getCurrentTrackName();
 
-  if (vinyl) vinyl.classList.toggle('spinning', playing);
   if (playBtn) {
     playBtn.classList.toggle('is-playing', playing);
     playBtn.setAttribute('aria-label', playing ? 'Pause background music' : 'Play background music');
@@ -859,23 +862,10 @@ function syncVinylToBGM() {
   }
   if (waveform) waveform.querySelectorAll('span').forEach(s => s.style.animationPlayState = playing ? 'running' : 'paused');
   if (trackBar) trackBar.classList.toggle('playing', playing);
-  if (nowPlaying) {
-    nowPlaying.innerHTML = trackName
-      ? `<span>${escapeHtml(trackName)}</span> — background music`
-      : '— click play to spin —';
-  }
-
-  // Mobile-only track bar (below the hero captions) mirrors the same state.
-  const mtbPlayBtn = document.getElementById('mtb-play-btn');
-  const mtbTrackName = document.getElementById('mtb-track-name');
-  if (mtbPlayBtn) {
-    mtbPlayBtn.classList.toggle('is-playing', playing);
-    mtbPlayBtn.setAttribute('aria-label', playing ? 'Pause background music' : 'Play background music');
-    mtbPlayBtn.title = playing ? 'Pause background music' : 'Play background music';
-  }
-  if (mtbTrackName) {
-    mtbTrackName.textContent = trackName ? trackName : '— tap play to start music —';
-  }
+  if (card) card.classList.toggle('playing', playing);
+  if (title) title.textContent = trackName || 'Background music';
+  if (progressTrack) progressTrack.classList.toggle('playing', playing);
+  if (liveTime) liveTime.textContent = playing ? '●' : '';
 }
 
 document.addEventListener('afterlight-bgm-trackchange', syncVinylToBGM);

@@ -198,160 +198,166 @@
     z-index: 0;
   }
 
-  /* ── VINYL PLAYER WIDGET ── */
-  .vinyl-widget {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
+  /* ── BACKGROUND-MUSIC PLAYER CARD ──
+     One component, every breakpoint (desktop/tablet/phone) — replaces
+     the old spinning-vinyl widget and the separate mobile pill bar.
+     Styled after a familiar now-playing card, restyled into the site's
+     own palette/type system. Progress is decorative on purpose: the
+     music is generative and endless (see bgmusic.js), so instead of a
+     fake countdown it shows a live pulse + an infinity mark. */
+  .player-card {
+    width: 300px;
+    max-width: 100%;
     margin: 0 auto;
+    padding: 22px 24px 20px;
+    border-radius: 20px;
+    background: linear-gradient(165deg, var(--card), var(--surface));
+    border: 1px solid var(--border2);
+    box-shadow: var(--shadow-card), 0 0 60px rgba(217,178,112,0.06);
   }
-  .vinyl-outer {
-    width: 220px;
-    height: 220px;
-    border-radius: 50%;
-    background:
-      repeating-conic-gradient(
-        from 0deg,
-        #1a1628 0deg 2deg,
-        #0f0d18 2deg 4deg
-      );
-    box-shadow:
-      0 0 0 2px #2a2638,
-      0 0 0 4px #0f0d18,
-      0 8px 48px rgba(0,0,0,0.7),
-      0 0 60px rgba(123,111,160,0.15);
+  .player-card-top {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    animation: vinylSpin 8s linear infinite;
-    animation-play-state: paused;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
   }
-  .vinyl-outer.spinning { animation-play-state: running; }
-  .vinyl-label {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 40% 35%, #2a2240, #1a1528);
-    border: 1px solid #342F4A;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    box-shadow: inset 0 2px 8px rgba(0,0,0,0.5), 0 0 20px rgba(200,169,110,0.12);
-    position: relative;
-    z-index: 2;
-  }
-  .vinyl-label-text {
+  .player-card-title {
     font-family: var(--serif);
-    font-size: 9px;
+    font-size: 19px;
     font-weight: 700;
+    color: var(--text);
+    line-height: 1.25;
+  }
+  .player-card-subtitle {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
     color: var(--accent);
-    letter-spacing: 0.08em;
-    text-align: center;
-    line-height: 1.4;
+    margin-top: 5px;
   }
-  .vinyl-hole {
-    width: 10px;
-    height: 10px;
+  .player-card-badge {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
-    background: #08070D;
-    border: 1px solid #342F4A;
-    margin-top: 4px;
-  }
-  .vinyl-arm {
-    position: absolute;
-    top: 8px;
-    right: -12px;
-    width: 90px;
-    height: 3px;
-    background: linear-gradient(90deg, #C8A96E, #8a6d42);
-    border-radius: 2px;
-    transform-origin: right center;
-    transform: rotate(-20deg);
-    box-shadow: 0 2px 8px rgba(200,169,110,0.3);
-    transition: transform 0.8s ease;
-    z-index: 3;
-  }
-  .vinyl-arm::before {
-    content: '';
-    position: absolute;
-    right: -8px;
-    top: -8px;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 40% 35%, #C8A96E, #7a5d2e);
-    box-shadow: 0 2px 12px rgba(200,169,110,0.4);
-  }
-  .vinyl-arm::after {
-    content: '';
-    position: absolute;
-    left: -4px;
-    top: -2px;
-    width: 8px;
-    height: 8px;
-    border-radius: 1px;
-    background: #C8A96E;
-    transform: rotate(20deg);
-    box-shadow: 0 1px 6px rgba(200,169,110,0.5);
-  }
-  .vinyl-outer.spinning ~ .vinyl-arm { transform: rotate(-4deg); }
-  .vinyl-controls {
     display: flex;
     align-items: center;
-    gap: 16px;
+    justify-content: center;
+    color: var(--muted);
+    border: 1px solid var(--border2);
+    background: var(--surface);
+    cursor: default;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .player-card-badge:hover { color: var(--accent); border-color: var(--accent); }
+  .player-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     margin-top: 20px;
   }
-  .vinyl-btn {
-    width: 36px;
-    height: 36px;
+  .player-time {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    flex-shrink: 0;
+    width: 14px;
+    text-align: center;
+  }
+  .player-time-live { color: var(--accent2); font-size: 8px; }
+  .player-progress-track {
+    position: relative;
+    flex: 1;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--border2);
+    overflow: hidden;
+  }
+  .player-progress-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 30%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    opacity: 0.55;
+  }
+  .player-progress-thumb {
+    position: absolute;
+    left: 30%;
+    top: 50%;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
-    background: var(--card);
-    border: 1px solid var(--border2);
+    background: var(--accent);
+    box-shadow: 0 0 0 3px var(--card), 0 1px 6px rgba(0,0,0,0.4);
+    transform: translate(-50%, -50%);
+  }
+  .player-progress-track.playing .player-progress-fill,
+  .player-progress-track.playing .player-progress-thumb {
+    animation: playerProgressSweep 46s linear infinite;
+  }
+  @keyframes playerProgressSweep {
+    0%   { left: 0%; }
+    100% { left: 96%; }
+  }
+  .player-progress-fill { animation-name: playerProgressFillSweep; }
+  @keyframes playerProgressFillSweep {
+    0%   { width: 0%; }
+    100% { width: 96%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .player-progress-track.playing .player-progress-fill,
+    .player-progress-track.playing .player-progress-thumb { animation: none; }
+  }
+  .player-controls-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    margin-top: 18px;
+  }
+  .player-ctrl-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: transparent;
+    border: 1px solid transparent;
     color: var(--dim);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 13px;
     transition: all 0.2s;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
   }
-  .vinyl-btn svg { display: block; }
-  .vinyl-btn:hover { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 12px rgba(200,169,110,0.2); }
-  .vinyl-play-btn .vinyl-icon-pause { display: none; }
-  .vinyl-play-btn.is-playing .vinyl-icon-play { display: none; }
-  .vinyl-play-btn.is-playing .vinyl-icon-pause { display: block; }
-  .vinyl-play-btn {
-    width: 48px;
-    height: 48px;
-    font-size: 16px;
+  .player-ctrl-btn svg { display: block; }
+  .player-ctrl-btn:hover { border-color: var(--border2); color: var(--accent); background: var(--surface); }
+  .player-play-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: linear-gradient(135deg, var(--accent), #8a6d42);
-    border-color: var(--accent);
+    border: 1px solid var(--accent);
     color: var(--bg);
-    box-shadow: 0 4px 20px rgba(200,169,110,0.35);
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(217,178,112,0.35);
+    transition: all 0.2s;
   }
-  .vinyl-play-btn:hover { background: linear-gradient(135deg, #d4ba80, var(--accent)); transform: scale(1.08); }
-  .vinyl-now-playing {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-top: 12px;
-    text-align: center;
-    min-height: 16px;
-    transition: all 0.3s;
-  }
-  .vinyl-now-playing span {
-    color: var(--accent);
-  }
-  @keyframes vinylSpin {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(360deg); }
+  .player-play-btn:hover { background: linear-gradient(135deg, #d4ba80, var(--accent)); transform: scale(1.06); }
+  .player-play-btn .player-icon-pause { display: none; }
+  .player-play-btn.is-playing .player-icon-play { display: none; }
+  .player-play-btn.is-playing .player-icon-pause { display: block; }
+  .player-play-btn.is-playing { background: linear-gradient(135deg, var(--accent2), #4d7c76); border-color: var(--accent2); box-shadow: 0 0 22px var(--accent2-glow); }
+  @media (max-width: 480px) {
+    .player-card { width: 100%; padding: 18px 18px 16px; border-radius: 16px; }
+    .player-card-title { font-size: 17px; }
+    .player-play-btn { width: 52px; height: 52px; }
+    .player-controls-row { gap: 20px; }
   }
 
   /* ── FLOATING MUSIC NOTES DECORATION ── */
@@ -402,72 +408,6 @@
   .waveform-deco span:nth-child(3) { animation-delay: 0.2s; height: 20px; }
   .waveform-deco span:nth-child(4) { animation-delay: 0.1s; height: 14px; }
   .waveform-deco span:nth-child(5) { animation-delay: 0s; height: 8px; }
-
-  /* ── MOBILE-ONLY BACKGROUND-MUSIC BAR ──
-     Hidden by default (desktop/tablet keep the hero-vinyl-side
-     widget); revealed only under the mobile breakpoint below, the
-     same one that already hides that widget. */
-  .mobile-track-bar {
-    display: none;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    max-width: 420px;
-    margin: 22px auto 0;
-    padding: 5px 8px 5px 6px;
-    background: linear-gradient(180deg, var(--card), var(--surface));
-    border: 1px solid var(--border2);
-    border-radius: 999px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.03);
-  }
-  .mtb-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    flex-shrink: 0;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 50%;
-    color: var(--dim);
-    line-height: 1;
-    cursor: pointer;
-    transition: border-color 0.18s, color 0.18s, background 0.18s, box-shadow 0.18s, transform 0.12s;
-  }
-  .mtb-btn svg { display: block; }
-  .mtb-btn:active { transform: scale(0.92); }
-  .mtb-btn#mtb-prev-btn, .mtb-btn#mtb-next-btn { color: var(--muted); }
-  .mtb-btn#mtb-prev-btn:active, .mtb-btn#mtb-next-btn:active { border-color: var(--border2); background: var(--surface); color: var(--accent2); }
-  .mtb-play-btn {
-    width: 32px;
-    height: 32px;
-    background: linear-gradient(135deg, var(--accent), #8a6d42);
-    border-color: var(--accent);
-    color: var(--bg);
-    box-shadow: 0 3px 14px rgba(217,178,112,0.35);
-  }
-  .mtb-play-btn .mtb-icon-pause { display: none; }
-  .mtb-play-btn.is-playing .mtb-icon-play { display: none; }
-  .mtb-play-btn.is-playing .mtb-icon-pause { display: block; }
-  .mtb-play-btn.is-playing { background: linear-gradient(135deg, var(--accent2), #4d7c76); border-color: var(--accent2); box-shadow: 0 0 14px var(--accent2-glow); }
-  .mtb-track-name {
-    flex: 1;
-    min-width: 0;
-    text-align: left;
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.03em;
-    color: var(--dim);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    padding-left: 2px;
-  }
-  @media (max-width: 900px) {
-    .mobile-track-bar { display: flex; }
-  }
-  [data-device="mobile"] .mobile-track-bar { display: flex !important; }
 
   /* ── HERO VISUAL TRACK ── */
   .hero-track-bar {
@@ -2367,7 +2307,7 @@
 
   @media (max-width: 900px) {
     .hero-inner { grid-template-columns: 1fr; gap: 24px; }
-    .hero-vinyl-side { display: none; }
+    .hero-vinyl-side { justify-content: center; }
   }
   @media (max-width: 720px) {
     .bottom-nav { display: flex; }
