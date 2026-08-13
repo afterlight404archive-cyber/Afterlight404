@@ -30,6 +30,16 @@
                                      string synthesis (no samples),
                                      played over a soft, familiar
                                      chord progression.
+     4. "Neon Pulse"              — a hypnotic, echo-drenched electronic
+                                     pulse in the vein of atmospheric
+                                     mobile-game soundtracks: a deep sub
+                                     bass heartbeat under a glassy,
+                                     minor-key arpeggio that trails off
+                                     into its own delayed repeats. No
+                                     melody is copied from anywhere —
+                                     it's an original progression built
+                                     from scratch with oscillators and a
+                                     feedback delay line.
 
    Plays as soon as the visitor lands, if the browser allows it; if
    the browser's autoplay policy blocks audio before any interaction
@@ -481,6 +491,133 @@
   }
 
   // ═══════════════════════════════════════════════════════════════
+  //  TRACK 4 — "Neon Pulse"
+  //  A hypnotic electronic pulse in the spirit of moody, echo-heavy
+  //  mobile-game soundtracks: a slow sub-bass heartbeat under a
+  //  glassy minor-key arpeggio, run through its own feedback delay
+  //  line so notes trail off into repeating, decaying echoes instead
+  //  of a room reverb. Everything here — the chord progression, the
+  //  arp pattern, the delay timing — is original and built from
+  //  oscillators, not sampled or copied from any existing track.
+  // ═══════════════════════════════════════════════════════════════
+
+  const NEON_BPM = 96;
+  const NEON_STEP = 60 / NEON_BPM / 2; // 8th-note step
+  const NEON_BAR_SECONDS = (60 / NEON_BPM) * 4;
+
+  // A dark, minor-key progression (Am — F — Cmaj7-ish — G), each entry
+  // giving the sub root plus a 4-note arpeggio built above it.
+  const NEON_PROGRESSION = [
+    { sub: 55.00, arp: [220.00, 261.63, 329.63, 392.00] }, // Am
+    { sub: 43.65, arp: [174.61, 220.00, 261.63, 329.63] }, // F
+    { sub: 32.70, arp: [130.81, 164.81, 196.00, 246.94] }, // C
+    { sub: 49.00, arp: [196.00, 246.94, 293.66, 349.23] }, // G
+  ];
+  // 8 steps per bar; a rest (null) on some steps is what gives the
+  // delay line room to be heard rather than being masked by new notes.
+  const NEON_ARP_PATTERN = [0, null, 2, 1, 3, null, 1, 2];
+
+  let neonTimer = null;
+  let neonBarIdx = 0;
+  let neonDelay = null;
+  let neonFeedback = null;
+  let neonDelayFilter = null;
+
+  function ensureNeonDelay() {
+    if (neonDelay) return;
+    // A short, filtered feedback delay — this is what makes each
+    // plucked note trail off into its own soft, dwindling echoes.
+    neonDelay = ctx.createDelay(2.0);
+    neonDelay.delayTime.value = NEON_STEP * 3; // dotted, off-grid echo feel
+    neonFeedback = ctx.createGain();
+    neonFeedback.gain.value = 0.42;
+    neonDelayFilter = ctx.createBiquadFilter();
+    neonDelayFilter.type = 'lowpass';
+    neonDelayFilter.frequency.value = 2200; // each repeat gets a little darker
+
+    neonDelay.connect(neonFeedback);
+    neonFeedback.connect(neonDelayFilter);
+    neonDelayFilter.connect(neonDelay); // feedback loop
+    neonDelay.connect(master);
+    neonDelay.connect(convolver);
+  }
+
+  function playNeonSub(freq, startTime) {
+    // The slow, breathing heartbeat under everything else.
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, startTime);
+    g.gain.linearRampToValueAtTime(0.16, startTime + 0.4);
+    g.gain.exponentialRampToValueAtTime(0.001, startTime + NEON_BAR_SECONDS * 0.95);
+    g.connect(dry);
+
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    osc.connect(g);
+    osc.start(startTime);
+    osc.stop(startTime + NEON_BAR_SECONDS);
+  }
+
+  function playNeonArpNote(freq, startTime) {
+    // A glassy, bell-like pluck (two detuned sines) that feeds both
+    // the dry room reverb and the dedicated echo delay line.
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, startTime);
+    g.gain.linearRampToValueAtTime(0.11, startTime + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0006, startTime + 1.4);
+    g.connect(dry);
+    g.connect(convolver);
+    g.connect(neonDelay);
+
+    const osc1 = ctx.createOscillator();
+    osc1.type = 'sine';
+    osc1.frequency.value = freq;
+    osc1.detune.value = -4;
+    osc1.connect(g);
+    osc1.start(startTime);
+    osc1.stop(startTime + 1.5);
+
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'triangle';
+    osc2.frequency.value = freq * 2;
+    const g2 = ctx.createGain();
+    g2.gain.setValueAtTime(0, startTime);
+    g2.gain.linearRampToValueAtTime(0.025, startTime + 0.01);
+    g2.gain.exponentialRampToValueAtTime(0.0004, startTime + 0.9);
+    osc2.connect(g2);
+    g2.connect(dry);
+    g2.connect(neonDelay);
+    osc2.start(startTime);
+    osc2.stop(startTime + 1.0);
+  }
+
+  function playNeonBar() {
+    if (!playing || currentTrackIndex !== 3) return;
+    const chord = NEON_PROGRESSION[neonBarIdx % NEON_PROGRESSION.length];
+    const barStart = ctx.currentTime + 0.03;
+
+    playNeonSub(chord.sub, barStart);
+
+    NEON_ARP_PATTERN.forEach((idx, i) => {
+      if (idx === null) return;
+      const t = barStart + i * NEON_STEP;
+      playNeonArpNote(chord.arp[idx], t);
+    });
+
+    neonBarIdx = (neonBarIdx + 1) % NEON_PROGRESSION.length;
+    neonTimer = setTimeout(() => { if (playing) playNeonBar(); }, NEON_BAR_SECONDS * 1000);
+  }
+
+  function startNeonTrack() {
+    ensureNeonDelay();
+    neonBarIdx = 0;
+    playNeonBar();
+  }
+  function stopNeonTrack() {
+    if (neonTimer) { clearTimeout(neonTimer); neonTimer = null; }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
   //  PLAYLIST — add more tracks here later, nothing else needs to
   //  change (Next/Prev, persistence, and the vinyl widget all just
   //  read from this array).
@@ -490,6 +627,7 @@
     { id: 'piano', name: 'Ambient Piano', start: startPianoTrack, stop: stopPianoTrack },
     { id: 'arcade', name: 'Retro Arcade', start: startArcadeTrack, stop: stopArcadeTrack },
     { id: 'guitar', name: 'Acoustic Fingerpicking', start: startGuitarTrack, stop: stopGuitarTrack },
+    { id: 'neon', name: 'Neon Pulse', start: startNeonTrack, stop: stopNeonTrack },
   ];
 
   let currentTrackIndex = 0;
