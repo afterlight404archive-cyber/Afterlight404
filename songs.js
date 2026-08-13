@@ -387,6 +387,7 @@ function renderMoodBar() {
     initMoodShowMore();
   }
   populateMoodSelects();
+  renderSubmitMoodPills();
   updateHomeStats();
 }
 
@@ -678,9 +679,34 @@ async function handleDeleteComment(songKey, id, time) {
 
 function updateSubmitForm() {
   const wall = document.getElementById('submit-login-wall');
-  const form = document.getElementById('submit-form');
-  if (currentUser) { wall.style.display = 'none'; form.style.display = 'grid'; }
-  else { wall.style.display = 'block'; form.style.display = 'none'; }
+  const layout = document.getElementById('submit-layout');
+  if (!wall || !layout) return;
+  if (currentUser) { wall.style.display = 'none'; layout.style.display = 'grid'; renderSubmitMoodPills(); }
+  else { wall.style.display = 'block'; layout.style.display = 'none'; }
+}
+
+// Builds the "The Vibe" pill picker on the submit form from MOOD_MAP,
+// keeping the hidden #sub-mood <select> (still populated by
+// populateMoodSelects) as the actual source of truth so the submit
+// handler below doesn't need to change.
+function renderSubmitMoodPills() {
+  const wrap = document.getElementById('sub-mood-pills');
+  const select = document.getElementById('sub-mood');
+  if (!wrap || !select) return;
+  const keys = Object.keys(MOOD_MAP);
+  if (keys.length && !keys.includes(select.value)) select.value = keys[0];
+  wrap.innerHTML = keys.map(key => {
+    const m = MOOD_MAP[key];
+    const active = select.value === key ? ' active' : '';
+    return `<button type="button" class="mood-btn submit-mood-btn${active}" data-mood="${key}" style="--mood-c:${m.color}"><span class="mood-dot"></span> ${escapeHtml(m.label)}</button>`;
+  }).join('');
+  wrap.querySelectorAll('.submit-mood-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      wrap.querySelectorAll('.submit-mood-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      select.value = btn.dataset.mood;
+    });
+  });
 }
 
 document.getElementById('submit-form').addEventListener('submit', async function(e) {
@@ -690,7 +716,7 @@ document.getElementById('submit-form').addEventListener('submit', async function
   const submission = {
     title: document.getElementById('sub-title').value.trim(),
     artist: document.getElementById('sub-artist').value.trim(),
-    year: document.getElementById('sub-year').value.trim(),
+    year: [document.getElementById('sub-year').value.trim(), document.getElementById('sub-album').value.trim()].filter(Boolean).join(' · '),
     mood: document.getElementById('sub-mood').value,
     about: document.getElementById('sub-about').value.trim(),
     meaning: document.getElementById('sub-meaning').value.trim(),
@@ -740,6 +766,7 @@ document.getElementById('submit-form').addEventListener('submit', async function
     // the visitor is true.
     showToast('Song submitted for review! It will appear after admin approval.');
     form.reset();
+    renderSubmitMoodPills();
   } else {
     // Supabase IS connected but the write was rejected (commonly: row-level
     // security blocking the write because this browser doesn't have a real

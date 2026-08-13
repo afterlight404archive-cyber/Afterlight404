@@ -696,13 +696,11 @@
 <!-- ── SUBMIT SONG PAGE ── -->
 <div class="page-section" id="page-submit">
 <section class="submit-section">
+  <div class="submit-step-label">STEP 01 / 03</div>
   <div class="submit-intro">
-    <h2 id="submit-title">Submit Your Own Song</h2>
+    <h2 id="submit-title">Submit <span class="fade">Your Song</span></h2>
     <p id="submit-desc">
-      Found a song that lives rent-free in your head? Share it with the archive. 
-      Every submission gets reviewed before it goes live — this isn't a free-for-all, 
-      it's a curation. Tell us why it matters, what it means to you, and the exact 
-      moment it soundtracked. If it resonates, it stays.
+      Found a song that lives rent-free in your head? Share it with the archive.
     </p>
   </div>
   <div id="submit-form-wrap">
@@ -710,57 +708,88 @@
       <p>Sign up or log in to submit a song to the archive.</p>
       <button class="auth-btn primary" onclick="showSignup()">Get Started</button>
     </div>
-    <form class="submit-form" id="submit-form" style="display:none;">
-      <div class="form-group">
-        <label>Song Title</label>
-        <input class="form-input" type="text" id="sub-title" placeholder="e.g. Motion Sickness" required>
-      </div>
-      <div class="form-group">
-        <label>Artist</label>
-        <input class="form-input" type="text" id="sub-artist" placeholder="e.g. Phoebe Bridgers" required>
-      </div>
-      <div class="form-group">
-        <label>Year · Album</label>
-        <input class="form-input" type="text" id="sub-year" placeholder="e.g. 2017 · Stranger in the Alps">
-      </div>
-      <div class="form-group">
-        <label>Mood</label>
-        <select class="form-input" id="sub-mood"></select>
-      </div>
-      <div class="form-group full">
-        <label>Description — what the song is about</label>
-        <textarea class="form-input" id="sub-about" placeholder="Describe the song, its sound, its atmosphere..." required></textarea>
-      </div>
-      <div class="form-group full">
-        <label>What it really means — your interpretation</label>
-        <textarea class="form-input" id="sub-meaning" placeholder="Dig deeper. What's the song actually about?" required></textarea>
-      </div>
-      <div class="form-group full">
-        <label>Key Lyrics</label>
-        <textarea class="form-input" id="sub-lyrics" placeholder="Paste the most devastating lines here..." required></textarea>
-      </div>
-      <div class="form-group full">
-        <label>Fun Fact <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
-        <textarea class="form-input" id="sub-funfact" placeholder="Any trivia, backstory, or behind-the-scenes detail about this song?"></textarea>
-      </div>
-      <div class="form-group full">
-        <label>Spotify / Listen Link</label>
-        <input class="form-input" type="url" id="sub-link" placeholder="https://open.spotify.com/track/...">
-      </div>
-      <div class="form-group full">
-        <label>YouTube Link <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
-        <input class="form-input" type="url" id="sub-youtube" placeholder="https://youtube.com/watch?v=...">
-      </div>
-      <div class="form-group">
-        <label>Genre 1</label>
-        <input class="form-input" type="text" id="sub-genre1" placeholder="e.g. Indie Folk">
-      </div>
-      <div class="form-group">
-        <label>Genre 2</label>
-        <input class="form-input" type="text" id="sub-genre2" placeholder="e.g. Alternative">
-      </div>
-      <button type="submit" class="form-btn">Submit to Archive</button>
-    </form>
+    <div class="submit-layout" id="submit-layout" style="display:none;">
+      <form class="submit-form" id="submit-form">
+        <h3 class="submit-section-heading">The Track</h3>
+        <div class="submit-grid-2">
+          <div class="form-group">
+            <label>Song Title</label>
+            <input class="form-input" type="text" id="sub-title" placeholder="Enter title..." required>
+          </div>
+          <div class="form-group">
+            <label>Artist</label>
+            <input class="form-input" type="text" id="sub-artist" placeholder="Enter artist..." required>
+          </div>
+          <div class="form-group">
+            <label>Year</label>
+            <input class="form-input" type="text" id="sub-year" placeholder="YYYY">
+          </div>
+          <div class="form-group">
+            <label>Album</label>
+            <input class="form-input" type="text" id="sub-album" placeholder="Album name...">
+          </div>
+        </div>
+
+        <h3 class="submit-section-heading">The Vibe</h3>
+        <div class="form-group full">
+          <label>Select Mood</label>
+          <div class="submit-mood-pills" id="sub-mood-pills"></div>
+          <select class="form-input" id="sub-mood" style="display:none;"></select>
+        </div>
+
+        <h3 class="submit-section-heading">The Meaning</h3>
+        <div class="form-group full">
+          <label>What is this song about?</label>
+          <textarea class="form-input" id="sub-about" placeholder="The literal interpretation..." required></textarea>
+        </div>
+        <div class="form-group full">
+          <label>What does it actually mean to you?</label>
+          <textarea class="form-input" id="sub-meaning" placeholder="The personal connection..." required></textarea>
+        </div>
+
+        <h3 class="submit-section-heading">The Details</h3>
+        <div class="form-group full">
+          <label>Key Lyrics</label>
+          <textarea class="form-input" id="sub-lyrics" placeholder="Paste the most devastating lines here..." required></textarea>
+        </div>
+        <div class="form-group full">
+          <label>Fun Fact <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+          <textarea class="form-input" id="sub-funfact" placeholder="Any trivia, backstory, or behind-the-scenes detail about this song?"></textarea>
+        </div>
+        <div class="submit-grid-2">
+          <div class="form-group">
+            <label>Spotify / Listen Link</label>
+            <input class="form-input" type="url" id="sub-link" placeholder="https://open.spotify.com/track/...">
+          </div>
+          <div class="form-group">
+            <label>YouTube Link <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+            <input class="form-input" type="url" id="sub-youtube" placeholder="https://youtube.com/watch?v=...">
+          </div>
+          <div class="form-group">
+            <label>Genre 1</label>
+            <input class="form-input" type="text" id="sub-genre1" placeholder="e.g. Indie Folk">
+          </div>
+          <div class="form-group">
+            <label>Genre 2</label>
+            <input class="form-input" type="text" id="sub-genre2" placeholder="e.g. Alternative">
+          </div>
+        </div>
+
+        <div class="submit-cta-actions">
+          <button type="submit" class="form-btn submit-cta-btn">Submit to Archive</button>
+        </div>
+      </form>
+
+      <aside class="submit-sidebar">
+        <h3 class="submit-sidebar-title">Curation Notes</h3>
+        <p class="submit-sidebar-text">Every song submitted to Afterlight:404 is reviewed manually. This isn't an algorithmic playlist; it's a carefully curated archive.</p>
+        <ul class="submit-notes-list">
+          <li><span class="note-icon note-icon-check">✓</span> Provide deep, personal insights.</li>
+          <li><span class="note-icon note-icon-check">✓</span> Ensure links are valid.</li>
+          <li><span class="note-icon note-icon-info">i</span> Submissions may take up to 48 hours to be reviewed.</li>
+        </ul>
+      </aside>
+    </div>
   </div>
 </section>
 </div>
