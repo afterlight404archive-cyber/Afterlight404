@@ -270,13 +270,53 @@ async function hashUserPassword(name, pass) {
 // nobody ever sees or types this email, it just gives Supabase Auth
 // something unique to key the account on. The account's actual email
 // (collected at signup, used only for the verification code) is never used
-// for this. This requires "Confirm email" to be turned OFF in your Supabase
-// project (Authentication → Sign In / Providers → Email), since AfterLight
-// already verifies real ownership of the person's real email itself via the
-// 6-digit code — Supabase doesn't need to also confirm this made-up address.
+// for this.
+//
+// That made-up address can never receive mail, so it can never be
+// confirmed by clicking a link. Rather than requiring "Confirm email" to be
+// turned OFF project-wide in Supabase (Authentication → Sign In / Providers
+// → Email) — which would also disable confirmation for any real email
+// address anyone signs up with — account creation goes through the
+// create-alias-account Edge Function (see createRealAliasSession() below
+// and supabase/functions/create-alias-account), which uses the project's
+// service-role key server-side to create just that one account already
+// marked confirmed. "Confirm email" can stay ON.
 const ALIAS_AUTH_DOMAIN = 'alias.afterlight.internal';
 function aliasAuthEmail(name) {
   return String(name || '').toLowerCase() + '@' + ALIAS_AUTH_DOMAIN;
+}
+
+// ── REAL, PRE-CONFIRMED SESSION FOR AN ALIAS ACCOUNT ─────────────────────
+// Calls the create-alias-account Edge Function (service-role key, server
+// side only) to create/confirm the auth user behind this alias, then signs
+// in as it to get an actual client-side session. Used both right after a
+// new signup's email code is verified, and to silently migrate an older
+// (pre-fix) account the first time it logs in.
+//
+// Throws on failure; callers decide how to degrade (e.g. still let the
+// person into this one browser via the legacy local check).
+async function createRealAliasSession(username, password) {
+  const { data: fnData, error: fnErr } = await sb.functions.invoke('create-alias-account', {
+    body: { username: username, password: password }
+  });
+  if (fnErr) {
+    const msg = (fnErr.message || '').toLowerCase();
+    if (msg.includes('not found') || msg.includes('404')) {
+      throw new Error('The create-alias-account Edge Function isn\'t deployed yet. See WHAT-CHANGED-NO-CONFIRM-EMAIL-TOGGLE.md for the one-time deploy step.');
+    }
+    throw fnErr;
+  }
+  // fnData.ok === false with code 'exists' just means this alias's auth
+  // user already exists (expected on the migration path) — fine, sign
+  // straight in below. Any other ok:false is a real failure.
+  if (fnData && fnData.ok === false && fnData.code !== 'exists') {
+    throw new Error(fnData.error || 'Could not create the account. Try again.');
+  }
+  const { data: signInData, error: signInErr } = await sb.auth.signInWithPassword({
+    email: aliasAuthEmail(username), password: password
+  });
+  if (signInErr) throw signInErr;
+  return signInData.session;
 }
 
 // ── SINGLE-DEVICE SESSION TRACKING (alias+password accounts) ────────────
@@ -385,24 +425,24 @@ async function handleUserLogin() {
       // legacy check actually passes — never create an account here.
       const { data: legacyToken, error: legacyErr } = await sb.rpc('alias_login', { p_username: name, p_password: pass });
       if (!legacyErr && legacyToken) {
-        // Legacy password is correct — migrate this account to a real
-        // session now, silently, so it works everywhere from now on.
-        const { data: signUpData, error: signUpErr } = await sb.auth.signUp({
-          email: aliasAuthEmail(name), password: pass
-        });
-        if (!signUpErr && signUpData && signUpData.session) {
+        // Legacy password is correct — migrate this account to a real,
+        // pre-confirmed session now, silently, so it works everywhere from
+        // now on (see createRealAliasSession() above).
+        try {
+          await createRealAliasSession(name, pass);
           // Reclaim ownership of the existing row under the new real session.
           const { data: newToken, error: reclaimErr } = await sb.rpc('alias_login', { p_username: name, p_password: pass });
           if (!reclaimErr && newToken) { await finishAliasLogin(name, newToken, users, local); return; }
-        } else if (!signUpErr) {
-          // Supabase created the account but is holding it for email
-          // confirmation — this project still has "Confirm email" ON.
-          err.textContent = 'Your account needs a one-time server setting fixed before login works everywhere (Supabase → Authentication → Email → turn off "Confirm email"). Contact the site owner.';
-          err.style.display = 'block';
-          return;
+        } catch (e) {
+          console.error('Real-session migration failed:', e);
+          if (e && e.message && /Edge Function/i.test(e.message)) {
+            err.textContent = e.message + ' Contact the site owner.';
+            err.style.display = 'block';
+            return;
+          }
+          // Migration failed for some other reason — still let them in on
+          // this browser rather than lock them out entirely.
         }
-        // Migration to a real session failed for some other reason — still
-        // let them in on this browser rather than lock them out entirely.
         await finishAliasLogin(name, legacyToken, users, local);
         return;
       }
@@ -811,25 +851,16 @@ async function handleVerifyEmail() {
     }
     if (pw) {
       try {
-        // Create a REAL Supabase Auth account for this alias (see
-        // aliasAuthEmail above) — no anonymous session involved. This is
-        // what makes the account log in successfully on any device, and
-        // what lets the database accept chat/comments/DMs from it.
-        const { data: signUpData, error: signUpErr } = await sb.auth.signUp({
-          email: aliasAuthEmail(pendingSignup.name), password: pw
-        });
-        if (signUpErr) throw signUpErr;
-        if (!signUpData || !signUpData.session) {
-          // Supabase accepted the signup but is waiting on ITS OWN email
-          // confirmation — redundant, since AfterLight already just verified
-          // the person's real email with the 6-digit code. This one-time
-          // project setting needs to be flipped off by the site owner.
-          showToast('Your account was created on this device, but a server setting is blocking full sync (Supabase → Authentication → Email → turn off "Confirm email"). Let the site owner know.', { type: 'error', duration: 10000 });
-        } else {
-          const { data, error } = await sb.rpc('alias_signup', { p_username: pendingSignup.name, p_password: pw });
-          if (error) throw error;
-          cloudToken = data;
-        }
+        // Create a REAL, pre-confirmed Supabase Auth account for this alias
+        // (see aliasAuthEmail/createRealAliasSession above) — no anonymous
+        // session involved, and no "Confirm email" toggle needed, since the
+        // Edge Function marks it confirmed server-side. This is what makes
+        // the account log in successfully on any device, and what lets the
+        // database accept chat/comments/DMs from it.
+        await createRealAliasSession(pendingSignup.name, pw);
+        const { data, error } = await sb.rpc('alias_signup', { p_username: pendingSignup.name, p_password: pw });
+        if (error) throw error;
+        cloudToken = data;
       } catch (e) {
         console.error('Cloud account setup failed:', e.message);
         showToast('Your account was created on this device, but syncing it to the server failed (' +
