@@ -771,6 +771,27 @@ let roomChannelStatus = 'idle';  // idle | connecting | live | error
 // optimistic copy instead of showing the message twice.
 const pendingLocalSends = [];
 
+// Resolves the real (numeric) Supabase row id for a message that was posted
+// optimistically under a temp id. moderateAfterSend awaits this instead of
+// just snapshotting target.id, so a moderation verdict that comes back
+// before the insert has finished promoting the id no longer gets silently
+// dropped — it waits for the real id, then applies the mask/delete.
+// Resolves to null if the message never made it into the DB (offline/local
+// mode, or the insert failed).
+const dbIdResolvers = {}; // tempId -> { promise, resolve }
+function registerPendingDbId(tempId) {
+  let resolve;
+  const promise = new Promise((res) => { resolve = res; });
+  dbIdResolvers[tempId] = { promise, resolve };
+}
+function resolvePendingDbId(tempId, id) {
+  const entry = dbIdResolvers[tempId];
+  if (entry) {
+    entry.resolve(id);
+    delete dbIdResolvers[tempId];
+  }
+}
+
 function setChatLiveIndicator(state) {
   roomChannelStatus = state;
   document.querySelectorAll('.chat-live-dot').forEach(el => {
@@ -903,86 +924,66 @@ function isRoomUnread(room) {
 // two bugs: reply_to was sent as a local string id (the column is bigint, so
 // every reply silently failed to reach the database), and nothing checked
 // whether the insert succeeded.
-//
-// Moderation now runs BEFORE the database insert, not concurrently with it.
-// (It used to fire in the background while the raw text was inserted in
-// parallel — if the masked/blocked verdict came back before the insert's
-// response did, the patch-up step had no numeric row id to target yet, got
-// silently skipped, and the ORIGINAL unmasked text landed in Supabase
-// permanently. Locally it still looked masked because the in-memory copy got
-// patched, but a refresh re-pulls from the database and shows the raw word
-// to everyone. Same race could let a fully blocked message get written and
-// never cleaned up if the delete-after-the-fact lost the same race.)
-// The message still appears on your own screen instantly (that happens
-// before this runs) — only the network write and the visibility to everyone
-// else waits on the verdict, closing the race entirely.
-async function moderateThenSend(room, text, context, tempId, replyDbId, inputEl) {
-  const rerender = () => refreshChatView(room);
+// Runs moderation AFTER a message is already visible/sent, so typing → send
+// feels instant instead of waiting on the moderate-message round trip.
+// Looks the message up by its stable `localId` (survives the tempId → DB id
+// promotion below) and removes it — locally and in Supabase — if flagged.
+async function moderateAfterSend(room, text, context, localId) {
   const verdict = await moderateText(text, context, room);
-  const finalText = handleModerationVerdict(verdict, text);
 
-  if (finalText === null) {
-    // Blocked (or self-harm) — remove the optimistic message and never send it.
-    const msgs = getMessages(room).filter(m => m.localId !== tempId);
-    saveMessages(room, msgs);
-    rerender();
-    renderRoomList();
-    return;
-  }
-
-  // Allowed, possibly with masked/cleaned text — update what's already shown.
-  if (finalText !== text) {
+  // Figure out the real DB row id for this message, waiting for the insert
+  // to finish if it hasn't yet — instead of just checking target.id once
+  // and giving up. Without this, a fast moderation verdict racing ahead of
+  // the insert would silently skip the mask/delete and the raw text would
+  // sit in Supabase forever (visible again on next refresh).
+  async function resolveDbId() {
     const msgs = getMessages(room);
-    const target = msgs.find(m => m.localId === tempId);
-    if (target) {
-      target.text = finalText;
-      saveMessages(room, msgs);
-      rerender();
-    }
+    const target = msgs.find(m => m.localId === localId);
+    if (target && /^\d+$/.test(String(target.id))) return Number(target.id);
+    const entry = dbIdResolvers[localId];
+    if (!entry) return null; // never registered (offline/local mode) or already resolved+cleared with no id
+    const id = await entry.promise;
+    return id != null ? Number(id) : null;
   }
 
-  if (!isDbConnected() || !sb) return; // local-only mode, nothing more to do
-
-  pendingLocalSends.push({ room, author: currentUser.name, text: finalText, tempId });
-
-  const { data, error } = await sb.from('chat_messages')
-    .insert({ room: room, author: currentUser.name, text: finalText, reply_to: replyDbId })
-    .select('id, created_at')
-    .single();
-
-  if (error) {
-    // Roll the optimistic message back and say what happened, instead of
-    // leaving it sitting there looking sent when it never left the browser.
-    const idx = pendingLocalSends.findIndex(p => p.tempId === tempId);
-    if (idx > -1) pendingLocalSends.splice(idx, 1);
-    const list = getMessages(room).filter(m => m.id !== tempId);
-    saveMessages(room, list);
-    rerender();
-    const friendly = /rate|too fast|slow down/i.test(error.message)
-      ? 'Sending too fast — wait a second and try again.'
-      : /row-level security|policy/i.test(error.message)
-        ? 'Your session expired. Log out and back in to keep chatting.'
-        : 'Message failed to send: ' + error.message;
-    showToast(friendly, { type: 'error' });
-    if (inputEl) inputEl.value = text;
+  if (verdict.action !== 'block' && verdict.action !== 'self_harm') {
+    // Allowed, but the moderator may have returned masked/cleaned text —
+    // patch the already-sent message in place if so.
+    if (verdict.text && verdict.text !== text) {
+      const msgs = getMessages(room);
+      const target = msgs.find(m => m.localId === localId);
+      if (target) {
+        target.text = verdict.text;
+        saveMessages(room, msgs);
+        refreshChatView(room);
+        if (isDbConnected() && sb) {
+          const dbId = await resolveDbId();
+          if (dbId != null) {
+            sb.from('chat_messages').update({ text: verdict.text }).eq('id', dbId).then(() => {});
+          }
+        }
+      }
+    }
     return;
   }
 
-  // Insert succeeded. Promote the temp row now rather than waiting for the
-  // realtime echo, so the message is immediately replyable/deletable.
-  if (data && data.id != null) {
-    const idx = pendingLocalSends.findIndex(p => p.tempId === tempId);
-    if (idx > -1) pendingLocalSends.splice(idx, 1);
-    const list = getMessages(room);
-    const local = list.find(m => m.id === tempId);
-    if (local) {
-      local.id = String(data.id);
-      delete local.pending;
-      if (data.created_at) local.time = new Date(data.created_at).getTime();
-      saveMessages(room, list);
-      if (lastSentMsgId === tempId) lastSentMsgId = local.id;
-      rerender();
+  // Flagged — delete it after the fact.
+  const msgs = getMessages(room);
+  const target = msgs.find(m => m.localId === localId);
+  if (isDbConnected() && sb) {
+    const dbId = await resolveDbId();
+    if (dbId != null) {
+      await sb.from('chat_messages').delete().eq('id', dbId);
     }
+  }
+  saveMessages(room, msgs.filter(m => m.localId !== localId));
+  refreshChatView(room);
+  renderRoomList();
+
+  if (verdict.action === 'self_harm') {
+    showToast(verdict.supportMessage || "If you're struggling, you don't have to go through it alone — reach out to someone you trust or a crisis line.", { type: 'error', duration: 9000 });
+  } else {
+    showToast("That message was removed — it doesn't meet our community guidelines.", { type: 'error' });
   }
 }
 
@@ -1024,7 +1025,59 @@ async function sendChatToRoom(room, inputId, replyKey, rerender) {
   void input.offsetWidth;
   input.classList.add('input-sent-pulse');
 
-  // Moderate, THEN send — see comment on moderateThenSend for why this is no
-  // longer a fire-and-forget background call.
-  moderateThenSend(room, text, room === 'general' ? 'global' : 'topic', tempId, replyDbId, input);
+  // Kick off moderation in the background — do NOT await it. The message is
+  // already posted; if it gets flagged, moderateAfterSend deletes it once
+  // the verdict comes back instead of holding up the send. It awaits the DB
+  // id via registerPendingDbId/resolvePendingDbId below rather than racing
+  // the insert below, so the mask/delete never gets silently dropped.
+  registerPendingDbId(tempId);
+  moderateAfterSend(room, text, room === 'general' ? 'global' : 'topic', tempId);
+
+  if (!isDbConnected() || !sb) { resolvePendingDbId(tempId, null); return; } // local-only mode, nothing more to do
+
+  pendingLocalSends.push({ room, author: currentUser.name, text: text, tempId });
+
+  const { data, error } = await sb.from('chat_messages')
+    .insert({ room: room, author: currentUser.name, text: text, reply_to: replyDbId })
+    .select('id, created_at')
+    .single();
+
+  if (error) {
+    // Roll the optimistic message back and say what happened, instead of
+    // leaving it sitting there looking sent when it never left the browser.
+    resolvePendingDbId(tempId, null);
+    const idx = pendingLocalSends.findIndex(p => p.tempId === tempId);
+    if (idx > -1) pendingLocalSends.splice(idx, 1);
+    const list = getMessages(room).filter(m => m.id !== tempId);
+    saveMessages(room, list);
+    rerender();
+    const friendly = /rate|too fast|slow down/i.test(error.message)
+      ? 'Sending too fast — wait a second and try again.'
+      : /row-level security|policy/i.test(error.message)
+        ? 'Your session expired. Log out and back in to keep chatting.'
+        : 'Message failed to send: ' + error.message;
+    showToast(friendly, { type: 'error' });
+    input.value = text;
+    return;
+  }
+
+  resolvePendingDbId(tempId, data && data.id != null ? data.id : null);
+
+  // Insert succeeded. Promote the temp row now rather than waiting for the
+  // realtime echo, so the message is immediately replyable/deletable.
+  // `localId` is left untouched so moderateAfterSend can still find it.
+  if (data && data.id != null) {
+    const idx = pendingLocalSends.findIndex(p => p.tempId === tempId);
+    if (idx > -1) pendingLocalSends.splice(idx, 1);
+    const list = getMessages(room);
+    const local = list.find(m => m.id === tempId);
+    if (local) {
+      local.id = String(data.id);
+      delete local.pending;
+      if (data.created_at) local.time = new Date(data.created_at).getTime();
+      saveMessages(room, list);
+      if (lastSentMsgId === tempId) lastSentMsgId = local.id;
+      rerender();
+    }
+  }
 }
