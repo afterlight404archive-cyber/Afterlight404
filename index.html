@@ -826,6 +826,7 @@
       </div>
       <div class="chat-input-wrap" id="chat-input-wrap" style="position:relative;">
         <div class="mention-dropdown" id="chat-mention-dropdown"></div>
+        <button class="dm-gif-btn" onclick="openGifSharePickerForRoom()" title="Send a GIF" aria-label="Send a GIF">GIF</button>
         <input type="text" class="chat-input" id="chat-input" placeholder="Share your favorite song...">
         <button class="chat-send-circle" onclick="sendChat()" aria-label="Send">➤</button>
       </div>
@@ -1205,6 +1206,7 @@
     </div>
     <div class="topic-chat-input-wrap" id="topic-chat-input-wrap" style="position:relative;">
       <div class="mention-dropdown" id="topic-chat-mention-dropdown"></div>
+      <button class="dm-gif-btn" onclick="openGifSharePickerForRoom()" title="Send a GIF" aria-label="Send a GIF">GIF</button>
       <input type="text" class="chat-input" id="topic-chat-input" placeholder="Say something... (@ to mention)">
       <button class="chat-send-circle" onclick="sendTopicChat()" aria-label="Send">➤</button>
     </div>
@@ -1618,6 +1620,18 @@
             </label>
           </div>
           <div id="adm-moderation-status" style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:10px;"></div>
+        </div>
+
+        <div class="admin-card" style="margin-bottom:20px;">
+          <div style="font-family:var(--mono);font-size:12px;color:var(--text);font-weight:600;margin-bottom:4px;">GIF Search (Tenor)</div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:14px;line-height:1.7;">Powers the GIF button in DMs and chat rooms. This is a public client key, not a secret — same spirit as the Supabase key on the Database tab. If you save while connected to Supabase, it syncs to every visitor's browser through <code style="color:var(--accent2);">site_settings</code>; otherwise it's saved to this browser only.</div>
+          <div id="adm-tenor-status" style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:14px;padding:10px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);"></div>
+          <div class="form-group full" style="margin-bottom:12px;">
+            <label>Tenor API Key</label>
+            <input class="form-input" type="text" id="adm-tenor-apikey" placeholder="e.g. AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX">
+            <p class="anon-hint">Free at <span style="color:var(--accent);">developers.google.com/tenor/guides/quickstart</span> — click "Get a key" (Tenor is owned by Google now, so this goes through the Google Cloud console). Takes about 2 minutes.</p>
+          </div>
+          <button class="form-btn secondary" style="max-width:200px;" onclick="saveTenorConfig()">Save</button>
         </div>
 
         <h4 style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;">All Rooms</h4>

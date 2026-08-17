@@ -237,7 +237,7 @@ async function syncRoomMessages(room) {
   try {
     const { data } = await sb.from('chat_messages').select('*').eq('room', room).order('created_at', { ascending: true });
     if (data) {
-      const msgs = data.map(m => migrateMessage({ id: m.id ? String(m.id) : undefined, author: m.author, text: m.text, time: new Date(m.created_at).getTime(), replyTo: m.reply_to || null, reactions: m.reactions || {} }));
+      const msgs = data.map(m => migrateMessage({ id: m.id ? String(m.id) : undefined, author: m.author, text: m.text, gifUrl: m.gif_url || null, time: new Date(m.created_at).getTime(), replyTo: m.reply_to || null, reactions: m.reactions || {} }));
       saveMessages(room, msgs);
     }
   } catch (e) { console.error('Chat sync failed:', e); }
@@ -261,7 +261,8 @@ function renderMessageListHTML(msgs, room) {
     if (m.replyTo) {
       const orig = byId[m.replyTo];
       if (orig) {
-        const preview = orig.text.length > 60 ? orig.text.slice(0, 60) + '…' : orig.text;
+        const origText = orig.text || (orig.gifUrl ? '🖼️ Sent a GIF' : '');
+        const preview = origText.length > 60 ? origText.slice(0, 60) + '…' : origText;
         replyHtml = `<div class="msg-reply-quote"><span class="reply-quote-author">@${escapeHtml(orig.author)}</span> ${escapeHtml(preview)}</div>`;
       } else {
         replyHtml = `<div class="msg-reply-quote deleted">Original message was deleted</div>`;
@@ -285,7 +286,9 @@ function renderMessageListHTML(msgs, room) {
       <div class="chat-msg-body">
         <div class="chat-msg-name" onclick="event.stopPropagation();openUserProfileView('${escapeJs(m.author)}')" style="cursor:pointer;">${escapeHtml(m.author)} ${ownerTagHTML(m.author)}</div>
         ${replyHtml}
-        <div class="chat-msg-text">${linkifyText(m.text)}</div>
+        ${m.gifUrl
+          ? `<img class="dm-gif-image" src="${escapeHtml(m.gifUrl)}" alt="GIF" loading="lazy" onclick="event.stopPropagation();window.open('${escapeJs(m.gifUrl)}','_blank')">`
+          : `<div class="chat-msg-text">${linkifyText(m.text)}</div>`}
         <div class="chat-msg-time">${new Date(m.time).toLocaleTimeString()}</div>
         ${reactionsHtml}
       </div>
@@ -891,7 +894,7 @@ function handleIncomingChatRow(room, row) {
   // Is this the echo of a message we just sent optimistically? If so,
   // upgrade the temp row to the real DB id rather than appending a copy.
   const pendingIdx = pendingLocalSends.findIndex(
-    p => p.room === room && p.author === row.author && p.text === row.text
+    p => p.room === room && p.author === row.author && p.text === row.text && (p.gifUrl || null) === (row.gif_url || null)
   );
   if (pendingIdx > -1) {
     const pending = pendingLocalSends.splice(pendingIdx, 1)[0];
@@ -910,6 +913,7 @@ function handleIncomingChatRow(room, row) {
     id: dbId,
     author: row.author,
     text: row.text,
+    gifUrl: row.gif_url || null,
     time: new Date(row.created_at).getTime(),
     replyTo: row.reply_to != null ? String(row.reply_to) : null,
     reactions: {}
@@ -1042,12 +1046,45 @@ async function moderateAfterSend(room, text, context, localId) {
   }
 }
 
-async function sendChatToRoom(room, inputId, replyKey, rerender) {
+// gifUrl is optional — pass it (with inputId left pointing at the room's
+// text input) to post a GIF instead of/alongside typed text, same idea as
+// sendDmMessage(text, songKey, gifUrl) in profile.js.
+// ---- GIF sharing in room/global chat (reuses the DM's Tenor picker modal
+// and loadGifResults() from profile.js — see handleGifPicked() there) ----
+let gifRoomTarget = null; // { room, inputId, replyKey, rerender }
+function openGifSharePickerForRoom() {
+  if (!currentUser) { showSignup(); return; }
+  const isGlobal = currentRoom === 'general';
+  gifRoomTarget = {
+    room: currentRoom,
+    inputId: isGlobal ? 'chat-input' : 'topic-chat-input',
+    replyKey: isGlobal ? 'global' : 'topic',
+    rerender: isGlobal ? renderChatMessages : renderTopicChatMessages
+  };
+  gifShareContext = 'room';
+  const cfg = getTenorConfig();
+  document.getElementById('gif-share-target-name').textContent = isGlobal ? 'Global Chat' : '#' + currentRoom;
+  document.getElementById('gif-share-search').value = '';
+  document.getElementById('gif-share-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  if (!cfg.apiKey) {
+    document.getElementById('gif-share-grid').innerHTML =
+      '<p class="friends-empty" style="grid-column:1/-1;">GIF search isn\'t set up yet — add a free Tenor API key in Admin → Chat System, or config.js.</p>';
+    return;
+  }
+  loadGifResults('trending');
+}
+function sendGifToRoom(url) {
+  if (!gifRoomTarget) return;
+  sendChatToRoom(gifRoomTarget.room, gifRoomTarget.inputId, gifRoomTarget.replyKey, gifRoomTarget.rerender, url);
+}
+
+async function sendChatToRoom(room, inputId, replyKey, rerender, gifUrl) {
   if (!currentUser || !room) return;
   const input = document.getElementById(inputId);
   if (!input) return;
   const text = input.value.trim();
-  if (!text) return;
+  if (!text && !gifUrl) return;
   if (text.length > 2000) {
     showToast('That message is too long (2000 characters max).', { type: 'error' });
     return;
@@ -1065,7 +1102,7 @@ async function sendChatToRoom(room, inputId, replyKey, rerender) {
   const tempId = 'tmp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
   const msgs = getMessages(room);
   const newMsg = {
-    id: tempId, localId: tempId, author: currentUser.name, text: text,
+    id: tempId, localId: tempId, author: currentUser.name, text: text, gifUrl: gifUrl || null,
     time: Date.now(), replyTo: rawReply || null, reactions: {}, pending: true
   };
   msgs.push(newMsg);
@@ -1086,14 +1123,14 @@ async function sendChatToRoom(room, inputId, replyKey, rerender) {
   // id via registerPendingDbId/resolvePendingDbId below rather than racing
   // the insert below, so the mask/delete never gets silently dropped.
   registerPendingDbId(tempId);
-  moderateAfterSend(room, text, room === 'general' ? 'global' : 'topic', tempId);
+  if (text) moderateAfterSend(room, text, room === 'general' ? 'global' : 'topic', tempId);
 
   if (!isDbConnected() || !sb) { resolvePendingDbId(tempId, null); return; } // local-only mode, nothing more to do
 
-  pendingLocalSends.push({ room, author: currentUser.name, text: text, tempId });
+  pendingLocalSends.push({ room, author: currentUser.name, text: text, gifUrl: gifUrl || null, tempId });
 
   const { data, error } = await sb.from('chat_messages')
-    .insert({ room: room, author: currentUser.name, text: text, reply_to: replyDbId })
+    .insert({ room: room, author: currentUser.name, text: text || null, gif_url: gifUrl || null, reply_to: replyDbId })
     .select('id, created_at')
     .single();
 

@@ -939,18 +939,24 @@ function shareSongToDm(number) {
 }
 
 // ---- GIF sharing (Tenor) ----
+// Shared by DM and room/global chat — gifShareContext says which one a pick
+// should be routed to. handleGifPicked() (chat.js) is the single place that
+// branches on it, so the search/grid code here doesn't need to know about
+// rooms at all.
 let gifShareSearchTimer = null;
+let gifShareContext = 'dm'; // 'dm' | 'room'
 
 function openGifSharePicker() {
   if (!dmActiveFriend) return;
-  const cfg = window.AFTERLIGHT_TENOR_CONFIG || {};
+  gifShareContext = 'dm';
+  const cfg = getTenorConfig();
   document.getElementById('gif-share-target-name').textContent = '@' + dmActiveFriend;
   document.getElementById('gif-share-search').value = '';
   document.getElementById('gif-share-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
   if (!cfg.apiKey) {
     document.getElementById('gif-share-grid').innerHTML =
-      '<p class="friends-empty" style="grid-column:1/-1;">GIF search isn\'t set up yet — add a free Tenor API key in config.js.</p>';
+      '<p class="friends-empty" style="grid-column:1/-1;">GIF search isn\'t set up yet — add a free Tenor API key in Admin → Chat System, or config.js.</p>';
     return;
   }
   loadGifResults('trending');
@@ -965,7 +971,7 @@ function onGifShareSearchInput() {
   gifShareSearchTimer = setTimeout(() => loadGifResults(q || 'trending'), 350);
 }
 async function loadGifResults(query) {
-  const cfg = window.AFTERLIGHT_TENOR_CONFIG || {};
+  const cfg = getTenorConfig();
   const grid = document.getElementById('gif-share-grid');
   if (!cfg.apiKey) return;
   grid.innerHTML = '<p class="friends-empty" style="grid-column:1/-1;">Loading…</p>';
@@ -984,7 +990,7 @@ async function loadGifResults(query) {
       const tiny = r.media_formats && (r.media_formats.tinygif || r.media_formats.nanogif);
       const full = r.media_formats && (r.media_formats.gif || r.media_formats.mediumgif);
       if (!tiny || !full) return '';
-      return `<div class="gif-share-item" onclick="pickGifForDm('${escapeJs(full.url)}')">
+      return `<div class="gif-share-item" onclick="handleGifPicked('${escapeJs(full.url)}')">
         <img src="${escapeHtml(tiny.url)}" alt="${escapeHtml(r.content_description || 'GIF')}" loading="lazy">
       </div>`;
     }).join('');
@@ -993,9 +999,15 @@ async function loadGifResults(query) {
     grid.innerHTML = '<p class="friends-empty" style="grid-column:1/-1;">Couldn\'t load GIFs — try again.</p>';
   }
 }
-function pickGifForDm(url) {
-  if (!dmActiveFriend) return;
-  sendDmMessage('', null, url);
+// Routes a picked GIF to whichever picker opened it (DM vs room/global
+// chat). Room-side handling (openGifSharePickerForRoom) lives in chat.js.
+function handleGifPicked(url) {
+  if (gifShareContext === 'room') {
+    if (typeof sendGifToRoom === 'function') sendGifToRoom(url);
+  } else {
+    if (!dmActiveFriend) return;
+    sendDmMessage('', null, url);
+  }
   closeGifSharePicker();
 }
 

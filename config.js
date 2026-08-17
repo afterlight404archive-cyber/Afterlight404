@@ -70,3 +70,19 @@ window.AFTERLIGHT_EMAILJS_CONFIG = {
 window.AFTERLIGHT_TENOR_CONFIG = {
   apiKey: ''   // e.g. 'AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
 };
+
+// Prefers whatever's been pasted into Admin → Chat System → GIF Search
+// (saved to localStorage and synced to every visitor via Supabase
+// site_settings), and falls back to the window.AFTERLIGHT_TENOR_CONFIG
+// above if the admin panel hasn't been used yet — so either setup path
+// works. This is the one place chat.js/profile.js/admin.js should read
+// the Tenor key from.
+function getTenorConfig() {
+  const local = (typeof localStorage !== 'undefined')
+    ? { apiKey: localStorage.getItem('al-tenor-apikey') || '' }
+    : null;
+  if (local && local.apiKey) return local;
+  const fileCfg = (typeof window !== 'undefined' && window.AFTERLIGHT_TENOR_CONFIG) || null;
+  if (!fileCfg || !fileCfg.apiKey) return { apiKey: '' };
+  return fileCfg;
+}
