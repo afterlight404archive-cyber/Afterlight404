@@ -977,21 +977,27 @@ async function loadGifResults(query) {
   grid.innerHTML = '<p class="friends-empty" style="grid-column:1/-1;">Loading…</p>';
   try {
     const endpoint = query === 'trending'
-      ? `https://api.giphy.com/v2/featured?key=${encodeURIComponent(cfg.apiKey)}&client_key=afterlight&limit=20&media_filter=gif`
-      : `https://api.giphy.com/v2/search?q=${encodeURIComponent(query)}&key=${encodeURIComponent(cfg.apiKey)}&client_key=afterlight&limit=20&media_filter=gif`;
+      ? `https://api.giphy.com/v2/gifs/trending?api_key=${encodeURIComponent(cfg.apiKey)}&limit=20&rating=pg-13`
+      : `https://api.giphy.com/v2/gifs/search?api_key=${encodeURIComponent(cfg.apiKey)}&q=${encodeURIComponent(query)}&limit=20&rating=pg-13`;
     const res = await fetch(endpoint);
     const data = await res.json();
-    const results = data.results || [];
+    if (data.meta && data.meta.status && data.meta.status !== 200) {
+      console.error('Giphy API error:', data.meta.msg);
+      grid.innerHTML = '<p class="friends-empty" style="grid-column:1/-1;">Couldn\'t load GIFs — check the API key in Admin → Chat System.</p>';
+      return;
+    }
+    const results = data.data || [];
     if (results.length === 0) {
       grid.innerHTML = '<p class="friends-empty" style="grid-column:1/-1;">No GIFs found.</p>';
       return;
     }
     grid.innerHTML = results.map(r => {
-      const tiny = r.media_formats && (r.media_formats.tinygif || r.media_formats.nanogif);
-      const full = r.media_formats && (r.media_formats.gif || r.media_formats.mediumgif);
-      if (!tiny || !full) return '';
+      const imgs = r.images || {};
+      const tiny = imgs.fixed_width_small || imgs.preview_gif || imgs.fixed_width;
+      const full = imgs.fixed_width || imgs.original;
+      if (!tiny || !full || !tiny.url || !full.url) return '';
       return `<div class="gif-share-item" onclick="handleGifPicked('${escapeJs(full.url)}')">
-        <img src="${escapeHtml(tiny.url)}" alt="${escapeHtml(r.content_description || 'GIF')}" loading="lazy">
+        <img src="${escapeHtml(tiny.url)}" alt="${escapeHtml(r.title || 'GIF')}" loading="lazy">
       </div>`;
     }).join('');
   } catch (e) {
