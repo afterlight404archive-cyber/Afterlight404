@@ -1052,7 +1052,7 @@ async function moderateAfterSend(room, text, context, localId) {
 // ---- GIF sharing in room/global chat (reuses the DM's Giphy picker modal
 // and loadGifResults() from profile.js — see handleGifPicked() there) ----
 let gifRoomTarget = null; // { room, inputId, replyKey, rerender }
-function openGifSharePickerForRoom() {
+async function openGifSharePickerForRoom() {
   if (!currentUser) { showSignup(); return; }
   const isGlobal = currentRoom === 'general';
   gifRoomTarget = {
@@ -1062,11 +1062,14 @@ function openGifSharePickerForRoom() {
     rerender: isGlobal ? renderChatMessages : renderTopicChatMessages
   };
   gifShareContext = 'room';
-  const cfg = getGiphyConfig();
   document.getElementById('gif-share-target-name').textContent = isGlobal ? 'Global Chat' : '#' + currentRoom;
   document.getElementById('gif-share-search').value = '';
   document.getElementById('gif-share-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
+  document.getElementById('gif-share-grid').innerHTML =
+    '<p class="friends-empty" style="grid-column:1/-1;">Loading…</p>';
+  await ensureGiphyConfigSynced();
+  const cfg = getGiphyConfig();
   if (!cfg.apiKey) {
     document.getElementById('gif-share-grid').innerHTML =
       '<p class="friends-empty" style="grid-column:1/-1;">GIF search isn\'t set up yet — add a free Giphy API key in Admin → Chat System, or config.js.</p>';

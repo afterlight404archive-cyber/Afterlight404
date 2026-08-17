@@ -946,14 +946,17 @@ function shareSongToDm(number) {
 let gifShareSearchTimer = null;
 let gifShareContext = 'dm'; // 'dm' | 'room'
 
-function openGifSharePicker() {
+async function openGifSharePicker() {
   if (!dmActiveFriend) return;
   gifShareContext = 'dm';
-  const cfg = getGiphyConfig();
   document.getElementById('gif-share-target-name').textContent = '@' + dmActiveFriend;
   document.getElementById('gif-share-search').value = '';
   document.getElementById('gif-share-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
+  document.getElementById('gif-share-grid').innerHTML =
+    '<p class="friends-empty" style="grid-column:1/-1;">Loading…</p>';
+  await ensureGiphyConfigSynced();
+  const cfg = getGiphyConfig();
   if (!cfg.apiKey) {
     document.getElementById('gif-share-grid').innerHTML =
       '<p class="friends-empty" style="grid-column:1/-1;">GIF search isn\'t set up yet — add a free Giphy API key in Admin → Chat System, or config.js.</p>';
@@ -993,7 +996,7 @@ async function loadGifResults(query) {
     }
     grid.innerHTML = results.map(r => {
       const imgs = r.images || {};
-      const tiny = imgs.fixed_width_small || imgs.preview_gif || imgs.fixed_width;
+      const tiny = imgs.fixed_width || imgs.fixed_width_small || imgs.preview_gif;
       const full = imgs.fixed_width || imgs.original;
       if (!tiny || !full || !tiny.url || !full.url) return '';
       return `<div class="gif-share-item" onclick="handleGifPicked('${escapeJs(full.url)}')">

@@ -88,3 +88,28 @@ function getGiphyConfig() {
   if (!fileCfg || !fileCfg.apiKey) return { apiKey: '' };
   return fileCfg;
 }
+
+// getGiphyConfig() above only ever checks localStorage/config.js — it was
+// written assuming refreshGiphyConfigFromDb() (admin.js) had already run,
+// but that function only fires when an admin opens the admin panel's Chat
+// tab. Every other visitor's browser (mobile included) never pulls the key
+// down from Supabase at all, so their localStorage stays empty forever even
+// after an admin has saved a key. site_settings is public-read, so any
+// visitor can fetch it directly — this does that once, caches it to
+// localStorage, and every future getGiphyConfig() call picks it up from
+// there. Call this (and await it) before the very first GIF picker open in
+// a session.
+let giphySyncAttempted = false;
+async function ensureGiphyConfigSynced() {
+  if (giphySyncAttempted) return;
+  giphySyncAttempted = true;
+  if (localStorage.getItem('al-giphy-apikey')) return; // already have one cached
+  if (typeof isDbConnected !== 'function' || !isDbConnected() || typeof sb === 'undefined' || !sb) return;
+  try {
+    const { data, error } = await sb.from('site_settings').select('value').eq('key', 'giphy_apikey').maybeSingle();
+    if (error) throw error;
+    if (data && data.value) localStorage.setItem('al-giphy-apikey', data.value);
+  } catch (e) {
+    console.error('Could not sync Giphy key from Supabase:', e);
+  }
+}
