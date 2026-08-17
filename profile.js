@@ -980,8 +980,8 @@ async function loadGifResults(query) {
   grid.innerHTML = '<p class="friends-empty" style="grid-column:1/-1;">Loading…</p>';
   try {
     const endpoint = query === 'trending'
-      ? `https://api.giphy.com/v2/gifs/trending?api_key=${encodeURIComponent(cfg.apiKey)}&limit=20&rating=pg-13`
-      : `https://api.giphy.com/v2/gifs/search?api_key=${encodeURIComponent(cfg.apiKey)}&q=${encodeURIComponent(query)}&limit=20&rating=pg-13`;
+      ? `https://api.giphy.com/v1/gifs/trending?api_key=${encodeURIComponent(cfg.apiKey)}&limit=20&rating=pg-13`
+      : `https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(cfg.apiKey)}&q=${encodeURIComponent(query)}&limit=20&rating=pg-13`;
     const res = await fetch(endpoint);
     const data = await res.json();
     if (data.meta && data.meta.status && data.meta.status !== 200) {
