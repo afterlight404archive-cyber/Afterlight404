@@ -1156,12 +1156,17 @@
   </div>
 </div>
 
-<!-- ── GIF SHARE PICKER MODAL ── -->
-<div class="auth-overlay" id="gif-share-overlay">
-  <div class="auth-modal" style="max-width:460px;">
-    <button class="auth-close" onclick="closeGifSharePicker()" aria-label="Close">✕</button>
-    <div class="auth-modal-title">Send a GIF</div>
-    <p class="auth-modal-sub">Search and send a GIF to <span id="gif-share-target-name">your friend</span>.</p>
+<!-- ── GIF SHARE PICKER (bottom sheet, matches song-recipient-sheet) ── -->
+<div class="sheet-overlay" id="gif-share-overlay">
+  <div class="sheet-panel gif-share-panel">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div>
+        <div class="sheet-title">Send a GIF</div>
+        <div class="sheet-sub" style="margin-bottom:0;">To <span id="gif-share-target-name">your friend</span></div>
+      </div>
+      <button class="sheet-close" onclick="closeGifSharePicker()" aria-label="Close">✕</button>
+    </div>
     <div class="gif-share-search-wrap">
       <input type="text" class="chat-search" id="gif-share-search" oninput="onGifShareSearchInput()" placeholder="Search GIFs...">
     </div>
