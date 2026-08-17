@@ -1166,7 +1166,7 @@
       <input type="text" class="chat-search" id="gif-share-search" oninput="onGifShareSearchInput()" placeholder="Search GIFs...">
     </div>
     <div class="gif-share-grid" id="gif-share-grid"></div>
-    <div class="gif-share-attr">Powered by Tenor</div>
+    <div class="gif-share-attr">Powered by Giphy</div>
   </div>
 </div>
 
@@ -1623,15 +1623,15 @@
         </div>
 
         <div class="admin-card" style="margin-bottom:20px;">
-          <div style="font-family:var(--mono);font-size:12px;color:var(--text);font-weight:600;margin-bottom:4px;">GIF Search (Tenor)</div>
+          <div style="font-family:var(--mono);font-size:12px;color:var(--text);font-weight:600;margin-bottom:4px;">GIF Search (Giphy)</div>
           <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:14px;line-height:1.7;">Powers the GIF button in DMs and chat rooms. This is a public client key, not a secret — same spirit as the Supabase key on the Database tab. If you save while connected to Supabase, it syncs to every visitor's browser through <code style="color:var(--accent2);">site_settings</code>; otherwise it's saved to this browser only.</div>
-          <div id="adm-tenor-status" style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:14px;padding:10px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);"></div>
+          <div id="adm-giphy-status" style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:14px;padding:10px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);"></div>
           <div class="form-group full" style="margin-bottom:12px;">
-            <label>Tenor API Key</label>
-            <input class="form-input" type="text" id="adm-tenor-apikey" placeholder="e.g. AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX">
-            <p class="anon-hint">Free at <span style="color:var(--accent);">developers.google.com/tenor/guides/quickstart</span> — click "Get a key" (Tenor is owned by Google now, so this goes through the Google Cloud console). Takes about 2 minutes.</p>
+            <label>Giphy API Key</label>
+            <input class="form-input" type="text" id="adm-giphy-apikey" placeholder="e.g. AbCdEfGhIjKlMnOpQrStUvWxYz123456">
+            <p class="anon-hint">Free at <span style="color:var(--accent);">developers.giphy.com</span> — sign up, click "Create an API Key," choose "API" (not "SDK"), and it hands you a key instantly. Beta keys get 100 calls/hour, which is plenty here. Takes about 2 minutes.</p>
           </div>
-          <button class="form-btn secondary" style="max-width:200px;" onclick="saveTenorConfig()">Save</button>
+          <button class="form-btn secondary" style="max-width:200px;" onclick="saveGiphyConfig()">Save</button>
         </div>
 
         <h4 style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;">All Rooms</h4>

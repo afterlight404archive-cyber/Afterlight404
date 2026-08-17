@@ -1049,7 +1049,7 @@ async function moderateAfterSend(room, text, context, localId) {
 // gifUrl is optional — pass it (with inputId left pointing at the room's
 // text input) to post a GIF instead of/alongside typed text, same idea as
 // sendDmMessage(text, songKey, gifUrl) in profile.js.
-// ---- GIF sharing in room/global chat (reuses the DM's Tenor picker modal
+// ---- GIF sharing in room/global chat (reuses the DM's Giphy picker modal
 // and loadGifResults() from profile.js — see handleGifPicked() there) ----
 let gifRoomTarget = null; // { room, inputId, replyKey, rerender }
 function openGifSharePickerForRoom() {
@@ -1062,14 +1062,14 @@ function openGifSharePickerForRoom() {
     rerender: isGlobal ? renderChatMessages : renderTopicChatMessages
   };
   gifShareContext = 'room';
-  const cfg = getTenorConfig();
+  const cfg = getGiphyConfig();
   document.getElementById('gif-share-target-name').textContent = isGlobal ? 'Global Chat' : '#' + currentRoom;
   document.getElementById('gif-share-search').value = '';
   document.getElementById('gif-share-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
   if (!cfg.apiKey) {
     document.getElementById('gif-share-grid').innerHTML =
-      '<p class="friends-empty" style="grid-column:1/-1;">GIF search isn\'t set up yet — add a free Tenor API key in Admin → Chat System, or config.js.</p>';
+      '<p class="friends-empty" style="grid-column:1/-1;">GIF search isn\'t set up yet — add a free Giphy API key in Admin → Chat System, or config.js.</p>';
     return;
   }
   loadGifResults('trending');

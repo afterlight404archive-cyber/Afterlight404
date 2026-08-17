@@ -54,35 +54,37 @@ window.AFTERLIGHT_EMAILJS_CONFIG = {
 };
 
 // ═══════════════════════════════════════════════════════════════
-// TENOR — powers the GIF picker in DMs (search box + results grid).
+// GIPHY — powers the GIF picker in DMs (search box + results grid).
 // Same spirit as the keys above: a public client key meant to be shipped
 // to every visitor's browser, not a secret.
 //
 // TO SET THIS UP (~2 minutes, free):
-//   1. Go to https://developers.google.com/tenor/guides/quickstart and
-//      click "Get a key" (Tenor is owned by Google now, so this goes
-//      through the Google Cloud console — the free tier is generous and
-//      fine for a site like this).
-//   2. Copy the API key it gives you and paste it below.
+//   1. Go to https://developers.giphy.com/dashboard/?create=true, sign up
+//      or log in, and click "Create an API Key" (select "API", not "SDK").
+//   2. Give it a name/description, agree to the terms, and it'll hand you
+//      a key immediately. Beta keys are rate-limited to 100 calls/hour,
+//      which is plenty for a site like this — you can apply to upgrade to
+//      a production key later from the same dashboard if you outgrow it.
+//   3. Copy the API key it gives you and paste it below.
 //
 // Until this is filled in, the GIF button will show a "not set up yet"
 // message instead of results.
-window.AFTERLIGHT_TENOR_CONFIG = {
-  apiKey: ''   // e.g. 'AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+window.AFTERLIGHT_GIPHY_CONFIG = {
+  apiKey: ''   // e.g. 'AbCdEfGhIjKlMnOpQrStUvWxYz123456'
 };
 
 // Prefers whatever's been pasted into Admin → Chat System → GIF Search
 // (saved to localStorage and synced to every visitor via Supabase
-// site_settings), and falls back to the window.AFTERLIGHT_TENOR_CONFIG
+// site_settings), and falls back to the window.AFTERLIGHT_GIPHY_CONFIG
 // above if the admin panel hasn't been used yet — so either setup path
 // works. This is the one place chat.js/profile.js/admin.js should read
-// the Tenor key from.
-function getTenorConfig() {
+// the Giphy key from.
+function getGiphyConfig() {
   const local = (typeof localStorage !== 'undefined')
-    ? { apiKey: localStorage.getItem('al-tenor-apikey') || '' }
+    ? { apiKey: localStorage.getItem('al-giphy-apikey') || '' }
     : null;
   if (local && local.apiKey) return local;
-  const fileCfg = (typeof window !== 'undefined' && window.AFTERLIGHT_TENOR_CONFIG) || null;
+  const fileCfg = (typeof window !== 'undefined' && window.AFTERLIGHT_GIPHY_CONFIG) || null;
   if (!fileCfg || !fileCfg.apiKey) return { apiKey: '' };
   return fileCfg;
 }

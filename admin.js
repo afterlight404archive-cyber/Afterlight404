@@ -853,43 +853,43 @@ function renderAdminSafety() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  TENOR — powers the GIF picker in DMs and room/global chat. Same
-//  local-cache-plus-Supabase-sync pattern as EmailJS below: the Tenor
+//  GIPHY — powers the GIF picker in DMs and room/global chat. Same
+//  local-cache-plus-Supabase-sync pattern as EmailJS below: the Giphy
 //  key is a public client key (not a secret), so it's safe to sync to
 //  every visitor's browser through site_settings just like the
-//  EmailJS/Turnstile keys. getTenorConfig() (config.js) reads whatever's
-//  saved here, falling back to window.AFTERLIGHT_TENOR_CONFIG from
+//  EmailJS/Turnstile keys. getGiphyConfig() (config.js) reads whatever's
+//  saved here, falling back to window.AFTERLIGHT_GIPHY_CONFIG from
 //  config.js if nothing's been saved from this panel yet.
 // ═══════════════════════════════════════════════════════════════
-function getTenorConfigCached() {
-  return { apiKey: localStorage.getItem('al-tenor-apikey') || '' };
+function getGiphyConfigCached() {
+  return { apiKey: localStorage.getItem('al-giphy-apikey') || '' };
 }
 
-async function refreshTenorConfigFromDb() {
+async function refreshGiphyConfigFromDb() {
   if (!isDbConnected() || !sb) return;
   try {
     const { data, error } = await sb.from('site_settings').select('key,value')
-      .eq('key', 'tenor_apikey');
+      .eq('key', 'giphy_apikey');
     if (error) throw error;
     (data || []).forEach(row => {
-      if (row.key === 'tenor_apikey') localStorage.setItem('al-tenor-apikey', row.value || '');
+      if (row.key === 'giphy_apikey') localStorage.setItem('al-giphy-apikey', row.value || '');
     });
-    applyTenorAdminUI();
+    applyGiphyAdminUI();
   } catch (e) {
-    console.error('Could not load Tenor settings from Supabase (falling back to last-known/local value):', e);
+    console.error('Could not load Giphy settings from Supabase (falling back to last-known/local value):', e);
   }
 }
 
-function applyTenorAdminUI() {
-  const cfg = getTenorConfigCached();
-  const key = document.getElementById('adm-tenor-apikey');
+function applyGiphyAdminUI() {
+  const cfg = getGiphyConfigCached();
+  const key = document.getElementById('adm-giphy-apikey');
   if (key) key.value = cfg.apiKey;
-  const status = document.getElementById('adm-tenor-status');
+  const status = document.getElementById('adm-giphy-status');
   if (status) {
     if (cfg.apiKey) {
-      status.textContent = 'Configured — the GIF button in DMs and chat rooms will search Tenor.' +
+      status.textContent = 'Configured — the GIF button in DMs and chat rooms will search Giphy.' +
         (isDbConnected() ? '' : ' (Not synced to Supabase — connect a database on the Database tab so other admins/devices get this too.)');
-    } else if (window.AFTERLIGHT_TENOR_CONFIG && window.AFTERLIGHT_TENOR_CONFIG.apiKey) {
+    } else if (window.AFTERLIGHT_GIPHY_CONFIG && window.AFTERLIGHT_GIPHY_CONFIG.apiKey) {
       status.textContent = 'Not set here, but config.js has a fallback configured — that will be used instead.';
     } else {
       status.textContent = 'Not configured yet — the GIF button will show a "not set up yet" message instead of results.';
@@ -897,20 +897,20 @@ function applyTenorAdminUI() {
   }
 }
 
-async function saveTenorConfig() {
-  const apiKey = (document.getElementById('adm-tenor-apikey').value || '').trim();
-  localStorage.setItem('al-tenor-apikey', apiKey);
-  applyTenorAdminUI();
+async function saveGiphyConfig() {
+  const apiKey = (document.getElementById('adm-giphy-apikey').value || '').trim();
+  localStorage.setItem('al-giphy-apikey', apiKey);
+  applyGiphyAdminUI();
   if (isDbConnected() && sb) {
     try {
-      await sb.from('site_settings').upsert({ key: 'tenor_apikey', value: apiKey });
-      showToast('Tenor settings saved and synced to Supabase.');
+      await sb.from('site_settings').upsert({ key: 'giphy_apikey', value: apiKey });
+      showToast('Giphy settings saved and synced to Supabase.');
     } catch (e) {
-      console.error('Could not sync Tenor settings to Supabase:', e);
+      console.error('Could not sync Giphy settings to Supabase:', e);
       showToast('Saved locally, but could not sync to Supabase — other visitors won\'t get this until it syncs.', { type: 'error' });
     }
   } else {
-    showToast('Tenor settings saved locally.');
+    showToast('Giphy settings saved locally.');
   }
 }
 
@@ -919,8 +919,8 @@ function renderAdminChat() {
   applyModerationEnabledState();
   refreshModerationEnabledFromDb();
   loadBannedWords();
-  applyTenorAdminUI();
-  refreshTenorConfigFromDb();
+  applyGiphyAdminUI();
+  refreshGiphyConfigFromDb();
   renderAdminOverviewStats();
   const list = document.getElementById('admin-chat-rooms-list');
   if (!list) return;

@@ -938,7 +938,7 @@ function shareSongToDm(number) {
   closeSongSharePicker();
 }
 
-// ---- GIF sharing (Tenor) ----
+// ---- GIF sharing (Giphy) ----
 // Shared by DM and room/global chat — gifShareContext says which one a pick
 // should be routed to. handleGifPicked() (chat.js) is the single place that
 // branches on it, so the search/grid code here doesn't need to know about
@@ -949,14 +949,14 @@ let gifShareContext = 'dm'; // 'dm' | 'room'
 function openGifSharePicker() {
   if (!dmActiveFriend) return;
   gifShareContext = 'dm';
-  const cfg = getTenorConfig();
+  const cfg = getGiphyConfig();
   document.getElementById('gif-share-target-name').textContent = '@' + dmActiveFriend;
   document.getElementById('gif-share-search').value = '';
   document.getElementById('gif-share-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
   if (!cfg.apiKey) {
     document.getElementById('gif-share-grid').innerHTML =
-      '<p class="friends-empty" style="grid-column:1/-1;">GIF search isn\'t set up yet — add a free Tenor API key in Admin → Chat System, or config.js.</p>';
+      '<p class="friends-empty" style="grid-column:1/-1;">GIF search isn\'t set up yet — add a free Giphy API key in Admin → Chat System, or config.js.</p>';
     return;
   }
   loadGifResults('trending');
@@ -971,14 +971,14 @@ function onGifShareSearchInput() {
   gifShareSearchTimer = setTimeout(() => loadGifResults(q || 'trending'), 350);
 }
 async function loadGifResults(query) {
-  const cfg = getTenorConfig();
+  const cfg = getGiphyConfig();
   const grid = document.getElementById('gif-share-grid');
   if (!cfg.apiKey) return;
   grid.innerHTML = '<p class="friends-empty" style="grid-column:1/-1;">Loading…</p>';
   try {
     const endpoint = query === 'trending'
-      ? `https://tenor.googleapis.com/v2/featured?key=${encodeURIComponent(cfg.apiKey)}&client_key=afterlight&limit=20&media_filter=gif`
-      : `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(query)}&key=${encodeURIComponent(cfg.apiKey)}&client_key=afterlight&limit=20&media_filter=gif`;
+      ? `https://api.giphy.com/v2/featured?key=${encodeURIComponent(cfg.apiKey)}&client_key=afterlight&limit=20&media_filter=gif`
+      : `https://api.giphy.com/v2/search?q=${encodeURIComponent(query)}&key=${encodeURIComponent(cfg.apiKey)}&client_key=afterlight&limit=20&media_filter=gif`;
     const res = await fetch(endpoint);
     const data = await res.json();
     const results = data.results || [];
@@ -995,7 +995,7 @@ async function loadGifResults(query) {
       </div>`;
     }).join('');
   } catch (e) {
-    console.error('Tenor search failed:', e);
+    console.error('Giphy search failed:', e);
     grid.innerHTML = '<p class="friends-empty" style="grid-column:1/-1;">Couldn\'t load GIFs — try again.</p>';
   }
 }
