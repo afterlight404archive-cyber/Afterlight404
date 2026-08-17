@@ -287,7 +287,7 @@ function renderMessageListHTML(msgs, room) {
         <div class="chat-msg-name" onclick="event.stopPropagation();openUserProfileView('${escapeJs(m.author)}')" style="cursor:pointer;">${escapeHtml(m.author)} ${ownerTagHTML(m.author)}</div>
         ${replyHtml}
         ${m.gifUrl
-          ? `<img class="dm-gif-image" src="${escapeHtml(m.gifUrl)}" alt="GIF" loading="lazy" onclick="event.stopPropagation();window.open('${escapeJs(m.gifUrl)}','_blank')">`
+          ? `<img class="dm-gif-image" src="${escapeHtml(m.gifUrl)}" alt="GIF" loading="lazy">`
           : `<div class="chat-msg-text">${linkifyText(m.text)}</div>`}
         <div class="chat-msg-time">${new Date(m.time).toLocaleTimeString()}</div>
         ${reactionsHtml}

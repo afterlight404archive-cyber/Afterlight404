@@ -742,7 +742,7 @@ function renderDmMessages() {
         bodyHtml = `<div class="chat-msg-text" style="font-style:italic;opacity:0.6;">Shared a song that\'s no longer in the archive.</div>`;
       }
     } else if (m.gifUrl) {
-      bodyHtml = `<img class="dm-gif-image" src="${escapeHtml(m.gifUrl)}" alt="GIF" loading="lazy" onclick="event.stopPropagation();window.open('${escapeJs(m.gifUrl)}','_blank')">`
+      bodyHtml = `<img class="dm-gif-image" src="${escapeHtml(m.gifUrl)}" alt="GIF" loading="lazy">`
         + (m.text ? `<div class="chat-msg-text" style="margin-top:6px;">${linkifyText(m.text)}</div>` : '');
     } else {
       bodyHtml = `<div class="chat-msg-text">${linkifyText(m.text)}</div>`;
