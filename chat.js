@@ -641,6 +641,14 @@ function toggleReaction(room, id, emoji) {
   // Only pop the pill if the reaction still exists (i.e. it wasn't just removed).
   lastReactionPop = msg.reactions[emoji] ? { room, id, emoji } : null;
   refreshChatView(room);
+
+  // Persist to Supabase so other people actually see the reaction — this was
+  // previously local-only, so a reaction never left your own browser. Only a
+  // numeric (DB) id can be written; a still-pending/local-only message just
+  // keeps the reaction locally until it syncs.
+  if (isDbConnected() && sb && /^\d+$/.test(String(id))) {
+    sb.from('chat_messages').update({ reactions: msg.reactions }).eq('id', Number(id)).then(() => {});
+  }
 }
 
 function quickReact(emoji) {
@@ -828,6 +836,9 @@ function subscribeToRoom(room) {
       .on('postgres_changes',
         { event: 'DELETE', schema: 'public', table: 'chat_messages' },
         payload => handleDeletedChatRow(room, payload.old))
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'chat_messages', filter: 'room=eq.' + room },
+        payload => handleUpdatedChatRow(room, payload.new))
       .subscribe(status => {
         if (status === 'SUBSCRIBED') setChatLiveIndicator('live');
         else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setChatLiveIndicator('error');
@@ -882,6 +893,20 @@ function handleIncomingChatRow(room, row) {
   if (currentUser && row.author !== currentUser.name && room !== currentRoom && room !== currentTopicRoom) {
     markRoomUnread(room);
   }
+}
+
+// A row was updated (reaction toggled, or moderation masked the text) —
+// by someone else, possibly. Patch our local copy and re-render.
+function handleUpdatedChatRow(room, row) {
+  if (!row || row.id == null) return;
+  const dbId = String(row.id);
+  const msgs = getMessages(room);
+  const target = msgs.find(m => m.id === dbId);
+  if (!target) return;
+  target.reactions = row.reactions || {};
+  if (row.text !== undefined && row.text !== null && row.text !== target.text) target.text = row.text;
+  saveMessages(room, msgs);
+  refreshChatView(room);
 }
 
 function handleDeletedChatRow(room, oldRow) {

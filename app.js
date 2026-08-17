@@ -613,6 +613,7 @@ function loadData() {
 // home page first, then scrolls to the requested section once it's visible.
 function goToHomeSection(sectionId) {
   showPage('home');
+  setDesktopNavActive(sectionId);
   requestAnimationFrame(() => {
     const el = document.getElementById(sectionId);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -655,12 +656,27 @@ function showPage(page) {
   if (page === 'home') setBottomNavActive('home');
   else if (page === 'submit') setBottomNavActive('submit');
   else if (page === 'chat' || page === 'topic-chat' || page === 'social' || page === 'chats-list' || page === 'friends' || page === 'dm' || page === 'profile' || page === 'edit-profile') setBottomNavActive('account');
+
+  // Keep the top nav underline (Archive/About/Submit a Song/Social) in sync with
+  // whatever page we just switched to. goToHomeSection() overrides this right
+  // after with the specific section (archive vs about) since both live under
+  // the 'home' page. Pages with no matching top-nav link (chat, profile, admin,
+  // etc.) fall under "Social" since that's the flow they're reached from.
+  if (page === 'home') setDesktopNavActive('archive');
+  else if (page === 'submit') setDesktopNavActive('submit');
+  else if (page === 'social' || page === 'chat' || page === 'topic-chat' || page === 'chats-list' || page === 'friends' || page === 'dm' || page === 'profile' || page === 'edit-profile') setDesktopNavActive('social');
 }
 
 function setBottomNavActive(key) {
   document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
   const btn = document.querySelector('.bottom-nav-item[data-bn="' + key + '"]');
   if (btn) btn.classList.add('active');
+}
+
+function setDesktopNavActive(key) {
+  document.querySelectorAll('#desktop-nav a').forEach(a => a.classList.remove('active'));
+  const link = document.querySelector('#desktop-nav a[data-nav="' + key + '"]');
+  if (link) link.classList.add('active');
 }
 
 function handleBottomNavAccount() {

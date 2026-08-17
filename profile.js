@@ -984,17 +984,39 @@ function subscribeToDm(friendName) {
           const row = payload.new;
           if (!row) return;
           const msgs = getDmMessages(friendName);
-          const dbId = String(row.id);
+          // dm_ prefix matches the id format pullDmMessages uses, so this
+          // message is recognized as "already have it" on the next poll
+          // instead of being appended a second time.
+          const dbId = 'dm_' + row.id;
           if (msgs.some(m => String(m.id) === dbId)) return;
-          // Skip the echo of a message this browser just sent.
-          if (row.sender === currentUser.name &&
-              msgs.some(m => m.text === row.text && m.author === currentUser.name &&
-                             Math.abs(m.time - new Date(row.created_at).getTime()) < 15000)) {
-            return;
+
+          // Is this the echo of a message THIS browser just sent optimistically?
+          // The optimistic copy is stored with `from`/`to` fields (see
+          // sendDmMessage) — the old code checked `m.author`, which never
+          // existed on a locally-created message, so this never matched and
+          // every message you sent got duplicated when its own echo arrived.
+          // It also crashed renderDmMessages() for *incoming* messages, since
+          // they were pushed with an `author` field instead of `from`, and
+          // rendering reads m.from — so the whole thread failed to redraw
+          // until the next 15s poll quietly fixed the field names.
+          if (row.sender === currentUser.name) {
+            const local = msgs.find(m => m.from === currentUser.name && m.text === (row.text || '') &&
+                                          Math.abs(m.time - new Date(row.created_at).getTime()) < 15000);
+            if (local) {
+              // Promote the optimistic local copy to its real DB id instead
+              // of appending a duplicate.
+              local.id = dbId;
+              local.time = new Date(row.created_at).getTime();
+              saveDmMessages(friendName, msgs);
+              if (dmActiveFriend === friendName) renderDmMessages();
+              return;
+            }
           }
+
           msgs.push({
             id: dbId,
-            author: row.sender,
+            from: row.sender,
+            to: row.recipient,
             text: row.text || '',
             songKey: row.song_key || null,
             time: new Date(row.created_at).getTime()
