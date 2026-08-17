@@ -1119,9 +1119,10 @@
       <button class="reply-banner-cancel" onclick="cancelReply('dm')" aria-label="Cancel reply">✕</button>
     </div>
     <div class="chat-input-wrap" style="position:relative;">
-      <button class="dm-share-btn" onclick="openSongSharePicker()" title="Share a song">♪</button>
+      <button class="dm-share-btn" onclick="openSongSharePicker()" title="Share a song" aria-label="Share a song">♪</button>
+      <button class="dm-gif-btn" onclick="openGifSharePicker()" title="Send a GIF" aria-label="Send a GIF">GIF</button>
       <input type="text" class="chat-input" id="dm-input" placeholder="Message your friend...">
-      <button class="chat-send" onclick="sendDmText()">Send</button>
+      <button class="chat-send-circle" onclick="sendDmText()" aria-label="Send">➤</button>
     </div>
   </div>
 </section>
@@ -1151,6 +1152,20 @@
     <p class="auth-modal-sub">Send a track from the archive to <span id="song-share-target-name">your friend</span> as a recommendation.</p>
     <input type="text" class="chat-search" id="song-share-search" oninput="renderSongSharePicker()" placeholder="Search the archive...">
     <div class="song-share-list" id="song-share-list"></div>
+  </div>
+</div>
+
+<!-- ── GIF SHARE PICKER MODAL ── -->
+<div class="auth-overlay" id="gif-share-overlay">
+  <div class="auth-modal" style="max-width:460px;">
+    <button class="auth-close" onclick="closeGifSharePicker()" aria-label="Close">✕</button>
+    <div class="auth-modal-title">Send a GIF</div>
+    <p class="auth-modal-sub">Search and send a GIF to <span id="gif-share-target-name">your friend</span>.</p>
+    <div class="gif-share-search-wrap">
+      <input type="text" class="chat-search" id="gif-share-search" oninput="onGifShareSearchInput()" placeholder="Search GIFs...">
+    </div>
+    <div class="gif-share-grid" id="gif-share-grid"></div>
+    <div class="gif-share-attr">Powered by Tenor</div>
   </div>
 </div>
 

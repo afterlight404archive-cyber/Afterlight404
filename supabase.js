@@ -643,6 +643,7 @@ create table if not exists dm_messages (
   recipient text not null,
   text text,
   song_key text,
+  gif_url text,
   created_at timestamptz default now()
 );
 
@@ -708,6 +709,7 @@ alter table chat_messages  add  column if not exists reply_to bigint;
 alter table chat_messages  add  column if not exists reactions jsonb not null default '{}'::jsonb;
 alter table dm_messages    add  column if not exists reply_to bigint;
 alter table dm_messages    add  column if not exists reactions jsonb not null default '{}'::jsonb;
+alter table dm_messages    add  column if not exists gif_url text;
 alter table users          add  column if not exists owner_id uuid;
 alter table users          add  column if not exists blocked boolean not null default false;
 alter table admin_settings add  column if not exists owner_username text;

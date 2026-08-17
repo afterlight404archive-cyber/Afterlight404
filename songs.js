@@ -455,7 +455,7 @@ function initModal() {
     });
   });
 
-  function renderModalFunFact(funFact) {
+  window.renderModalFunFact = function(funFact) {
     const section = document.getElementById('m-funfact-section');
     const el = document.getElementById('m-funfact');
     if (funFact && funFact.trim()) {
@@ -464,7 +464,7 @@ function initModal() {
     } else {
       section.style.display = 'none';
     }
-  }
+  };
 
   window.renderModalUploader = function(s) {
     const wrap = document.getElementById('m-uploader-wrap');

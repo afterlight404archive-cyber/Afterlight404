@@ -52,3 +52,21 @@ window.AFTERLIGHT_EMAILJS_CONFIG = {
   serviceId: '',   // e.g. 'service_xxxxxxx'
   templateId: ''   // e.g. 'template_xxxxxxx'
 };
+
+// ═══════════════════════════════════════════════════════════════
+// TENOR — powers the GIF picker in DMs (search box + results grid).
+// Same spirit as the keys above: a public client key meant to be shipped
+// to every visitor's browser, not a secret.
+//
+// TO SET THIS UP (~2 minutes, free):
+//   1. Go to https://developers.google.com/tenor/guides/quickstart and
+//      click "Get a key" (Tenor is owned by Google now, so this goes
+//      through the Google Cloud console — the free tier is generous and
+//      fine for a site like this).
+//   2. Copy the API key it gives you and paste it below.
+//
+// Until this is filled in, the GIF button will show a "not set up yet"
+// message instead of results.
+window.AFTERLIGHT_TENOR_CONFIG = {
+  apiKey: ''   // e.g. 'AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+};

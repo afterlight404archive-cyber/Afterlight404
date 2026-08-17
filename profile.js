@@ -160,7 +160,7 @@ function getDmPreview(withUser) {
   const readMap = getDmReadMap();
   const readAt = readMap[pairKey(currentUser.name, withUser)] || 0;
   const unread = msgs.filter(m => m.from !== currentUser.name && m.time > readAt).length;
-  const text = last.songKey ? '🎵 Shared a song' : (last.text || '');
+  const text = last.songKey ? '🎵 Shared a song' : (last.gifUrl ? '🖼️ Sent a GIF' : (last.text || ''));
   return { text, time: last.time, unread, mine: last.from === currentUser.name };
 }
 function formatDmRowTime(ts) {
@@ -281,7 +281,7 @@ async function pullDmMessages(withUser) {
     const { data } = await sb.from('dm_messages').select('*').eq('pair_key', key).order('created_at', { ascending: true });
     if (data) {
       const msgs = data.map(m => ({
-        id: 'dm_' + m.id, from: m.sender, to: m.recipient, text: m.text, songKey: m.song_key,
+        id: 'dm_' + m.id, from: m.sender, to: m.recipient, text: m.text, songKey: m.song_key, gifUrl: m.gif_url || null,
         time: new Date(m.created_at).getTime(),
         replyTo: m.reply_to != null ? 'dm_' + m.reply_to : null,
         reactions: m.reactions || {}
@@ -717,7 +717,7 @@ function renderDmMessages() {
       const orig = byId[m.replyTo];
       if (orig) {
         const origAuthor = orig.from === currentUser.name ? 'You' : orig.from;
-        const origPreview = orig.text || (orig.songKey ? '🎵 Shared a song' : '');
+        const origPreview = orig.text || (orig.songKey ? '🎵 Shared a song' : (orig.gifUrl ? '🖼️ Sent a GIF' : ''));
         const preview = origPreview.length > 60 ? origPreview.slice(0, 60) + '…' : origPreview;
         replyHtml = `<div class="msg-reply-quote"><span class="reply-quote-author">@${escapeHtml(origAuthor)}</span> ${escapeHtml(preview)}</div>`;
       } else {
@@ -741,6 +741,9 @@ function renderDmMessages() {
       } else {
         bodyHtml = `<div class="chat-msg-text" style="font-style:italic;opacity:0.6;">Shared a song that\'s no longer in the archive.</div>`;
       }
+    } else if (m.gifUrl) {
+      bodyHtml = `<img class="dm-gif-image" src="${escapeHtml(m.gifUrl)}" alt="GIF" loading="lazy" onclick="event.stopPropagation();window.open('${escapeJs(m.gifUrl)}','_blank')">`
+        + (m.text ? `<div class="chat-msg-text" style="margin-top:6px;">${linkifyText(m.text)}</div>` : '');
     } else {
       bodyHtml = `<div class="chat-msg-text">${linkifyText(m.text)}</div>`;
     }
@@ -856,7 +859,7 @@ async function moderateDmAfterSend(friend, text, localId) {
   }
 }
 
-async function sendDmMessage(text, songKey) {
+async function sendDmMessage(text, songKey, gifUrl) {
   if (!currentUser || !dmActiveFriend) return;
   if (!canSendMessageNow()) return;
   const finalText = text || '';
@@ -870,17 +873,17 @@ async function sendDmMessage(text, songKey) {
   const replyDbMatch = rawReply ? /^dm_(\d+)$/.exec(String(rawReply)) : null;
   const replyDbId = replyDbMatch ? Number(replyDbMatch[1]) : null;
 
-  const newMsg = { id: 'local_' + Date.now(), from: currentUser.name, to: friend, text: finalText, songKey: songKey || null, time: Date.now(), replyTo: rawReply || null, reactions: {} };
+  const newMsg = { id: 'local_' + Date.now(), from: currentUser.name, to: friend, text: finalText, songKey: songKey || null, gifUrl: gifUrl || null, time: Date.now(), replyTo: rawReply || null, reactions: {} };
   msgs.push(newMsg);
   saveDmMessages(friend, msgs);
   cancelReply('dm');
   if (isDbConnected()) {
     sb.from('dm_messages').insert({
       pair_key: pairKey(currentUser.name, friend), sender: currentUser.name, recipient: friend,
-      text: finalText || null, song_key: songKey || null, reply_to: replyDbId
+      text: finalText || null, song_key: songKey || null, gif_url: gifUrl || null, reply_to: replyDbId
     }).then(() => {});
     notifyUser(friend, 'dm', '@' + currentUser.name + ' sent you a message',
-      (finalText || (songKey ? 'Shared a song 🎵' : '')).slice(0, 140), 'dm', currentUser.name, currentUser.name);
+      (finalText || (songKey ? 'Shared a song 🎵' : (gifUrl ? 'Sent a GIF 🖼️' : ''))).slice(0, 140), 'dm', currentUser.name, currentUser.name);
   }
   lastSentMsgId = newMsg.id;
   renderDmMessages();
@@ -933,6 +936,67 @@ function shareSongToDm(number) {
   if (!songPickerTarget) return;
   sendDmMessage('', number);
   closeSongSharePicker();
+}
+
+// ---- GIF sharing (Tenor) ----
+let gifShareSearchTimer = null;
+
+function openGifSharePicker() {
+  if (!dmActiveFriend) return;
+  const cfg = window.AFTERLIGHT_TENOR_CONFIG || {};
+  document.getElementById('gif-share-target-name').textContent = '@' + dmActiveFriend;
+  document.getElementById('gif-share-search').value = '';
+  document.getElementById('gif-share-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  if (!cfg.apiKey) {
+    document.getElementById('gif-share-grid').innerHTML =
+      '<p class="friends-empty" style="grid-column:1/-1;">GIF search isn\'t set up yet — add a free Tenor API key in config.js.</p>';
+    return;
+  }
+  loadGifResults('trending');
+}
+function closeGifSharePicker() {
+  document.getElementById('gif-share-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function onGifShareSearchInput() {
+  clearTimeout(gifShareSearchTimer);
+  const q = document.getElementById('gif-share-search').value.trim();
+  gifShareSearchTimer = setTimeout(() => loadGifResults(q || 'trending'), 350);
+}
+async function loadGifResults(query) {
+  const cfg = window.AFTERLIGHT_TENOR_CONFIG || {};
+  const grid = document.getElementById('gif-share-grid');
+  if (!cfg.apiKey) return;
+  grid.innerHTML = '<p class="friends-empty" style="grid-column:1/-1;">Loading…</p>';
+  try {
+    const endpoint = query === 'trending'
+      ? `https://tenor.googleapis.com/v2/featured?key=${encodeURIComponent(cfg.apiKey)}&client_key=afterlight&limit=20&media_filter=gif`
+      : `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(query)}&key=${encodeURIComponent(cfg.apiKey)}&client_key=afterlight&limit=20&media_filter=gif`;
+    const res = await fetch(endpoint);
+    const data = await res.json();
+    const results = data.results || [];
+    if (results.length === 0) {
+      grid.innerHTML = '<p class="friends-empty" style="grid-column:1/-1;">No GIFs found.</p>';
+      return;
+    }
+    grid.innerHTML = results.map(r => {
+      const tiny = r.media_formats && (r.media_formats.tinygif || r.media_formats.nanogif);
+      const full = r.media_formats && (r.media_formats.gif || r.media_formats.mediumgif);
+      if (!tiny || !full) return '';
+      return `<div class="gif-share-item" onclick="pickGifForDm('${escapeJs(full.url)}')">
+        <img src="${escapeHtml(tiny.url)}" alt="${escapeHtml(r.content_description || 'GIF')}" loading="lazy">
+      </div>`;
+    }).join('');
+  } catch (e) {
+    console.error('Tenor search failed:', e);
+    grid.innerHTML = '<p class="friends-empty" style="grid-column:1/-1;">Couldn\'t load GIFs — try again.</p>';
+  }
+}
+function pickGifForDm(url) {
+  if (!dmActiveFriend) return;
+  sendDmMessage('', null, url);
+  closeGifSharePicker();
 }
 
 // ---- share a song from the archive/modal straight to a friend's DMs ----
@@ -1116,6 +1180,7 @@ function subscribeToDm(friendName) {
             to: row.recipient,
             text: row.text || '',
             songKey: row.song_key || null,
+            gifUrl: row.gif_url || null,
             time: new Date(row.created_at).getTime(),
             replyTo: row.reply_to != null ? 'dm_' + row.reply_to : null,
             reactions: row.reactions || {}
