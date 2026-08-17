@@ -544,13 +544,52 @@ async function markAllNotificationsRead() {
   }
 }
 
+// Both the notification bell dropdown and the profile menu previously relied
+// on pure CSS (`right:0` / `left:0` relative to their own button) to
+// position themselves. That only works if the button happens to sit flush
+// against the actual screen edge — on mobile the bell isn't the rightmost
+// header icon (the theme toggle + profile avatar sit to its right), so the
+// dropdown's left edge routinely rendered off-screen. This computes the
+// position from the anchor button's real on-screen position every time the
+// dropdown opens, then clamps it to stay fully inside the viewport.
+function positionFloatingDropdown(dropdownEl, anchorEl) {
+  if (!dropdownEl || !anchorEl) return;
+  const container = dropdownEl.offsetParent || document.body;
+  const containerRect = container.getBoundingClientRect();
+  const anchorRect = anchorEl.getBoundingClientRect();
+  const margin = 12;
+  const width = dropdownEl.offsetWidth || 280;
+
+  // Default: right-align the dropdown to the anchor's right edge (matches
+  // the original right:0 intent), then clamp to the real viewport edges.
+  let desiredLeft = anchorRect.right - width;
+  if (desiredLeft < margin) desiredLeft = margin;
+  if (desiredLeft + width > window.innerWidth - margin) desiredLeft = window.innerWidth - width - margin;
+
+  dropdownEl.style.left = (desiredLeft - containerRect.left) + 'px';
+  dropdownEl.style.right = 'auto';
+  dropdownEl.style.top = (anchorRect.bottom - containerRect.top + 8) + 'px';
+}
+
+// Re-clamp on resize/orientation change (e.g. exiting a full-screen webview
+// like the one in the bug report screenshot) while a dropdown is open,
+// instead of leaving it positioned for the old viewport size.
+window.addEventListener('resize', () => {
+  const dd = document.getElementById('notif-dropdown');
+  if (dd && dd.classList.contains('open')) positionFloatingDropdown(dd, document.getElementById('notif-bell-wrap'));
+  const pm = document.getElementById('profile-menu');
+  if (pm && pm.classList.contains('open')) positionFloatingDropdown(pm, pm.closest('.profile-dropdown'));
+});
+
 function toggleNotifDropdown(e) {
   if (e) e.stopPropagation();
   const dd = document.getElementById('notif-dropdown');
   if (!dd) return;
   const menu = document.getElementById('profile-menu');
   if (menu) menu.classList.remove('open');
+  const opening = !dd.classList.contains('open');
   dd.classList.toggle('open');
+  if (opening) positionFloatingDropdown(dd, document.getElementById('notif-bell-wrap'));
 }
 function closeNotifDropdown() {
   const dd = document.getElementById('notif-dropdown');

@@ -537,9 +537,25 @@ function applyMention(inputId, name) {
 
 const QUICK_EMOJIS = ['❤️', '😂', '😮', '😢', '🔥', '👍'];
 let activeMsgAction = null; // { room, id }
-let replyContext = { global: null, topic: null };
+let replyContext = { global: null, topic: null, dm: null };
+
+// DM threads are identified to the shared action-sheet code with a
+// "dm:<friendName>" pseudo-room string so openMsgActions/toggleReaction/etc.
+// can tell a DM apart from a global/topic room without a parallel code path.
+function isDmRoom(room) {
+  return typeof room === 'string' && room.indexOf('dm:') === 0;
+}
+function dmFriendFromRoom(room) {
+  return room.slice(3);
+}
+// Global/room chat messages use `author`; DM messages use `from`. Read
+// whichever is present so shared code doesn't need to branch every time.
+function msgAuthorName(msg) {
+  return msg.author || msg.from;
+}
 
 function findMessage(room, id) {
+  if (isDmRoom(room)) return getDmMessages(dmFriendFromRoom(room)).find(m => m.id === id) || null;
   return getMessages(room).find(m => m.id === id) || null;
 }
 
@@ -552,14 +568,16 @@ function openMsgActions(room, id, anchorEl) {
   const quickRow = document.getElementById('bubble-emoji-row');
   quickRow.innerHTML = QUICK_EMOJIS.map(e => `<button class="bubble-emoji-btn" onclick="quickReact('${e}')">${e}</button>`).join('');
 
+  const authorName = msgAuthorName(msg);
+
   // show/hide delete
   const deleteBtn = document.getElementById('msg-action-delete');
-  const canDelete = currentUser && (msg.author === currentUser.name || currentAdmin);
+  const canDelete = currentUser && (authorName === currentUser.name || currentAdmin);
   deleteBtn.style.display = canDelete ? 'flex' : 'none';
 
   // show report only for messages that aren't your own
   const reportBtn = document.getElementById('msg-action-report');
-  reportBtn.style.display = (currentUser && msg.author !== currentUser.name) ? 'flex' : 'none';
+  reportBtn.style.display = (currentUser && authorName !== currentUser.name) ? 'flex' : 'none';
 
   // position bubble near the message
   const bubble = document.getElementById('msg-action-bubble');
@@ -629,6 +647,7 @@ function attachLongPress(container) {
 
 function toggleReaction(room, id, emoji) {
   if (!currentUser) return;
+  if (isDmRoom(room)) { toggleDmReaction(dmFriendFromRoom(room), id, emoji); return; }
   const msgs = getMessages(room);
   const msg = msgs.find(m => m.id === id);
   if (!msg) return;
@@ -658,6 +677,7 @@ function quickReact(emoji) {
 }
 
 function refreshChatView(room) {
+  if (isDmRoom(room)) { if (dmFriendFromRoom(room) === dmActiveFriend) renderDmMessages(); return; }
   if (room === currentRoom) renderChatMessages();
   if (room === currentTopicRoom) renderTopicChatMessages();
 }
@@ -667,24 +687,29 @@ function startReplyFromSheet() {
   const { room, id } = activeMsgAction;
   const msg = findMessage(room, id);
   if (!msg) return;
-  const isGlobal = room === currentRoom;
-  const key = isGlobal ? 'global' : 'topic';
+
+  let key, prefix, inputId;
+  if (isDmRoom(room)) { key = 'dm'; prefix = 'dm'; inputId = 'dm-input'; }
+  else if (room === currentRoom) { key = 'global'; prefix = 'chat'; inputId = 'chat-input'; }
+  else { key = 'topic'; prefix = 'topic-chat'; inputId = 'topic-chat-input'; }
   replyContext[key] = id;
 
-  const authorEl = document.getElementById((isGlobal ? 'chat' : 'topic-chat') + '-reply-author');
-  const previewEl = document.getElementById((isGlobal ? 'chat' : 'topic-chat') + '-reply-preview');
-  const bannerEl = document.getElementById((isGlobal ? 'chat' : 'topic-chat') + '-reply-banner');
-  authorEl.textContent = '@' + msg.author;
-  previewEl.textContent = msg.text.length > 40 ? msg.text.slice(0, 40) + '…' : msg.text;
+  const authorName = msgAuthorName(msg);
+  const previewSource = msg.text || (msg.songKey ? '🎵 Shared a song' : '');
+  const authorEl = document.getElementById(prefix + '-reply-author');
+  const previewEl = document.getElementById(prefix + '-reply-preview');
+  const bannerEl = document.getElementById(prefix + '-reply-banner');
+  authorEl.textContent = key === 'dm' && authorName === currentUser.name ? 'yourself' : '@' + authorName;
+  previewEl.textContent = previewSource.length > 40 ? previewSource.slice(0, 40) + '…' : previewSource;
   bannerEl.style.display = 'flex';
 
   closeMsgActions();
-  document.getElementById(isGlobal ? 'chat-input' : 'topic-chat-input').focus();
+  document.getElementById(inputId).focus();
 }
 
 function cancelReply(which) {
   replyContext[which] = null;
-  const prefix = which === 'global' ? 'chat' : 'topic-chat';
+  const prefix = which === 'global' ? 'chat' : which === 'topic' ? 'topic-chat' : 'dm';
   const bannerEl = document.getElementById(prefix + '-reply-banner');
   if (bannerEl) bannerEl.style.display = 'none';
 }
@@ -694,6 +719,11 @@ async function deleteMsgFromSheet() {
   if (!confirm('Delete this message?')) return;
   const { room, id } = activeMsgAction;
   closeMsgActions();
+
+  if (isDmRoom(room)) {
+    await deleteDmMessageById(dmFriendFromRoom(room), id);
+    return;
+  }
 
   // The database id is a bigint. The old code passed the browser-generated
   // string id ("m_1699..."), so the delete never matched a row — the message

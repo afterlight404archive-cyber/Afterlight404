@@ -38,7 +38,12 @@ function getUserCode(name) {
 function toggleProfileMenu(e) {
   e.stopPropagation();
   const menu = document.getElementById('profile-menu');
-  if (menu) menu.classList.toggle('open');
+  if (!menu) return;
+  const dd = document.getElementById('notif-dropdown');
+  if (dd) dd.classList.remove('open');
+  const opening = !menu.classList.contains('open');
+  menu.classList.toggle('open');
+  if (opening) positionFloatingDropdown(menu, menu.closest('.profile-dropdown'));
 }
 
 function closeProfileMenu() {
@@ -275,7 +280,12 @@ async function pullDmMessages(withUser) {
     const key = pairKey(currentUser.name, withUser);
     const { data } = await sb.from('dm_messages').select('*').eq('pair_key', key).order('created_at', { ascending: true });
     if (data) {
-      const msgs = data.map(m => ({ id: 'dm_' + m.id, from: m.sender, to: m.recipient, text: m.text, songKey: m.song_key, time: new Date(m.created_at).getTime() }));
+      const msgs = data.map(m => ({
+        id: 'dm_' + m.id, from: m.sender, to: m.recipient, text: m.text, songKey: m.song_key,
+        time: new Date(m.created_at).getTime(),
+        replyTo: m.reply_to != null ? 'dm_' + m.reply_to : null,
+        reactions: m.reactions || {}
+      }));
       saveDmMessages(withUser, msgs);
     }
   } catch (e) { console.error('DM sync failed:', e); }
@@ -663,6 +673,7 @@ function openDm(name) {
   document.getElementById('page-dm-content').style.display = 'flex';
   showPage('dm');
   document.getElementById('dm-input').value = '';
+  cancelReply('dm');
   markDmRead(name);
   renderMessagesTab();
   pullDmMessages(name).then(() => { renderDmMessages(); markDmRead(name); renderMessagesTab(); });
@@ -693,16 +704,34 @@ function renderDmMessages() {
     container.innerHTML = '<p style="font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center;padding:40px 0;">No messages yet. Say hi, or share a song 🎵</p>';
     return;
   }
+  const byId = {};
+  msgs.forEach(m => { byId[m.id] = m; });
+  const room = 'dm:' + dmActiveFriend;
+
   container.innerHTML = msgs.map(m => {
     const mine = m.from === currentUser.name;
     const sendIn = (m.id === lastSentMsgId) ? 'msg-send-in' : '';
+
+    let replyHtml = '';
+    if (m.replyTo) {
+      const orig = byId[m.replyTo];
+      if (orig) {
+        const origAuthor = orig.from === currentUser.name ? 'You' : orig.from;
+        const origPreview = orig.text || (orig.songKey ? '🎵 Shared a song' : '');
+        const preview = origPreview.length > 60 ? origPreview.slice(0, 60) + '…' : origPreview;
+        replyHtml = `<div class="msg-reply-quote"><span class="reply-quote-author">@${escapeHtml(origAuthor)}</span> ${escapeHtml(preview)}</div>`;
+      } else {
+        replyHtml = `<div class="msg-reply-quote deleted">Original message was deleted</div>`;
+      }
+    }
+
     let bodyHtml;
     if (m.songKey) {
       const song = songs.find(s => s.number === m.songKey);
       if (song) {
         const mood = MOOD_MAP[song.mood] || MOOD_MAP['3am'];
         bodyHtml = `<div class="dm-song-tag">${mine ? 'You shared' : escapeHtml(m.from) + ' shared'} a song</div>
-          <div class="dm-song-card" onclick="openSongModalByNumber('${escapeHtml(song.number)}')">
+          <div class="dm-song-card" onclick="event.stopPropagation();openSongModalByNumber('${escapeHtml(song.number)}')">
             <div class="dsc-note">♪</div>
             <div class="dsc-info">
               <div class="dsc-title">${escapeHtml(song.title)}</div>
@@ -715,18 +744,75 @@ function renderDmMessages() {
     } else {
       bodyHtml = `<div class="chat-msg-text">${linkifyText(m.text)}</div>`;
     }
+
+    const reactionEntries = Object.entries(m.reactions || {}).filter(([, users]) => users && users.length > 0);
+    let reactionsHtml = '';
+    if (reactionEntries.length > 0) {
+      reactionsHtml = `<div class="msg-reactions">` + reactionEntries.map(([emoji, users]) => {
+        const mineReact = users.includes(currentUser.name) ? 'mine' : '';
+        const pop = (lastReactionPop && lastReactionPop.room === room && lastReactionPop.id === m.id && lastReactionPop.emoji === emoji) ? 'pop' : '';
+        return `<span class="reaction-pill ${mineReact} ${pop}" onclick="event.stopPropagation();toggleReaction('${room}','${m.id}','${emoji}')">${emoji} ${users.length}</span>`;
+      }).join('') + `</div>`;
+    }
+
     return `
-    <div class="chat-msg ${sendIn}" style="cursor:default;">
-      <div class="chat-msg-avatar${ownerFrameClass(mine ? currentUser.name : m.from)}" onclick="openUserProfileView('${escapeJs(mine ? currentUser.name : m.from)}')" style="cursor:pointer;">${escapeHtml((mine ? currentUser.name : m.from).slice(0,2).toUpperCase())}${ownerCrownHTML(mine ? currentUser.name : m.from)}</div>
+    <div class="chat-msg ${sendIn}" data-msg-id="${m.id}" data-room="${room}">
+      <div class="chat-msg-avatar${ownerFrameClass(mine ? currentUser.name : m.from)}" onclick="event.stopPropagation();openUserProfileView('${escapeJs(mine ? currentUser.name : m.from)}')" style="cursor:pointer;">${escapeHtml((mine ? currentUser.name : m.from).slice(0,2).toUpperCase())}${ownerCrownHTML(mine ? currentUser.name : m.from)}</div>
       <div class="chat-msg-body">
-        <div class="chat-msg-name" onclick="openUserProfileView('${escapeJs(mine ? currentUser.name : m.from)}')" style="cursor:pointer;">${mine ? 'You' : escapeHtml(m.from)} ${ownerTagHTML(mine ? currentUser.name : m.from)}</div>
+        <div class="chat-msg-name" onclick="event.stopPropagation();openUserProfileView('${escapeJs(mine ? currentUser.name : m.from)}')" style="cursor:pointer;">${mine ? 'You' : escapeHtml(m.from)} ${ownerTagHTML(mine ? currentUser.name : m.from)}</div>
+        ${replyHtml}
         ${bodyHtml}
         <div class="chat-msg-time">${new Date(m.time).toLocaleTimeString()}</div>
+        ${reactionsHtml}
       </div>
     </div>`;
   }).join('');
   container.scrollTop = container.scrollHeight;
+  attachLongPress(container);
   clearAnimationMarkers();
+}
+
+// ---- DM reactions & delete (shared action-sheet calls into these for
+// "dm:<friend>" pseudo-rooms — see isDmRoom/dmFriendFromRoom in chat.js) ----
+function toggleDmReaction(friend, id, emoji) {
+  if (!currentUser) return;
+  const msgs = getDmMessages(friend);
+  const msg = msgs.find(m => m.id === id);
+  if (!msg) return;
+  if (!msg.reactions) msg.reactions = {};
+  if (!msg.reactions[emoji]) msg.reactions[emoji] = [];
+  const idx = msg.reactions[emoji].indexOf(currentUser.name);
+  if (idx > -1) msg.reactions[emoji].splice(idx, 1);
+  else msg.reactions[emoji].push(currentUser.name);
+  if (msg.reactions[emoji].length === 0) delete msg.reactions[emoji];
+  saveDmMessages(friend, msgs);
+  lastReactionPop = msg.reactions[emoji] ? { room: 'dm:' + friend, id, emoji } : null;
+  if (dmActiveFriend === friend) renderDmMessages();
+
+  // Only a numeric (database) id is a valid reaction target — a still-local
+  // message keeps the reaction locally until it syncs, same as room chat.
+  const dbMatch = /^dm_(\d+)$/.exec(String(id));
+  if (isDbConnected() && sb && dbMatch) {
+    sb.from('dm_messages').update({ reactions: msg.reactions }).eq('id', Number(dbMatch[1])).then(() => {});
+  }
+}
+
+async function deleteDmMessageById(friend, id) {
+  const dbMatch = /^dm_(\d+)$/.exec(String(id));
+  if (isDbConnected() && sb && dbMatch) {
+    const { error } = await sb.from('dm_messages').delete().eq('id', Number(dbMatch[1]));
+    if (error) {
+      showToast(/policy|row-level/i.test(error.message)
+        ? "You can only delete your own messages."
+        : 'Could not delete: ' + error.message, { type: 'error' });
+      return;
+    }
+  }
+  const msgs = getDmMessages(friend).filter(m => m.id !== id);
+  saveDmMessages(friend, msgs);
+  if (dmActiveFriend === friend) renderDmMessages();
+  refreshDmPreviews();
+  renderMessagesTab();
 }
 
 function sendDmText() {
@@ -776,13 +862,22 @@ async function sendDmMessage(text, songKey) {
   const finalText = text || '';
   const friend = dmActiveFriend;
   const msgs = getDmMessages(friend);
-  const newMsg = { id: 'local_' + Date.now(), from: currentUser.name, to: friend, text: finalText, songKey: songKey || null, time: Date.now() };
+
+  // Only a numeric (database) id is a valid reply target — replying to a
+  // message that only exists locally still sends fine, it just doesn't
+  // carry the reply link to the DB (same trade-off as room chat).
+  const rawReply = replyContext.dm;
+  const replyDbMatch = rawReply ? /^dm_(\d+)$/.exec(String(rawReply)) : null;
+  const replyDbId = replyDbMatch ? Number(replyDbMatch[1]) : null;
+
+  const newMsg = { id: 'local_' + Date.now(), from: currentUser.name, to: friend, text: finalText, songKey: songKey || null, time: Date.now(), replyTo: rawReply || null, reactions: {} };
   msgs.push(newMsg);
   saveDmMessages(friend, msgs);
+  cancelReply('dm');
   if (isDbConnected()) {
     sb.from('dm_messages').insert({
       pair_key: pairKey(currentUser.name, friend), sender: currentUser.name, recipient: friend,
-      text: finalText || null, song_key: songKey || null
+      text: finalText || null, song_key: songKey || null, reply_to: replyDbId
     }).then(() => {});
     notifyUser(friend, 'dm', '@' + currentUser.name + ' sent you a message',
       (finalText || (songKey ? 'Shared a song 🎵' : '')).slice(0, 140), 'dm', currentUser.name, currentUser.name);
@@ -1007,6 +1102,8 @@ function subscribeToDm(friendName) {
               // of appending a duplicate.
               local.id = dbId;
               local.time = new Date(row.created_at).getTime();
+              local.reactions = row.reactions || local.reactions || {};
+              local.replyTo = row.reply_to != null ? 'dm_' + row.reply_to : (local.replyTo || null);
               saveDmMessages(friendName, msgs);
               if (dmActiveFriend === friendName) renderDmMessages();
               return;
@@ -1019,11 +1116,43 @@ function subscribeToDm(friendName) {
             to: row.recipient,
             text: row.text || '',
             songKey: row.song_key || null,
-            time: new Date(row.created_at).getTime()
+            time: new Date(row.created_at).getTime(),
+            replyTo: row.reply_to != null ? 'dm_' + row.reply_to : null,
+            reactions: row.reactions || {}
           });
           msgs.sort((a, b) => a.time - b.time);
           saveDmMessages(friendName, msgs);
           if (dmActiveFriend === friendName) { renderDmMessages(); markDmRead(friendName); }
+          refreshDmPreviews();
+          renderMessagesTab();
+        })
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'dm_messages', filter: 'pair_key=eq.' + key },
+        payload => {
+          // Reaction toggles (and moderation edits) land here — mirrors
+          // handleUpdatedChatRow's job for room chat.
+          const row = payload.new;
+          if (!row) return;
+          const dbId = 'dm_' + row.id;
+          const msgs = getDmMessages(friendName);
+          const target = msgs.find(m => String(m.id) === dbId);
+          if (!target) return;
+          target.text = row.text;
+          target.reactions = row.reactions || {};
+          saveDmMessages(friendName, msgs);
+          if (dmActiveFriend === friendName) renderDmMessages();
+        })
+      .on('postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'dm_messages', filter: 'pair_key=eq.' + key },
+        payload => {
+          // Requires dm_messages to have replica identity full (set in
+          // setup.sql) so payload.old carries the full deleted row.
+          const oldRow = payload.old;
+          if (!oldRow) return;
+          const dbId = 'dm_' + oldRow.id;
+          const msgs = getDmMessages(friendName).filter(m => String(m.id) !== dbId);
+          saveDmMessages(friendName, msgs);
+          if (dmActiveFriend === friendName) renderDmMessages();
           refreshDmPreviews();
           renderMessagesTab();
         })

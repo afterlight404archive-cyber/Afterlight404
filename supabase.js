@@ -705,6 +705,9 @@ create table if not exists reports (
 -- ────────────────── MIGRATIONS (older projects) ──────────────────
 alter table admin_settings drop column if exists admin_pass_hash;
 alter table chat_messages  add  column if not exists reply_to bigint;
+alter table chat_messages  add  column if not exists reactions jsonb not null default '{}'::jsonb;
+alter table dm_messages    add  column if not exists reply_to bigint;
+alter table dm_messages    add  column if not exists reactions jsonb not null default '{}'::jsonb;
 alter table users          add  column if not exists owner_id uuid;
 alter table users          add  column if not exists blocked boolean not null default false;
 alter table admin_settings add  column if not exists owner_username text;
@@ -955,9 +958,11 @@ drop policy if exists "Public read chat_messages"          on chat_messages;
 drop policy if exists "Public insert chat_messages"        on chat_messages;
 drop policy if exists "Session sends chat_messages"        on chat_messages;
 drop policy if exists "Owner or admin deletes chat_messages" on chat_messages;
+drop policy if exists "Anyone reacts to chat_messages"      on chat_messages;
 create policy "Public read chat_messages"           on chat_messages for select using (true);
 create policy "Session sends chat_messages"         on chat_messages for insert to authenticated with check (owns_alias(author));
 create policy "Owner or admin deletes chat_messages" on chat_messages for delete to authenticated using (owns_alias(author) or is_site_admin());
+create policy "Anyone reacts to chat_messages"      on chat_messages for update to authenticated using (true) with check (true);
 
 drop policy if exists "Public read comments"           on comments;
 drop policy if exists "Session sends comments"         on comments;
@@ -999,9 +1004,13 @@ drop policy if exists "Public write dm_messages"       on dm_messages;
 drop policy if exists "Participants read dm_messages"  on dm_messages;
 drop policy if exists "Sender sends dm_messages"       on dm_messages;
 drop policy if exists "Sender deletes dm_messages"     on dm_messages;
+drop policy if exists "Participants react dm_messages" on dm_messages;
 create policy "Participants read dm_messages" on dm_messages for select to authenticated using (owns_alias(sender) or owns_alias(recipient));
 create policy "Sender sends dm_messages"      on dm_messages for insert to authenticated with check (owns_alias(sender));
 create policy "Sender deletes dm_messages"    on dm_messages for delete to authenticated using (owns_alias(sender) or is_site_admin());
+create policy "Participants react dm_messages" on dm_messages for update to authenticated
+  using (owns_alias(sender) or owns_alias(recipient))
+  with check (owns_alias(sender) or owns_alias(recipient));
 
 drop policy if exists "Public read site_settings"  on site_settings;
 drop policy if exists "Admin writes site_settings" on site_settings;

@@ -159,7 +159,7 @@ function reportMsgFromSheet() {
   closeMsgActions();
   if (!msg) return;
   const preview = (msg.text || '').slice(0, 200);
-  openReportModal(msg.author, 'chat_message', preview);
+  openReportModal(msgAuthorName(msg), isDmRoom(room) ? 'dm_message' : 'chat_message', preview);
 }
 
 function saveUser() {

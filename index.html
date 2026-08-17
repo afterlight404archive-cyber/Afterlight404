@@ -1114,6 +1114,10 @@
       <span class="count-tag" id="dm-header-meta">0 messages</span>
     </div>
     <div class="chat-messages" id="dm-messages"></div>
+    <div class="reply-banner" id="dm-reply-banner" style="display:none;">
+      <div class="reply-banner-text">Replying to <span id="dm-reply-author"></span>: <span id="dm-reply-preview"></span></div>
+      <button class="reply-banner-cancel" onclick="cancelReply('dm')" aria-label="Cancel reply">✕</button>
+    </div>
     <div class="chat-input-wrap" style="position:relative;">
       <button class="dm-share-btn" onclick="openSongSharePicker()" title="Share a song">♪</button>
       <input type="text" class="chat-input" id="dm-input" placeholder="Message your friend...">
