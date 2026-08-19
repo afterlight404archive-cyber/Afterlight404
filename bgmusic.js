@@ -632,7 +632,7 @@
 
   let currentTrackIndex = 0;
   try {
-    const saved = parseInt(localStorage.getItem(TRACK_STORAGE_KEY), 10);
+    const saved = parseInt(alGet(TRACK_STORAGE_KEY), 10);
     if (!isNaN(saved) && saved >= 0 && saved < TRACKS.length) currentTrackIndex = saved;
   } catch (e) {}
 
@@ -669,10 +669,10 @@
   function toggle() {
     if (playing) {
       stop();
-      try { localStorage.setItem(STORAGE_KEY, '0'); } catch (e) {}
+      try { alSet(STORAGE_KEY, '0'); } catch (e) {}
     } else {
       start();
-      try { localStorage.setItem(STORAGE_KEY, '1'); } catch (e) {}
+      try { alSet(STORAGE_KEY, '1'); } catch (e) {}
     }
   }
 
@@ -683,7 +683,7 @@
   function switchTrack(newIndex) {
     TRACKS[currentTrackIndex].stop();
     currentTrackIndex = (newIndex + TRACKS.length) % TRACKS.length;
-    try { localStorage.setItem(TRACK_STORAGE_KEY, String(currentTrackIndex)); } catch (e) {}
+    try { alSet(TRACK_STORAGE_KEY, String(currentTrackIndex)); } catch (e) {}
 
     if (playing) {
       fadeTo(0, 0.25);
@@ -708,7 +708,7 @@
   }
 
   function wasExplicitlyMuted() {
-    try { return localStorage.getItem(STORAGE_KEY) === '0'; } catch (e) { return false; }
+    try { return alGet(STORAGE_KEY) === '0'; } catch (e) { return false; }
   }
 
   function attemptAutoplay() {

@@ -15,7 +15,7 @@ function initChat() {
 }
 
 function getRooms() {
-  const raw = localStorage.getItem('al-chat-rooms');
+  const raw = alGet('al-chat-rooms');
   if (raw) return JSON.parse(raw);
   const defaults = [
     { name: 'general', created: Date.now(), creator: 'system' },
@@ -23,12 +23,12 @@ function getRooms() {
     { name: 'phoebe-bridgers', created: Date.now(), creator: 'system' },
     { name: '3am-spiral', created: Date.now(), creator: 'system' }
   ];
-  localStorage.setItem('al-chat-rooms', JSON.stringify(defaults));
+  alSet('al-chat-rooms', JSON.stringify(defaults));
   return defaults;
 }
 
 function saveRooms(rooms) {
-  localStorage.setItem('al-chat-rooms', JSON.stringify(rooms));
+  alSet('al-chat-rooms', JSON.stringify(rooms));
 }
 
 // Ensures every message has the fields needed for reactions/replies/ids,
@@ -41,18 +41,18 @@ function migrateMessage(m) {
 }
 
 function getMessages(room) {
-  const raw = localStorage.getItem('al-chat-' + room);
+  const raw = alGet('al-chat-' + room);
   if (!raw) return [];
   const msgs = JSON.parse(raw).map(migrateMessage);
   return msgs;
 }
 
 function saveMessages(room, msgs) {
-  localStorage.setItem('al-chat-' + room, JSON.stringify(msgs));
+  alSet('al-chat-' + room, JSON.stringify(msgs));
 }
 
 function getUserNames() {
-  const users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  const users = JSON.parse(alGet('al-users') || '[]');
   return users.map(u => u.name);
 }
 
@@ -959,22 +959,22 @@ function handleDeletedChatRow(room, oldRow) {
 // Small unread marker so rooms in the drawer show a dot.
 function markRoomUnread(room) {
   try {
-    const set = JSON.parse(localStorage.getItem('al-unread-rooms') || '[]');
+    const set = JSON.parse(alGet('al-unread-rooms') || '[]');
     if (!set.includes(room)) {
       set.push(room);
-      localStorage.setItem('al-unread-rooms', JSON.stringify(set));
+      alSet('al-unread-rooms', JSON.stringify(set));
     }
   } catch (e) { /* ignore */ }
   renderRoomList();
 }
 function clearRoomUnread(room) {
   try {
-    const set = JSON.parse(localStorage.getItem('al-unread-rooms') || '[]');
-    localStorage.setItem('al-unread-rooms', JSON.stringify(set.filter(r => r !== room)));
+    const set = JSON.parse(alGet('al-unread-rooms') || '[]');
+    alSet('al-unread-rooms', JSON.stringify(set.filter(r => r !== room)));
   } catch (e) { /* ignore */ }
 }
 function isRoomUnread(room) {
-  try { return JSON.parse(localStorage.getItem('al-unread-rooms') || '[]').includes(room); }
+  try { return JSON.parse(alGet('al-unread-rooms') || '[]').includes(room); }
   catch (e) { return false; }
 }
 

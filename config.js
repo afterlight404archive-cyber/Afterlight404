@@ -1,3 +1,54 @@
+// AFTERLIGHT — SAFE STORAGE
+// ═══════════════════════════════════════════════════════════════
+// localStorage throws (instead of just failing quietly) in a few real-world
+// situations: Safari private browsing, some in-app browsers (WhatsApp/
+// Instagram/TikTok webviews), or a device with storage disabled by
+// restrictions/policy. An uncaught throw stops whatever function called it
+// dead in its place — which is why the app can work perfectly on one phone
+// and silently break (chat won't send, songs won't save, prefs won't stick)
+// on another with no visible error.
+//
+// alGet/alSet/alRemove below are drop-in replacements for
+// localStorage.getItem/setItem/removeItem that never throw. If real
+// localStorage is unavailable or blocked, they transparently fall back to a
+// plain in-memory object for the rest of that page session — everything
+// still works, it just won't persist across a reload on that one device.
+const __alMemoryStore = {};
+let __alStorageOK = null; // cached after first check
+function __alStorageAvailable() {
+  if (__alStorageOK !== null) return __alStorageOK;
+  try {
+    const testKey = '__al_storage_test__';
+    localStorage.setItem(testKey, '1');
+    localStorage.removeItem(testKey);
+    __alStorageOK = true;
+  } catch (e) {
+    __alStorageOK = false;
+  }
+  return __alStorageOK;
+}
+function alGet(key) {
+  try {
+    if (__alStorageAvailable()) return localStorage.getItem(key);
+    return Object.prototype.hasOwnProperty.call(__alMemoryStore, key) ? __alMemoryStore[key] : null;
+  } catch (e) {
+    return Object.prototype.hasOwnProperty.call(__alMemoryStore, key) ? __alMemoryStore[key] : null;
+  }
+}
+function alSet(key, value) {
+  try {
+    if (__alStorageAvailable()) { localStorage.setItem(key, value); return true; }
+  } catch (e) { /* fall through to memory */ }
+  __alMemoryStore[key] = String(value);
+  return true;
+}
+function alRemove(key) {
+  try {
+    if (__alStorageAvailable()) { localStorage.removeItem(key); }
+  } catch (e) { /* ignore */ }
+  delete __alMemoryStore[key];
+}
+
 // AFTERLIGHT — SITE CONFIG
 // ═══════════════════════════════════════════════════════════════
 // The Supabase project every visitor connects to automatically, kept in its own
@@ -81,7 +132,7 @@ window.AFTERLIGHT_GIPHY_CONFIG = {
 // the Giphy key from.
 function getGiphyConfig() {
   const local = (typeof localStorage !== 'undefined')
-    ? { apiKey: localStorage.getItem('al-giphy-apikey') || '' }
+    ? { apiKey: alGet('al-giphy-apikey') || '' }
     : null;
   if (local && local.apiKey) return local;
   const fileCfg = (typeof window !== 'undefined' && window.AFTERLIGHT_GIPHY_CONFIG) || null;
@@ -103,12 +154,12 @@ let giphySyncAttempted = false;
 async function ensureGiphyConfigSynced() {
   if (giphySyncAttempted) return;
   giphySyncAttempted = true;
-  if (localStorage.getItem('al-giphy-apikey')) return; // already have one cached
+  if (alGet('al-giphy-apikey')) return; // already have one cached
   if (typeof isDbConnected !== 'function' || !isDbConnected() || typeof sb === 'undefined' || !sb) return;
   try {
     const { data, error } = await sb.from('site_settings').select('value').eq('key', 'giphy_apikey').maybeSingle();
     if (error) throw error;
-    if (data && data.value) localStorage.setItem('al-giphy-apikey', data.value);
+    if (data && data.value) alSet('al-giphy-apikey', data.value);
   } catch (e) {
     console.error('Could not sync Giphy key from Supabase:', e);
   }

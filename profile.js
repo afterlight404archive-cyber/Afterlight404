@@ -1,5 +1,5 @@
 function backfillFriendCodes() {
-  let users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  let users = JSON.parse(alGet('al-users') || '[]');
   let changed = false;
   const used = new Set(users.map(u => u.code).filter(Boolean));
   users.forEach(u => {
@@ -9,7 +9,7 @@ function backfillFriendCodes() {
       changed = true;
     }
   });
-  if (changed) localStorage.setItem('al-users', JSON.stringify(users));
+  if (changed) alSet('al-users', JSON.stringify(users));
 }
 
 // ── OWNER ACCOUNT (gold frame / crown / ban powers) ──────────────────────
@@ -27,7 +27,7 @@ function generateFriendCode(usedSet) {
 }
 
 function getUserCode(name) {
-  const users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  const users = JSON.parse(alGet('al-users') || '[]');
   const u = users.find(x => x.name === name);
   return u ? u.code : null;
 }
@@ -62,16 +62,16 @@ function setDeviceMode(mode) {
   const html = document.documentElement;
   if (mode === 'auto') {
     html.removeAttribute('data-device');
-    localStorage.removeItem('al-device-mode');
+    alRemove('al-device-mode');
   } else {
     html.setAttribute('data-device', mode);
-    localStorage.setItem('al-device-mode', mode);
+    alSet('al-device-mode', mode);
   }
   updateDeviceModeUI();
 }
 
 function updateDeviceModeUI() {
-  const mode = localStorage.getItem('al-device-mode') || 'auto';
+  const mode = alGet('al-device-mode') || 'auto';
   const order = ['auto', 'mobile', 'tablet', 'desktop'];
   order.forEach(m => {
     const btn = document.getElementById('mode-' + m);
@@ -88,7 +88,7 @@ function initDeviceMode() {
   // No saved preference = automatic: let the page respond naturally to the
   // visitor's actual screen size (phone -> Mobile UI, desktop -> Desktop UI).
   // A saved preference means the user explicitly forced a preview mode in Settings.
-  const saved = localStorage.getItem('al-device-mode');
+  const saved = alGet('al-device-mode');
   if (saved) document.documentElement.setAttribute('data-device', saved);
   else document.documentElement.removeAttribute('data-device');
   updateDeviceModeUI();
@@ -132,26 +132,26 @@ function copyFriendCode(code, el) {
 
 // ---- local storage ----
 function getFriendRequests() {
-  return JSON.parse(localStorage.getItem('al-friend-requests') || '[]');
+  return JSON.parse(alGet('al-friend-requests') || '[]');
 }
 function saveFriendRequests(list) {
-  localStorage.setItem('al-friend-requests', JSON.stringify(list));
+  alSet('al-friend-requests', JSON.stringify(list));
 }
 function getDmMessages(withUser) {
-  const raw = localStorage.getItem('al-dm-' + pairKey(currentUser.name, withUser));
+  const raw = alGet('al-dm-' + pairKey(currentUser.name, withUser));
   return raw ? JSON.parse(raw) : [];
 }
 function saveDmMessages(withUser, msgs) {
-  localStorage.setItem('al-dm-' + pairKey(currentUser.name, withUser), JSON.stringify(msgs));
+  alSet('al-dm-' + pairKey(currentUser.name, withUser), JSON.stringify(msgs));
 }
 function getDmReadMap() {
-  return JSON.parse(localStorage.getItem('al-dm-read') || '{}');
+  return JSON.parse(alGet('al-dm-read') || '{}');
 }
 function markDmRead(withUser) {
   if (!currentUser) return;
   const map = getDmReadMap();
   map[pairKey(currentUser.name, withUser)] = Date.now();
-  localStorage.setItem('al-dm-read', JSON.stringify(map));
+  alSet('al-dm-read', JSON.stringify(map));
 }
 function getDmPreview(withUser) {
   const msgs = getDmMessages(withUser);
@@ -251,7 +251,7 @@ async function searchUsersRemote(query) {
     } catch (e) { console.error('User search failed:', e); }
   }
   // local fallback (local-only mode, or supabase not connected)
-  const local = JSON.parse(localStorage.getItem('al-users') || '[]');
+  const local = JSON.parse(alGet('al-users') || '[]');
   return local
     .filter(u => asCode ? u.code === asCode : u.name.toLowerCase().includes(q.toLowerCase()))
     .filter(u => !currentUser || u.name.toLowerCase() !== currentUser.name.toLowerCase())
@@ -363,7 +363,7 @@ async function openUserProfileView(name, knownCode) {
   // Owner-only moderation control, hidden for everyone else and for the owner's own card.
   const showBanControl = currentUserIsOwner() && !isOwnerName(name);
   if (showBanControl) {
-    const users = JSON.parse(localStorage.getItem('al-users') || '[]');
+    const users = JSON.parse(alGet('al-users') || '[]');
     const target = users.find(u => u.name === name);
     const banned = !!(target && target.blocked);
     actionsHtml += `<button class="owner-ban-btn${banned ? ' is-banned' : ''}" id="profile-ban-btn" onclick="ownerToggleBanUser('${escapeJs(name)}')">${banned ? 'Unban User' : 'Ban User'}</button>`;
@@ -375,7 +375,7 @@ async function openUserProfileView(name, knownCode) {
 
   let code = knownCode || getUserCode(name) || null;
   let bio = '', gender = '';
-  const localRec = JSON.parse(localStorage.getItem('al-users') || '[]').find(u => u.name === name);
+  const localRec = JSON.parse(alGet('al-users') || '[]').find(u => u.name === name);
   if (localRec) { bio = localRec.bio || ''; gender = localRec.gender || ''; if (!code) code = localRec.code; }
   if (isDbConnected() && (!code || !localRec || showBanControl)) {
     try {
@@ -385,9 +385,9 @@ async function openUserProfileView(name, knownCode) {
         // Ban button can be stale if the block/unban happened on another device — true
         // it up against the server before the owner acts on it.
         if (showBanControl) {
-          let users = JSON.parse(localStorage.getItem('al-users') || '[]');
+          let users = JSON.parse(alGet('al-users') || '[]');
           const i = users.findIndex(u => u.name === name);
-          if (i !== -1) { users[i] = { ...users[i], blocked: !!data[0].blocked }; localStorage.setItem('al-users', JSON.stringify(users)); }
+          if (i !== -1) { users[i] = { ...users[i], blocked: !!data[0].blocked }; alSet('al-users', JSON.stringify(users)); }
           const btn = document.getElementById('profile-ban-btn');
           if (btn) {
             const banned = !!data[0].blocked;

@@ -81,16 +81,16 @@ const DEFAULT_MOOD_MAP = {
 };
 
 function getMoodMap() {
-  const raw = localStorage.getItem('al-moods');
+  const raw = alGet('al-moods');
   if (raw) {
     try { return JSON.parse(raw); } catch(e) { /* fall through */ }
   }
-  localStorage.setItem('al-moods', JSON.stringify(DEFAULT_MOOD_MAP));
+  alSet('al-moods', JSON.stringify(DEFAULT_MOOD_MAP));
   return DEFAULT_MOOD_MAP;
 }
 
 function saveMoodMap(map) {
-  localStorage.setItem('al-moods', JSON.stringify(map));
+  alSet('al-moods', JSON.stringify(map));
   if (typeof isDbConnected === 'function' && isDbConnected()) {
     sb.from('moods').delete().neq('mood_key', '__never__').then(() => {
       const rows = Object.keys(map).map(key => ({
@@ -123,11 +123,11 @@ function isValidAnonName(name) {
 
 // ═══════════════════════════════════════════════════════════════
 function saveSongs() {
-  localStorage.setItem('al-songs', JSON.stringify(songs));
+  alSet('al-songs', JSON.stringify(songs));
 }
 
 function saveSubmissions() {
-  localStorage.setItem('al-submissions', JSON.stringify(submissions));
+  alSet('al-submissions', JSON.stringify(submissions));
 }
 
 // Pulls the pending-review queue from Supabase (admin sees everyone's; a
@@ -295,10 +295,10 @@ function renderLyricsHtml(text) {
 // rating a song twice (both locally and, if connected, via a unique
 // constraint in Supabase) — no account/login required to rate.
 function getVoterId() {
-  let id = localStorage.getItem('al-voter-id');
+  let id = alGet('al-voter-id');
   if (!id) {
     id = (crypto.randomUUID ? crypto.randomUUID() : 'v-' + Date.now() + '-' + Math.random().toString(36).slice(2));
-    localStorage.setItem('al-voter-id', id);
+    alSet('al-voter-id', id);
   }
   return id;
 }
@@ -309,11 +309,11 @@ function getVoterId() {
 // refresh), then replaced with the real aggregate pulled from Supabase's
 // song_ratings table in pullSharedDataFromSupabase (if connected).
 function loadRatingStats() {
-  try { return JSON.parse(localStorage.getItem('al-rating-stats') || '{}'); }
+  try { return JSON.parse(alGet('al-rating-stats') || '{}'); }
   catch (e) { return {}; }
 }
 function saveRatingStats() {
-  localStorage.setItem('al-rating-stats', JSON.stringify(ratingStats));
+  alSet('al-rating-stats', JSON.stringify(ratingStats));
 }
 let ratingStats = loadRatingStats();
 
@@ -530,12 +530,12 @@ function initModal() {
 
 function getComments(songKey) {
   const key = 'al-comments-' + songKey;
-  const raw = localStorage.getItem(key);
+  const raw = alGet(key);
   return raw ? JSON.parse(raw) : [];
 }
 
 function saveComments(songKey, comments) {
-  localStorage.setItem('al-comments-' + songKey, JSON.stringify(comments));
+  alSet('al-comments-' + songKey, JSON.stringify(comments));
 }
 
 // Pulls just this one song's comments fresh from Supabase (if connected) so opening a
@@ -802,12 +802,12 @@ document.getElementById('submit-form').addEventListener('submit', async function
 
 // Reads this browser's own rating for a song.
 function getMyRating(songKey) {
-  const v = parseInt(localStorage.getItem('al-rating-' + songKey) || '0', 10);
+  const v = parseInt(alGet('al-rating-' + songKey) || '0', 10);
   return Number.isFinite(v) && v >= 1 && v <= 5 ? v : 0;
 }
 function setMyRating(songKey, value) {
-  if (value) localStorage.setItem('al-rating-' + songKey, String(value));
-  else localStorage.removeItem('al-rating-' + songKey);
+  if (value) alSet('al-rating-' + songKey, String(value));
+  else alRemove('al-rating-' + songKey);
 }
 
 // Recomputes one song's community aggregate straight from the database, so

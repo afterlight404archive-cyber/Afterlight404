@@ -32,23 +32,23 @@ const DEFAULT_ADMIN_PASS = 'admin404';
 
 // One-time migration from the old plain-text 'al-admin-code' key, if present.
 async function migrateAdminSecrets() {
-  const legacyCode = localStorage.getItem('al-admin-code');
-  if (legacyCode && !localStorage.getItem('al-admin-code-hash')) {
-    localStorage.setItem('al-admin-code-hash', await hashText(legacyCode));
+  const legacyCode = alGet('al-admin-code');
+  if (legacyCode && !alGet('al-admin-code-hash')) {
+    alSet('al-admin-code-hash', await hashText(legacyCode));
   }
-  if (legacyCode) localStorage.removeItem('al-admin-code');
+  if (legacyCode) alRemove('al-admin-code');
 }
 
 async function getAdminCodeHash() {
-  return localStorage.getItem('al-admin-code-hash') || await hashText(DEFAULT_ADMIN_CODE);
+  return alGet('al-admin-code-hash') || await hashText(DEFAULT_ADMIN_CODE);
 }
 
 function getAdminEmail() {
-  return localStorage.getItem('al-admin-email') || DEFAULT_ADMIN_EMAIL;
+  return alGet('al-admin-email') || DEFAULT_ADMIN_EMAIL;
 }
 
 async function getAdminPassHash() {
-  return localStorage.getItem('al-admin-pass-hash') || await hashText(DEFAULT_ADMIN_PASS);
+  return alGet('al-admin-pass-hash') || await hashText(DEFAULT_ADMIN_PASS);
 }
 
 //  MODERATION: user reports
@@ -58,7 +58,7 @@ async function getAdminPassHash() {
 // ═══════════════════════════════════════════════════════════════
 
 function saveReports() {
-  localStorage.setItem('al-reports', JSON.stringify(reports));
+  alSet('al-reports', JSON.stringify(reports));
 }
 
 async function pullReportsFromSupabase() {
@@ -163,13 +163,13 @@ function reportMsgFromSheet() {
 }
 
 function saveUser() {
-  if (currentUser) localStorage.setItem('al-user', JSON.stringify(currentUser));
-  else localStorage.removeItem('al-user');
+  if (currentUser) alSet('al-user', JSON.stringify(currentUser));
+  else alRemove('al-user');
 }
 
 function saveAdmin() {
-  if (currentAdmin) localStorage.setItem('al-admin', JSON.stringify(currentAdmin));
-  else localStorage.removeItem('al-admin');
+  if (currentAdmin) alSet('al-admin', JSON.stringify(currentAdmin));
+  else alRemove('al-admin');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -233,9 +233,9 @@ async function handleAdminLogin() {
       // and provision the real Supabase Auth account now, then sign in for real.
       // Only try this ONCE per browser (flag below) — retrying signUp on every
       // failed login attempt is what triggers the rate limit above.
-      const alreadyAttemptedSignup = localStorage.getItem('al-admin-signup-attempted') === '1';
+      const alreadyAttemptedSignup = alGet('al-admin-signup-attempted') === '1';
       if (matchesLocalRecord && !alreadyAttemptedSignup) {
-        localStorage.setItem('al-admin-signup-attempted', '1');
+        alSet('al-admin-signup-attempted', '1');
         const { error: signUpError } = await sb.auth.signUp({ email, password: pass });
         if (!signUpError) {
           ({ error } = await sb.auth.signInWithPassword({ email, password: pass }));
@@ -274,15 +274,15 @@ async function handleAdminLogin() {
     } else {
       // Successful real Supabase sign-in — clear the one-shot signup flag so a
       // future device/browser can still self-provision if ever needed again.
-      localStorage.removeItem('al-admin-signup-attempted');
+      alRemove('al-admin-signup-attempted');
     }
 
     if (!usedLocalFallback) {
       // Keep the local hash in sync purely so this browser can still show the admin
       // panel instantly next time without a network round trip — it is never the
       // thing that grants write access, and it is never uploaded to Supabase.
-      localStorage.setItem('al-admin-email', email);
-      localStorage.setItem('al-admin-pass-hash', await hashText(pass));
+      alSet('al-admin-email', email);
+      alSet('al-admin-pass-hash', await hashText(pass));
     }
   } else {
     // Local-only mode (no Supabase connected yet): fall back to the local hash
@@ -342,12 +342,12 @@ function adminLogout() {
 // ═══════════════════════════════════════════════════════════════
 
 function isChatEnabled() {
-  const v = localStorage.getItem('al-chat-enabled');
+  const v = alGet('al-chat-enabled');
   return v === null ? true : v === 'true';
 }
 
 function setChatEnabled(val) {
-  localStorage.setItem('al-chat-enabled', val ? 'true' : 'false');
+  alSet('al-chat-enabled', val ? 'true' : 'false');
   applyChatEnabledState();
 }
 
@@ -377,7 +377,7 @@ function toggleChatSystem() {
 // every single keystroke/send — refreshed from Supabase on load and
 // whenever the admin toggles it.
 function isModerationEnabledCached() {
-  const v = localStorage.getItem('al-moderation-enabled');
+  const v = alGet('al-moderation-enabled');
   return v === null ? true : v === 'true';
 }
 
@@ -387,7 +387,7 @@ async function refreshModerationEnabledFromDb() {
     const { data, error } = await sb.from('site_settings').select('value').eq('key', 'moderation_enabled').maybeSingle();
     if (error) throw error;
     const enabled = data ? data.value === 'true' : true; // default on if no row yet
-    localStorage.setItem('al-moderation-enabled', enabled ? 'true' : 'false');
+    alSet('al-moderation-enabled', enabled ? 'true' : 'false');
     applyModerationEnabledState();
   } catch (e) {
     console.error('Could not load moderation setting from Supabase (falling back to last-known/local value):', e);
@@ -395,7 +395,7 @@ async function refreshModerationEnabledFromDb() {
 }
 
 async function setModerationEnabled(val) {
-  localStorage.setItem('al-moderation-enabled', val ? 'true' : 'false');
+  alSet('al-moderation-enabled', val ? 'true' : 'false');
   applyModerationEnabledState();
   if (isDbConnected() && sb) {
     try {
@@ -533,10 +533,10 @@ let turnstileScriptLoaded = false;
 let turnstileWidgetIds = {};
 
 function isTurnstileEnabledCached() {
-  return localStorage.getItem('al-turnstile-enabled') === 'true';
+  return alGet('al-turnstile-enabled') === 'true';
 }
 function getTurnstileSiteKeyCached() {
-  return localStorage.getItem('al-turnstile-sitekey') || '';
+  return alGet('al-turnstile-sitekey') || '';
 }
 
 async function refreshTurnstileEnabledFromDb() {
@@ -545,11 +545,11 @@ async function refreshTurnstileEnabledFromDb() {
     const { data, error } = await sb.from('site_settings').select('value').eq('key', 'turnstile_enabled').maybeSingle();
     if (error) throw error;
     const enabled = data ? data.value === 'true' : false;
-    localStorage.setItem('al-turnstile-enabled', enabled ? 'true' : 'false');
+    alSet('al-turnstile-enabled', enabled ? 'true' : 'false');
     const { data: keyRow } = await sb.from('site_settings').select('value').eq('key', 'turnstile_sitekey').maybeSingle();
-    if (keyRow && keyRow.value) localStorage.setItem('al-turnstile-sitekey', keyRow.value);
+    if (keyRow && keyRow.value) alSet('al-turnstile-sitekey', keyRow.value);
     const { data: strictRow } = await sb.from('site_settings').select('value').eq('key', 'turnstile_strict').maybeSingle();
-    if (strictRow) localStorage.setItem('al-turnstile-strict', strictRow.value === 'true' ? 'true' : 'false');
+    if (strictRow) alSet('al-turnstile-strict', strictRow.value === 'true' ? 'true' : 'false');
     applyTurnstileState();
     maybeRenderTurnstileWidget('signup');
   } catch (e) {
@@ -558,7 +558,7 @@ async function refreshTurnstileEnabledFromDb() {
 }
 
 async function setTurnstileEnabled(val) {
-  localStorage.setItem('al-turnstile-enabled', val ? 'true' : 'false');
+  alSet('al-turnstile-enabled', val ? 'true' : 'false');
   applyTurnstileState();
   maybeRenderTurnstileWidget('signup');
   if (isDbConnected() && sb) {
@@ -604,7 +604,7 @@ function toggleTurnstileSystem() {
 
 async function saveTurnstileSiteKey() {
   const val = (document.getElementById('adm-turnstile-sitekey').value || '').trim();
-  localStorage.setItem('al-turnstile-sitekey', val);
+  alSet('al-turnstile-sitekey', val);
   applyTurnstileState();
   maybeRenderTurnstileWidget('signup');
   if (isDbConnected() && sb) {
@@ -733,10 +733,10 @@ async function verifyTurnstileToken(token) {
 //     briefly leans on its other defences
 // Flip this on in Admin → Safety & Bots if you would rather block.
 function isTurnstileStrictMode() {
-  return localStorage.getItem('al-turnstile-strict') === 'true';
+  return alGet('al-turnstile-strict') === 'true';
 }
 async function setTurnstileStrictMode(val) {
-  localStorage.setItem('al-turnstile-strict', val ? 'true' : 'false');
+  alSet('al-turnstile-strict', val ? 'true' : 'false');
   if (isDbConnected() && sb) {
     try { await sb.from('site_settings').upsert({ key: 'turnstile_strict', value: val ? 'true' : 'false' }); }
     catch (e) { console.error('Could not sync strict-mode setting:', e); }
@@ -770,9 +770,9 @@ function copyTurnstileFnCode() {
 // ═══════════════════════════════════════════════════════════════
 function getEmailjsConfigCached() {
   return {
-    publicKey: localStorage.getItem('al-emailjs-publickey') || '',
-    serviceId: localStorage.getItem('al-emailjs-serviceid') || '',
-    templateId: localStorage.getItem('al-emailjs-templateid') || ''
+    publicKey: alGet('al-emailjs-publickey') || '',
+    serviceId: alGet('al-emailjs-serviceid') || '',
+    templateId: alGet('al-emailjs-templateid') || ''
   };
 }
 
@@ -783,9 +783,9 @@ async function refreshEmailjsConfigFromDb() {
       .in('key', ['emailjs_publickey', 'emailjs_serviceid', 'emailjs_templateid']);
     if (error) throw error;
     (data || []).forEach(row => {
-      if (row.key === 'emailjs_publickey') localStorage.setItem('al-emailjs-publickey', row.value || '');
-      if (row.key === 'emailjs_serviceid') localStorage.setItem('al-emailjs-serviceid', row.value || '');
-      if (row.key === 'emailjs_templateid') localStorage.setItem('al-emailjs-templateid', row.value || '');
+      if (row.key === 'emailjs_publickey') alSet('al-emailjs-publickey', row.value || '');
+      if (row.key === 'emailjs_serviceid') alSet('al-emailjs-serviceid', row.value || '');
+      if (row.key === 'emailjs_templateid') alSet('al-emailjs-templateid', row.value || '');
     });
     applyEmailjsAdminUI();
   } catch (e) {
@@ -825,9 +825,9 @@ async function saveEmailjsConfig() {
   const publicKey = (document.getElementById('adm-emailjs-publickey').value || '').trim();
   const serviceId = (document.getElementById('adm-emailjs-serviceid').value || '').trim();
   const templateId = (document.getElementById('adm-emailjs-templateid').value || '').trim();
-  localStorage.setItem('al-emailjs-publickey', publicKey);
-  localStorage.setItem('al-emailjs-serviceid', serviceId);
-  localStorage.setItem('al-emailjs-templateid', templateId);
+  alSet('al-emailjs-publickey', publicKey);
+  alSet('al-emailjs-serviceid', serviceId);
+  alSet('al-emailjs-templateid', templateId);
   resetEmailjsInitState();
   applyEmailjsAdminUI();
   if (isDbConnected() && sb) {
@@ -862,7 +862,7 @@ function renderAdminSafety() {
 //  config.js if nothing's been saved from this panel yet.
 // ═══════════════════════════════════════════════════════════════
 function getGiphyConfigCached() {
-  return { apiKey: localStorage.getItem('al-giphy-apikey') || '' };
+  return { apiKey: alGet('al-giphy-apikey') || '' };
 }
 
 async function refreshGiphyConfigFromDb() {
@@ -872,7 +872,7 @@ async function refreshGiphyConfigFromDb() {
       .eq('key', 'giphy_apikey');
     if (error) throw error;
     (data || []).forEach(row => {
-      if (row.key === 'giphy_apikey') localStorage.setItem('al-giphy-apikey', row.value || '');
+      if (row.key === 'giphy_apikey') alSet('al-giphy-apikey', row.value || '');
     });
     applyGiphyAdminUI();
   } catch (e) {
@@ -899,7 +899,7 @@ function applyGiphyAdminUI() {
 
 async function saveGiphyConfig() {
   const apiKey = (document.getElementById('adm-giphy-apikey').value || '').trim();
-  localStorage.setItem('al-giphy-apikey', apiKey);
+  alSet('al-giphy-apikey', apiKey);
   applyGiphyAdminUI();
   if (isDbConnected() && sb) {
     try {
@@ -1012,7 +1012,7 @@ function adminRenameRoom(oldName) {
   // migrate messages to new key
   const msgs = getMessages(oldName);
   saveMessages(newName, msgs);
-  localStorage.removeItem('al-chat-' + oldName);
+  alRemove('al-chat-' + oldName);
   document.getElementById('admin-chat-room-detail').innerHTML = '';
   renderAdminChat();
 }
@@ -1022,7 +1022,7 @@ function adminDeleteRoom(name) {
   if (!confirm('Delete #' + name + ' and all its messages? This cannot be undone.')) return;
   const rooms = getRooms().filter(r => r.name !== name);
   saveRooms(rooms);
-  localStorage.removeItem('al-chat-' + name);
+  alRemove('al-chat-' + name);
   // getRooms() only ever reads from localStorage, but the room row (and its
   // messages) still exist in Supabase's chat_rooms/chat_messages tables until
   // deleted here — leaving them meant the channel could reappear wherever
@@ -1077,7 +1077,7 @@ function renderAdminOverviewStats() {
   if (!songsEl) return;
 
   const songCount = typeof songs !== 'undefined' ? songs.length : 0;
-  const userCount = JSON.parse(localStorage.getItem('al-users') || '[]').length;
+  const userCount = JSON.parse(alGet('al-users') || '[]').length;
   const pendingCount = submissions.length;
   const roomCount = typeof getRooms === 'function' ? getRooms().length : 0;
 
@@ -1154,7 +1154,7 @@ async function pullUsersFromSupabase() {
     const { data: rows, error } = await sb.from('users').select('*');
     if (error) throw error;
     if (!rows) return;
-    let users = JSON.parse(localStorage.getItem('al-users') || '[]');
+    let users = JSON.parse(alGet('al-users') || '[]');
     const byName = new Map(users.map(u => [u.name, u]));
     rows.forEach(r => {
       const existing = byName.get(r.username);
@@ -1184,7 +1184,7 @@ async function pullUsersFromSupabase() {
         byName.set(r.username, stub);
       }
     });
-    localStorage.setItem('al-users', JSON.stringify(users));
+    alSet('al-users', JSON.stringify(users));
   } catch (e) {
     console.error('Pull users from Supabase failed:', e);
   }
@@ -1209,7 +1209,7 @@ function saveSiteSettings() {
     accent: document.getElementById('adm-accent').value,
     accent2: document.getElementById('adm-accent2').value
   };
-  localStorage.setItem('al-site-settings', JSON.stringify(settings));
+  alSet('al-site-settings', JSON.stringify(settings));
   applySiteSettings();
   showToast('Settings saved!');
 }
@@ -1221,10 +1221,10 @@ function saveOwnerUsername() {
   ok.style.display = 'none'; err.style.display = 'none';
   const name = (input.value || '').trim().replace(/^@/, '');
   if (!name) { err.textContent = 'Enter a username first.'; err.style.display = 'block'; return; }
-  const users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  const users = JSON.parse(alGet('al-users') || '[]');
   const match = users.find(u => u.name.toLowerCase() === name.toLowerCase());
   if (!match) { err.textContent = `No account named @${name} found. They need to sign up first.`; err.style.display = 'block'; return; }
-  localStorage.setItem('al-owner-username', match.name);
+  alSet('al-owner-username', match.name);
   input.value = '';
   refreshOwnerAdminDisplay();
   ok.textContent = `✓ @${match.name} is now the Owner account.`;
@@ -1239,7 +1239,7 @@ function saveOwnerUsername() {
 }
 
 function clearOwnerUsername() {
-  localStorage.removeItem('al-owner-username');
+  alRemove('al-owner-username');
   refreshOwnerAdminDisplay();
   updateAuthUI();
   showToast('Owner badge removed.');
@@ -1255,7 +1255,7 @@ async function saveAdminAccessCode() {
     showToast('Access code should be at least 4 characters.', {type:'error'});
     return;
   }
-  localStorage.setItem('al-admin-code-hash', await hashText(code));
+  alSet('al-admin-code-hash', await hashText(code));
   input.value = '';
   await pushAdminSettingsToSupabase();
   if (ok) {
@@ -1287,8 +1287,8 @@ async function saveAdminLoginCredentials() {
   }
   if (!newEmail && !newPass) return; // nothing to change
 
-  if (newEmail) localStorage.setItem('al-admin-email', newEmail);
-  if (newPass) localStorage.setItem('al-admin-pass-hash', await hashText(newPass));
+  if (newEmail) alSet('al-admin-email', newEmail);
+  if (newPass) alSet('al-admin-pass-hash', await hashText(newPass));
   await pushAdminSettingsToSupabase();
 
   // Keep the real Supabase Auth account (the one that actually grants write access
@@ -1312,7 +1312,7 @@ async function saveAdminLoginCredentials() {
 }
 
 function applySiteSettings() {
-  const raw = localStorage.getItem('al-site-settings');
+  const raw = alGet('al-site-settings');
   if (!raw) return;
   const s = JSON.parse(raw);
   if (s.heroTitle) document.getElementById('hero-title').innerHTML = escapeHtml(s.heroTitle).replace(/\n/g, '<br>');
@@ -1354,7 +1354,7 @@ function getSubmissionCount(name) {
 
 function renderAdminUsers() {
   const list = document.getElementById('admin-users-list');
-  const users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  const users = JSON.parse(alGet('al-users') || '[]');
   renderAdminOverviewStats();
   if (users.length === 0) { list.innerHTML = '<p style="color:var(--muted);font-family:var(--mono);font-size:12px;">No users yet.</p>'; return; }
 
@@ -1394,7 +1394,7 @@ function renderAdminUsers() {
 }
 
 function openUserDetail(idx) {
-  const users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  const users = JSON.parse(alGet('al-users') || '[]');
   const u = users[idx];
   if (!u) return;
   document.getElementById('ud-title').textContent = '@' + u.name;
@@ -1453,17 +1453,17 @@ async function syncBlockedToSupabase(name, blocked) {
 }
 
 async function toggleBlockUser(idx) {
-  let users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  let users = JSON.parse(alGet('al-users') || '[]');
   const u = users[idx];
   if (!u) return;
   const willBlock = !u.blocked;
   if (willBlock && !confirm(`Block @${u.name}? They won't be able to log in until unblocked.`)) return;
   const ok = await syncBlockedToSupabase(u.name, willBlock);
   if (!ok) return;
-  users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  users = JSON.parse(alGet('al-users') || '[]');
   const i = users.findIndex(x => x.name === u.name);
   if (i !== -1) users[i] = { ...users[i], blocked: willBlock };
-  localStorage.setItem('al-users', JSON.stringify(users));
+  alSet('al-users', JSON.stringify(users));
   // If the blocked user is currently logged in on this device, sign them out immediately.
   if (willBlock && currentUser && currentUser.name === u.name) {
     currentUser = null;
@@ -1482,7 +1482,7 @@ async function toggleBlockUser(idx) {
 async function ownerToggleBanUser(name) {
   if (!currentUserIsOwner()) return;
   if (isOwnerName(name)) { showToast('The owner account can\'t be banned.', {type:'error'}); return; }
-  let users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  let users = JSON.parse(alGet('al-users') || '[]');
   const idx = users.findIndex(u => u.name === name);
   if (idx === -1) { showToast('Could not find that account.', {type:'error'}); return; }
   const u = users[idx];
@@ -1490,10 +1490,10 @@ async function ownerToggleBanUser(name) {
   if (willBan && !confirm(`Ban @${u.name}? They won't be able to log in or chat until unbanned.`)) return;
   const ok = await syncBlockedToSupabase(u.name, willBan);
   if (!ok) return;
-  users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  users = JSON.parse(alGet('al-users') || '[]');
   const i = users.findIndex(x => x.name === name);
   if (i !== -1) users[i] = { ...users[i], blocked: willBan };
-  localStorage.setItem('al-users', JSON.stringify(users));
+  alSet('al-users', JSON.stringify(users));
   if (willBan && currentUser && currentUser.name === u.name) {
     currentUser = null;
     saveUser();
@@ -1507,22 +1507,32 @@ async function ownerToggleBanUser(name) {
 }
 
 function deleteUserAccount(idx) {
-  let users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  let users = JSON.parse(alGet('al-users') || '[]');
   const u = users[idx];
   if (!u) return;
   if (!confirm(`Permanently delete @${u.name}'s account? This cannot be undone.`)) return;
   const wasCurrent = currentUser && currentUser.name === u.name;
   users.splice(idx, 1);
-  localStorage.setItem('al-users', JSON.stringify(users));
+  alSet('al-users', JSON.stringify(users));
   // Without this, the row survives in Supabase's `users` table, and
   // pullUsersFromSupabase() (which adds back any account it finds in the DB
   // that this browser doesn't have locally) re-creates the "deleted" account
   // the moment the admin panel refreshes or is reopened.
   if (isDbConnected()) {
-    sb.rpc('admin_delete_user_account', { p_username: u.name }).then(({ error }) => {
+    sb.rpc('admin_delete_user_account', { p_username: u.name }).then(({ data, error }) => {
       if (error) {
         console.error('Server-side account delete failed:', error);
         showToast('Deleted locally, but the account may reappear — server delete failed: ' + error.message, {type:'error'});
+        return;
+      }
+      // App-side row is already gone — the login identity itself is
+      // best-effort from here: if it fails, the account's data is still
+      // fully deleted, only their login credential would linger, so this
+      // never undoes or blocks the deletion that already succeeded above.
+      if (data && data.owner_id) {
+        sb.functions.invoke('delete-auth-user', { body: { owner_id: data.owner_id } }).catch(e => {
+          console.error('delete-auth-user failed (account data was still deleted):', e);
+        });
       }
     });
   }
@@ -1591,7 +1601,7 @@ function addAvatar() {
 
       const avatars = getAvatars();
       avatars.push({ id: 'av_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7), src: dataUrl, gender: gender });
-      localStorage.setItem('al-avatars', JSON.stringify(avatars));
+      alSet('al-avatars', JSON.stringify(avatars));
       input.value = '';
       renderAdminAvatars();
     };
@@ -1606,11 +1616,11 @@ function removeAvatar(id) {
   if (!confirm('Remove this profile picture? Users who selected it will lose it.')) return;
   let avatars = getAvatars();
   avatars = avatars.filter(a => a.id !== id);
-  localStorage.setItem('al-avatars', JSON.stringify(avatars));
+  alSet('al-avatars', JSON.stringify(avatars));
   // Clear this avatar from any users who had it selected
-  let users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  let users = JSON.parse(alGet('al-users') || '[]');
   users = users.map(u => u.avatar === id ? { ...u, avatar: null } : u);
-  localStorage.setItem('al-users', JSON.stringify(users));
+  alSet('al-users', JSON.stringify(users));
   renderAdminAvatars();
 }
 
@@ -1706,11 +1716,11 @@ function viewReportedUser(name) {
 // tab) and marks the report resolved. toggleBlockUser handles its own
 // confirmation prompt, so we just check whether the block actually happened.
 function blockReportedUser(name, idx) {
-  let users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  let users = JSON.parse(alGet('al-users') || '[]');
   const uIdx = users.findIndex(u => u.name === name);
   if (uIdx === -1) { showToast('Could not find that account.', { type: 'error' }); return; }
   toggleBlockUser(uIdx);
-  const after = JSON.parse(localStorage.getItem('al-users') || '[]')[uIdx];
+  const after = JSON.parse(alGet('al-users') || '[]')[uIdx];
   if (after && after.blocked) setReportStatus(idx, 'resolved');
 }
 
@@ -2086,15 +2096,15 @@ async function verifyAdminCode() {
 // ═══════════════════════════════════════════════════════════════
 
 function getGenres() {
-  const raw = localStorage.getItem('al-genres');
+  const raw = alGet('al-genres');
   if (raw) return JSON.parse(raw);
   const defaults = ["Indie Pop", "Art Pop", "Indie Folk", "Alternative", "Piano Ballad", "Chamber Pop", "Indie Rock", "Alt Folk", "Post-Punk"];
-  localStorage.setItem('al-genres', JSON.stringify(defaults));
+  alSet('al-genres', JSON.stringify(defaults));
   return defaults;
 }
 
 function saveGenres(genres) {
-  localStorage.setItem('al-genres', JSON.stringify(genres));
+  alSet('al-genres', JSON.stringify(genres));
   if (isDbConnected()) {
     sb.from('genres').delete().neq('name', '__never__').then(() => {
       const rows = genres.map(g => ({ name: g }));

@@ -357,8 +357,8 @@ function notifyUser(username, type, title, body, linkPage, linkArg, fromUser) {
 }
 
 function notifBrowserSupported() { return typeof Notification !== 'undefined'; }
-function notifPrefEnabled() { return localStorage.getItem('al-notifications-enabled') === '1'; }
-function setNotifPref(v) { localStorage.setItem('al-notifications-enabled', v ? '1' : '0'); }
+function notifPrefEnabled() { return alGet('al-notifications-enabled') === '1'; }
+function setNotifPref(v) { alSet('al-notifications-enabled', v ? '1' : '0'); }
 
 // Fires the actual OS-level popup — only if the person opted in AND the
 // browser permission is granted. Wrapped defensively since some browsers
@@ -390,8 +390,8 @@ async function requestBrowserNotifPermission() {
 // the browser permission is still in its default (unanswered) state.
 function maybeShowNotifOptInBanner() {
   if (!notifBrowserSupported()) return;
-  if (localStorage.getItem('al-notif-prompted') === '1') return;
-  if (Notification.permission !== 'default') { localStorage.setItem('al-notif-prompted', '1'); return; }
+  if (alGet('al-notif-prompted') === '1') return;
+  if (Notification.permission !== 'default') { alSet('al-notif-prompted', '1'); return; }
   const banner = document.getElementById('notif-optin-banner');
   if (banner) banner.style.display = 'flex';
 }
@@ -400,7 +400,7 @@ function hideNotifOptInBanner() {
   if (banner) banner.style.display = 'none';
 }
 async function handleNotifOptIn(enable) {
-  localStorage.setItem('al-notif-prompted', '1');
+  alSet('al-notif-prompted', '1');
   hideNotifOptInBanner();
   if (enable) {
     const ok = await requestBrowserNotifPermission();
@@ -625,17 +625,17 @@ function fallbackCopy(text, confirmEl) {
 }
 
 function loadData() {
-  const savedSongs = localStorage.getItem('al-songs');
+  const savedSongs = alGet('al-songs');
   songs = savedSongs ? JSON.parse(savedSongs) : JSON.parse(JSON.stringify(DEFAULT_SONGS));
   if (!savedSongs) saveSongs();
 
-  submissions = JSON.parse(localStorage.getItem('al-submissions') || '[]');
-  reports = JSON.parse(localStorage.getItem('al-reports') || '[]');
+  submissions = JSON.parse(alGet('al-submissions') || '[]');
+  reports = JSON.parse(alGet('al-reports') || '[]');
 
-  const savedUser = localStorage.getItem('al-user');
+  const savedUser = alGet('al-user');
   if (savedUser) currentUser = JSON.parse(savedUser);
 
-  const savedAdmin = localStorage.getItem('al-admin');
+  const savedAdmin = alGet('al-admin');
   if (savedAdmin) currentAdmin = JSON.parse(savedAdmin);
 
   backfillFriendCodes();
@@ -750,10 +750,10 @@ function applyTheme(mode) {
     themeCheckbox.checked = !prefersDark;
     sysBtn.classList.add('active-mode');
   }
-  localStorage.setItem('al-theme', mode);
+  alSet('al-theme', mode);
 }
 
-const savedTheme = localStorage.getItem('al-theme') || 'system';
+const savedTheme = alGet('al-theme') || 'system';
 applyTheme(savedTheme);
 
 themeCheckbox.addEventListener('change', () => {
@@ -761,7 +761,7 @@ themeCheckbox.addEventListener('change', () => {
 });
 sysBtn.addEventListener('click', () => { applyTheme('system'); });
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-  if ((localStorage.getItem('al-theme') || 'system') === 'system') applyTheme('system');
+  if ((alGet('al-theme') || 'system') === 'system') applyTheme('system');
 });
 
 // Header moon-icon button just drives the (visually hidden) legacy theme
@@ -771,6 +771,93 @@ const btnHeaderTheme = document.getElementById('btn-header-theme');
 if (btnHeaderTheme) {
   btnHeaderTheme.addEventListener('click', () => { themeCheckbox.click(); });
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  APP ICON THEME (favicon + PWA manifest icon)
+// ═══════════════════════════════════════════════════════════════
+// The in-app header logo (.logo-mark) already re-colors itself via CSS
+// variables whenever the site theme flips (see --logo-ring/--logo-dot in
+// styles.css), so it always tracks Light/Dark/System automatically.
+// This section is about the browser-tab favicon and the icon used when
+// someone "Add to Home Screen"s the site, which are plain image files and
+// can't repaint themselves via CSS — they have to be swapped out for a
+// different file. 'auto' (default) makes them follow the site theme too;
+// Light/Dark lets a user pin the icon regardless of site theme.
+
+const ICON_ASSETS = {
+  dark: {
+    manifest: 'manifest.json',
+    favicon512: 'icons/icon-512.png',
+    favicon192: 'icons/icon-192.png',
+    favicon32: 'icons/icon-32.png',
+    favicon16: 'icons/icon-16.png',
+    favicon180: 'icons/icon-180.png',
+  },
+  light: {
+    manifest: 'manifest-light.json',
+    favicon512: 'icons/light/icon-512.png',
+    favicon192: 'icons/light/icon-192.png',
+    favicon32: 'icons/light/icon-32.png',
+    favicon16: 'icons/light/icon-16.png',
+    favicon180: 'icons/light/icon-180.png',
+  },
+};
+
+function resolveIconTheme(pref) {
+  if (pref === 'light' || pref === 'dark') return pref;
+  // 'auto': follow whatever the site theme currently resolved to.
+  return htmlEl.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+}
+
+function applyIconTheme() {
+  const pref = alGet('al-icon-theme') || 'auto';
+  const assets = ICON_ASSETS[resolveIconTheme(pref)];
+
+  const manifestLink = document.getElementById('app-manifest-link');
+  if (manifestLink) manifestLink.setAttribute('href', assets.manifest);
+
+  const map = {
+    'app-favicon-512': assets.favicon512,
+    'app-favicon-192': assets.favicon192,
+    'app-favicon-32': assets.favicon32,
+    'app-favicon-16': assets.favicon16,
+    'app-favicon-180': assets.favicon180,
+  };
+  Object.keys(map).forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.setAttribute('href', map[id]);
+  });
+}
+
+function setIconTheme(mode) {
+  if (mode === 'auto') alRemove('al-icon-theme');
+  else alSet('al-icon-theme', mode);
+  applyIconTheme();
+  updateIconThemeUI();
+}
+
+function updateIconThemeUI() {
+  const mode = alGet('al-icon-theme') || 'auto';
+  const order = ['auto', 'light', 'dark'];
+  order.forEach((m) => {
+    const btn = document.getElementById('icon-mode-' + m);
+    if (btn) btn.classList.toggle('device-mode-active', m === mode);
+  });
+  const glider = document.getElementById('icon-theme-toggle-glider');
+  if (glider) glider.style.transform = `translateX(${order.indexOf(mode) * 38}px)`;
+}
+
+// Keep the favicon/manifest in sync whenever the site theme changes (covers
+// the header sun/moon toggle and the OS-level prefers-color-scheme switch,
+// both of which already call applyTheme() above).
+const _applyThemeOrig = applyTheme;
+applyTheme = function (mode) {
+  _applyThemeOrig(mode);
+  applyIconTheme();
+};
+
+applyIconTheme();
+updateIconThemeUI();
 
 // ═══════════════════════════════════════════════════════════════
 //  HEADER VOLUME PILL (mirrors the Analog HQ background-music toggle)
@@ -815,17 +902,17 @@ document.getElementById('toggle-paypal-setup').addEventListener('click', () => {
 document.getElementById('paypal-id-input').addEventListener('input', () => {
   const val = document.getElementById('paypal-id-input').value.trim();
   if (val) {
-    localStorage.setItem('al-paypal-id', val);
+    alSet('al-paypal-id', val);
     document.getElementById('paypal-saved').style.display = 'block';
     setTimeout(() => { document.getElementById('paypal-saved').style.display = 'none'; }, 2000);
   }
 });
 
-const savedPaypal = localStorage.getItem('al-paypal-id') || '';
+const savedPaypal = alGet('al-paypal-id') || '';
 if (savedPaypal) document.getElementById('paypal-id-input').value = savedPaypal;
 
 document.getElementById('paypal-go-btn').addEventListener('click', () => {
-  const id = localStorage.getItem('al-paypal-id') || '';
+  const id = alGet('al-paypal-id') || '';
   if (!id) {
     document.getElementById('paypal-setup').style.display = 'block';
     document.getElementById('paypal-id-input').focus();
@@ -856,11 +943,11 @@ function trackUsage() {
   const elapsedSec = Math.round((Date.now() - sessionStart) / 1000);
   sessionStart = Date.now();
   if (elapsedSec <= 0 || elapsedSec > 3600) return; // ignore stale/huge gaps (e.g. laptop sleep)
-  let users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  let users = JSON.parse(alGet('al-users') || '[]');
   const idx = users.findIndex(u => u.name === currentUser.name);
   if (idx > -1) {
     users[idx].totalSeconds = (users[idx].totalSeconds || 0) + elapsedSec;
-    localStorage.setItem('al-users', JSON.stringify(users));
+    alSet('al-users', JSON.stringify(users));
   }
 }
 

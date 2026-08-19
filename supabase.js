@@ -13,7 +13,7 @@ let sb = null; // the active supabase client, or null if running local-only
 const DEFAULT_DB_CONFIG = (typeof window !== 'undefined' && window.AFTERLIGHT_DB_CONFIG) || null;
 
 function getDbConfig() {
-  const raw = localStorage.getItem('al-db-config');
+  const raw = alGet('al-db-config');
   if (raw) return JSON.parse(raw);
   if (DEFAULT_DB_CONFIG && DEFAULT_DB_CONFIG.url && DEFAULT_DB_CONFIG.key) return DEFAULT_DB_CONFIG;
   return null;
@@ -23,11 +23,37 @@ function isDbConnected() {
   return !!getDbConfig() && !!sb;
 }
 
+// Supabase's client library persists your login session (the actual thing
+// that goes "expired") by talking directly to the browser's raw localStorage
+// — it has no idea about the safe alGet/alSet/alRemove wrapper defined in
+// config.js. On any device where localStorage is flaky (private browsing,
+// some in-app browsers, storage getting cleared) that session save/reload
+// can silently fail, which is exactly what shows up in the app as
+// "Your session expired" on a chat/comment send, even right after logging
+// in. This adapter hands Supabase the same safe storage everything else
+// uses, so login sessions behave the same on every device.
+const safeSupabaseAuthStorage = {
+  getItem: (key) => alGet(key),
+  setItem: (key, value) => { alSet(key, value); },
+  removeItem: (key) => { alRemove(key); }
+};
+
+function getSupabaseClientOptions() {
+  return {
+    auth: {
+      storage: safeSupabaseAuthStorage,
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    }
+  };
+}
+
 function initSupabaseClient() {
   const cfg = getDbConfig();
   if (!cfg || !cfg.url || !cfg.key) { sb = null; return; }
   try {
-    sb = window.supabase.createClient(cfg.url, cfg.key);
+    sb = window.supabase.createClient(cfg.url, cfg.key, getSupabaseClientOptions());
 
   } catch (e) {
     console.error('Supabase init failed:', e);
@@ -96,7 +122,7 @@ async function connectSupabase() {
   if (!url.startsWith('https://') || !url.includes('supabase.co')) {
     errEl.textContent = 'That doesn\'t look like a valid Supabase URL.'; errEl.style.display = 'block'; return;
   }
-  localStorage.setItem('al-db-config', JSON.stringify({ url, key }));
+  alSet('al-db-config', JSON.stringify({ url, key }));
   initSupabaseClient();
   if (!sb) { errEl.textContent = 'Failed to initialize connection.'; errEl.style.display = 'block'; return; }
   initLivePresence();
@@ -351,7 +377,7 @@ async function loadLiveStatsCounts() {
       if (elSource) elSource.textContent = 'Could not load live counts from Supabase — check your connection on the Database tab.';
     }
   } else {
-    const users = JSON.parse(localStorage.getItem('al-users') || '[]');
+    const users = JSON.parse(alGet('al-users') || '[]');
     const rooms = typeof getRooms === 'function' ? getRooms() : [];
     let msgCount = 0;
     rooms.forEach(r => { msgCount += (typeof getMessages === 'function' ? getMessages(r.name).length : 0); });
@@ -386,7 +412,7 @@ async function syncNowToSupabase() {
 
 function disconnectSupabase() {
   if (!confirm('Disconnect from Supabase? The site will go back to local-only mode (data stays in this browser only). Your Supabase project and its data are NOT deleted.')) return;
-  localStorage.removeItem('al-db-config');
+  alRemove('al-db-config');
   teardownLivePresence();
   sb = null;
   updateDbStatusUI();
@@ -512,12 +538,12 @@ async function pullSharedDataFromSupabase() {
     const { data: adminRows } = await sb.from('admin_settings').select('*').eq('id', 1).limit(1);
     if (adminRows && adminRows.length) {
       const a = adminRows[0];
-      if (a.access_code_hash) localStorage.setItem('al-admin-code-hash', a.access_code_hash);
-      if (a.admin_email) localStorage.setItem('al-admin-email', a.admin_email);
+      if (a.access_code_hash) alSet('al-admin-code-hash', a.access_code_hash);
+      if (a.admin_email) alSet('al-admin-email', a.admin_email);
       // Owner is a shared, site-wide setting, so an explicit "no owner" (null) from
       // Supabase should clear it locally too, not just leave whatever was here before.
-      if (a.owner_username) localStorage.setItem('al-owner-username', a.owner_username);
-      else localStorage.removeItem('al-owner-username');
+      if (a.owner_username) alSet('al-owner-username', a.owner_username);
+      else alRemove('al-owner-username');
       // admin_pass_hash is no longer synced from Supabase at all (see pushAdminSettingsToSupabase) —
       // each browser's local copy is set only by typing the password in on that device (see
       // saveAdminLoginCredentials / handleAdminLogin), never pulled from a shared table.
@@ -532,7 +558,7 @@ async function pullSharedDataFromSupabase() {
         if (!bySong[c.song_key]) bySong[c.song_key] = [];
         bySong[c.song_key].push({ author: c.author, text: c.text, time: new Date(c.created_at).getTime() });
       });
-      Object.keys(bySong).forEach(key => localStorage.setItem('al-comments-' + key, JSON.stringify(bySong[key])));
+      Object.keys(bySong).forEach(key => alSet('al-comments-' + key, JSON.stringify(bySong[key])));
     }
   } catch (e) {
     console.error('Pull from Supabase failed:', e);
@@ -643,13 +669,23 @@ create table if not exists dm_messages (
   recipient text not null,
   text text,
   song_key text,
-  gif_url text,
   created_at timestamptz default now()
 );
 
 create table if not exists site_settings (
   key text primary key,
   value text
+);
+
+-- Word list the moderate-message Edge Function reads on every chat/DM
+-- send. 'mask' swaps the matched word for ##### and still posts the
+-- message; 'block' stops the message from posting at all. Managed from
+-- the admin panel (Chat System → Word Filter) — no redeploy needed.
+create table if not exists banned_words (
+  id bigint generated always as identity primary key,
+  word text not null unique,
+  action text not null default 'mask' check (action in ('mask','block')),
+  created_at timestamptz default now()
 );
 
 create table if not exists admin_settings (
@@ -707,6 +743,8 @@ create table if not exists reports (
 alter table admin_settings drop column if exists admin_pass_hash;
 alter table chat_messages  add  column if not exists reply_to bigint;
 alter table chat_messages  add  column if not exists reactions jsonb not null default '{}'::jsonb;
+alter table chat_messages  add  column if not exists gif_url text;
+alter table chat_messages  alter column text drop not null;
 alter table dm_messages    add  column if not exists reply_to bigint;
 alter table dm_messages    add  column if not exists reactions jsonb not null default '{}'::jsonb;
 alter table dm_messages    add  column if not exists gif_url text;
@@ -841,12 +879,31 @@ $$;
 -- browser session that currently owns the alias (owns_alias) may call this.
 -- Deleting the users row cascades to user_auth automatically; everything
 -- else is cleaned up explicitly since it isn't foreign-keyed to users.
+--
+-- Approved songs credited to this account are NOT deleted — they stay in
+-- the archive, but the credit is anonymized to "[deleted user]" so it no
+-- longer points at a profile that's gone. Only their still-pending
+-- (not-yet-approved) submissions are removed, since those live in a
+-- separate table and were never part of the public archive.
+--
+-- Returns the account's owner_id (its real Supabase Auth uid) alongside
+-- ok:true, NOT a bare boolean — this app-side row is only half of what
+-- "delete account" means. The caller (deleteMyAccount() in auth.js) passes
+-- this owner_id straight to the delete-auth-user Edge Function afterward,
+-- which is what actually removes the login identity itself
+-- (auth.users) using the service-role key. Without that second step the
+-- person's real email (or made-up alias email) would sit in auth.users
+-- forever as an orphaned, still-loggable-in identity with no profile left.
+drop function if exists alias_delete_account(text);
 create or replace function alias_delete_account(p_username text)
-returns boolean language plpgsql security definer set search_path = public as $$
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v_owner_id uuid;
 begin
   if not owns_alias(p_username) then
     raise exception 'Not authorized to delete this account.';
   end if;
+  select owner_id into v_owner_id from users where username = p_username;
+  update songs             set credit = 'Submitted by [deleted user]' where credit = 'Submitted by ' || p_username;
   delete from chat_messages   where author = p_username;
   delete from comments        where author = p_username;
   delete from dm_messages     where sender = p_username or recipient = p_username;
@@ -855,6 +912,91 @@ begin
   delete from submissions     where submitted_by = p_username;
   delete from reports         where reporter = p_username;
   delete from users           where username = p_username; -- cascades to user_auth
+  return jsonb_build_object('ok', true, 'owner_id', v_owner_id);
+end;
+$$;
+
+-- Admin/owner equivalent of alias_delete_account — lets the site admin (or
+-- owner) permanently remove ANY account and everything tied to it, not just
+-- the browser session that owns it. Without this, the admin panel's delete
+-- button only ever removed the account from this browser's localStorage:
+-- the row stayed in Supabase, so pullUsersFromSupabase() (which repopulates
+-- 'al-users' with every account it finds in the DB) simply added it right
+-- back on the next refresh. Same shape of fix as chat rooms/messages below.
+-- Same song-anonymizing behavior as alias_delete_account above.
+--
+-- Also returns owner_id (see alias_delete_account above for why) — the
+-- admin panel passes it to the same delete-auth-user Edge Function so an
+-- admin-deleted account's login identity is actually removed too, not just
+-- its app-side row.
+drop function if exists admin_delete_user_account(text);
+create or replace function admin_delete_user_account(p_username text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v_owner_id uuid;
+begin
+  if not (is_site_admin() or is_owner_session()) then
+    raise exception 'Not authorized to delete this account.';
+  end if;
+  if exists (select 1 from admin_settings where id = 1 and owner_username = p_username) then
+    raise exception 'The owner account can''t be deleted.';
+  end if;
+  select owner_id into v_owner_id from users where username = p_username;
+  update songs             set credit = 'Submitted by [deleted user]' where credit = 'Submitted by ' || p_username;
+  delete from chat_messages   where author = p_username;
+  delete from comments        where author = p_username;
+  delete from dm_messages     where sender = p_username or recipient = p_username;
+  delete from friend_requests where from_user = p_username or to_user = p_username;
+  delete from notifications   where username = p_username or from_user = p_username;
+  delete from submissions     where submitted_by = p_username;
+  delete from reports         where reporter = p_username or reported_user = p_username;
+  delete from song_ratings    where voter_id = p_username;
+  delete from users           where username = p_username; -- cascades to user_auth
+  return jsonb_build_object('ok', true, 'owner_id', v_owner_id);
+end;
+$$;
+
+-- Deletes a song by its "#NNN" key, then closes the gap by shifting every
+-- song numbered higher than it down by one — so numbering is always
+-- continuous (delete #005 out of #001-#008, and old #006/#007/#008 become
+-- the new #005/#006/#007). Cascades that same renumber to every other
+-- table that stores song_key as a plain string (comments, song_ratings,
+-- dm_messages) since none of them are foreign keys and would otherwise
+-- silently point at a number that no longer means what it used to. Runs as
+-- one function so it's all-or-nothing. Custom/manual keys that don't match
+-- the "#NNN" pattern are deleted but never trigger a renumber, since
+-- there's no safe ordering for them.
+create or replace function admin_delete_song(p_song_key text)
+returns boolean language plpgsql security definer set search_path = public as $$
+declare
+  del_num int;
+  r record;
+begin
+  if not (is_site_admin() or is_owner_session()) then
+    raise exception 'Not authorized to delete songs.';
+  end if;
+
+  delete from songs where song_key = p_song_key;
+  delete from comments where song_key = p_song_key;
+  delete from song_ratings where song_key = p_song_key;
+  update dm_messages set song_key = null where song_key = p_song_key;
+
+  del_num := nullif(regexp_replace(p_song_key, '\\D', '', 'g'), '')::int;
+  if del_num is not null then
+    for r in
+      select song_key,
+             '#' || lpad(((regexp_replace(song_key, '\\D', '', 'g'))::int - 1)::text, 3, '0') as new_key
+      from songs
+      where song_key ~ '^#\\d+$'
+        and (regexp_replace(song_key, '\\D', '', 'g'))::int > del_num
+      order by (regexp_replace(song_key, '\\D', '', 'g'))::int asc
+    loop
+      update songs        set song_key = r.new_key where song_key = r.song_key;
+      update comments      set song_key = r.new_key where song_key = r.song_key;
+      update song_ratings  set song_key = r.new_key where song_key = r.song_key;
+      update dm_messages   set song_key = r.new_key where song_key = r.song_key;
+    end loop;
+  end if;
+
   return true;
 end;
 $$;
@@ -864,6 +1006,8 @@ grant execute on function alias_login(text, text)                   to anon, aut
 grant execute on function alias_change_password(text, text, text)   to anon, authenticated;
 grant execute on function alias_name_taken(text)                    to anon, authenticated;
 grant execute on function alias_delete_account(text)                to anon, authenticated;
+grant execute on function admin_delete_user_account(text)           to authenticated;
+grant execute on function admin_delete_song(text)                   to authenticated;
 
 -- ───────────────────── BLOCK / BAN GUARD ─────────────────────
 
@@ -911,6 +1055,7 @@ alter table song_ratings    enable row level security;
 alter table notifications   enable row level security;
 alter table submissions     enable row level security;
 alter table reports         enable row level security;
+alter table banned_words    enable row level security;
 
 -- ───────────────────── POLICIES ─────────────────────
 -- EVERY policy is dropped before it's created. This is what makes the
@@ -932,6 +1077,14 @@ create policy "Admin deletes users"       on users for delete to authenticated u
 
 drop policy if exists "Owner reads own auth row" on user_auth;
 create policy "Owner reads own auth row" on user_auth for select to authenticated using (owner_id = auth.uid());
+
+-- Admin panel reads/writes this through normal RLS. The moderate-message
+-- Edge Function itself uses the service role key, which bypasses RLS
+-- entirely, so it can always read the list regardless of these policies.
+drop policy if exists "Admin read banned_words" on banned_words;
+drop policy if exists "Admin write banned_words" on banned_words;
+create policy "Admin read banned_words" on banned_words for select to authenticated using (is_site_admin());
+create policy "Admin write banned_words" on banned_words for all to authenticated using (is_site_admin()) with check (is_site_admin());
 
 drop policy if exists "Public read songs"  on songs;
 drop policy if exists "Admin write songs"  on songs;
@@ -964,6 +1117,9 @@ drop policy if exists "Anyone reacts to chat_messages"      on chat_messages;
 create policy "Public read chat_messages"           on chat_messages for select using (true);
 create policy "Session sends chat_messages"         on chat_messages for insert to authenticated with check (owns_alias(author));
 create policy "Owner or admin deletes chat_messages" on chat_messages for delete to authenticated using (owns_alias(author) or is_site_admin());
+-- Reactions are the only field any signed-in user (not just the author) needs
+-- to update on someone else's message, so this policy is intentionally broad —
+-- the app only ever writes the \`reactions\` column here.
 create policy "Anyone reacts to chat_messages"      on chat_messages for update to authenticated using (true) with check (true);
 
 drop policy if exists "Public read comments"           on comments;
@@ -1010,6 +1166,8 @@ drop policy if exists "Participants react dm_messages" on dm_messages;
 create policy "Participants read dm_messages" on dm_messages for select to authenticated using (owns_alias(sender) or owns_alias(recipient));
 create policy "Sender sends dm_messages"      on dm_messages for insert to authenticated with check (owns_alias(sender));
 create policy "Sender deletes dm_messages"    on dm_messages for delete to authenticated using (owns_alias(sender) or is_site_admin());
+-- Either side of the DM needs to be able to toggle a reaction, not just the
+-- sender — same broad-update-for-reactions pattern used on chat_messages.
 create policy "Participants react dm_messages" on dm_messages for update to authenticated
   using (owns_alias(sender) or owns_alias(recipient))
   with check (owns_alias(sender) or owns_alias(recipient));
@@ -1051,7 +1209,7 @@ create policy "Admin deletes reports" on reports for delete to authenticated usi
 
 -- ───────────────────── LENGTH LIMITS ─────────────────────
 alter table chat_messages drop constraint if exists chat_messages_text_length;
-alter table chat_messages add  constraint chat_messages_text_length check (char_length(text) between 1 and 2000);
+alter table chat_messages add  constraint chat_messages_text_length check (text is null or char_length(text) <= 2000);
 alter table comments      drop constraint if exists comments_text_length;
 alter table comments      add  constraint comments_text_length check (char_length(text) between 1 and 2000);
 alter table dm_messages   drop constraint if exists dm_messages_text_length;
@@ -1148,7 +1306,6 @@ alter table notifications   replica identity full;
 -- ─────────────────────────── DONE ───────────────────────────
 -- If this ran without a red error, every table, policy, index, rate limit
 -- and realtime channel the site needs now exists.
-$
 `;
 
   const confirmEl = document.getElementById('sql-copy-confirm');

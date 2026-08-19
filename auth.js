@@ -81,14 +81,14 @@ async function startGoogleAuth(intent) {
     if (intent === 'admin') { showAdminGoogleFallback(); } else { showGoogleAlias(intent); }
     return;
   }
-  localStorage.setItem('al-google-intent', intent); // 'login', 'signup', or 'admin' — read back after the redirect
+  alSet('al-google-intent', intent); // 'login', 'signup', or 'admin' — read back after the redirect
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: window.location.origin + window.location.pathname }
   });
   if (error) {
     showToast('Google sign-in failed to start: ' + error.message + '\n\nMake sure the Google provider is enabled in your Supabase project and this exact URL is added as a Redirect URL there.', {type:'error'});
-    localStorage.removeItem('al-google-intent');
+    alRemove('al-google-intent');
   }
 }
 
@@ -99,8 +99,8 @@ async function handleGoogleAuthCallback() {
   try {
     const { data: { session } } = await sb.auth.getSession();
     if (!session || !session.user) return;
-    const intent = localStorage.getItem('al-google-intent') || 'login';
-    localStorage.removeItem('al-google-intent');
+    const intent = alGet('al-google-intent') || 'login';
+    alRemove('al-google-intent');
     const email = session.user.email;
     const displayName = (session.user.user_metadata && (session.user.user_metadata.full_name || session.user.user_metadata.name)) || (email ? email.split('@')[0] : 'user');
 
@@ -146,7 +146,7 @@ async function handleGoogleAuthCallback() {
         return;
       }
 
-      let users = JSON.parse(localStorage.getItem('al-users') || '[]');
+      let users = JSON.parse(alGet('al-users') || '[]');
 
       if (!account) {
         // Signup intent, no existing account — create one for real, in Supabase.
@@ -190,7 +190,7 @@ async function handleGoogleAuthCallback() {
       } else {
         localRec.googleEmail = email;
       }
-      localStorage.setItem('al-users', JSON.stringify(users));
+      alSet('al-users', JSON.stringify(users));
 
       currentUser = { name: account.name };
       saveUser();
@@ -213,7 +213,7 @@ async function handleGoogleAuthCallback() {
 
 // ═══════════════════════════════════════════════════════════════
 function getOwnerUsername() {
-  return localStorage.getItem('al-owner-username') || '';
+  return alGet('al-owner-username') || '';
 }
 function isOwnerName(name) {
   const owner = getOwnerUsername();
@@ -329,8 +329,8 @@ let aliasSessionChannel = null;
 
 function setActiveAliasSession(name, token) {
   if (!token) return;
-  localStorage.setItem('al-session-token', token);
-  localStorage.setItem('al-session-user', name);
+  alSet('al-session-token', token);
+  alSet('al-session-user', name);
   subscribeAliasSession(name, token);
 }
 
@@ -347,7 +347,7 @@ function subscribeAliasSession(username, myToken) {
 
 function teardownAliasSession(clearStorage) {
   if (aliasSessionChannel) { try { sb.removeChannel(aliasSessionChannel); } catch (e) {} aliasSessionChannel = null; }
-  if (clearStorage) { localStorage.removeItem('al-session-token'); localStorage.removeItem('al-session-user'); }
+  if (clearStorage) { alRemove('al-session-token'); alRemove('al-session-user'); }
 }
 
 function handleForcedLogout() {
@@ -376,7 +376,7 @@ async function finishAliasLogin(name, token, users, local) {
       // logins server-side; this just keeps the local admin/owner UI honest).
       local.blocked = !!remote.blocked;
     }
-    localStorage.setItem('al-users', JSON.stringify(users));
+    alSet('al-users', JSON.stringify(users));
   } catch (e) { console.error('Profile pull failed:', e); }
   if (local && local.blocked) { showToast('This account has been blocked by the site owner.', { type: 'error' }); return; }
   currentUser = { name: name };
@@ -395,7 +395,7 @@ async function handleUserLogin() {
   const pass = document.getElementById('ul-pass').value;
   const err = document.getElementById('ul-error');
   err.style.display = 'none';
-  let users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  let users = JSON.parse(alGet('al-users') || '[]');
   let local = users.find(u => u.name === name);
 
   if (isDbConnected()) {
@@ -509,7 +509,7 @@ async function handleUserSignup() {
   if (!isValidEmail(email)) { err.textContent = 'Please enter a valid email address.'; err.style.display='block'; return; }
   if (pass.length < 6) { err.textContent = 'Password must be at least 6 characters.'; err.style.display='block'; return; }
   if (pass !== pass2) { err.textContent = 'Passwords do not match.'; err.style.display='block'; return; }
-  let users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  let users = JSON.parse(alGet('al-users') || '[]');
   if (users.find(u => u.name === name)) { err.textContent = 'That anonymous name is already taken.'; err.style.display='block'; return; }
   if (users.find(u => (u.email || '').toLowerCase() === email.toLowerCase())) { err.textContent = 'An account with that email already exists.'; err.style.display='block'; return; }
   // Don't write the account yet — hold it as a pending signup until the
@@ -629,19 +629,19 @@ async function savePendingSignup() {
     codeHash: await hashVerificationCode(pendingSignup.code, pendingSignup.email),
     expires: pendingSignup.expires
   };
-  try { localStorage.setItem('al-pending-signup', JSON.stringify(safe)); } catch (e) { /* quota */ }
+  try { alSet('al-pending-signup', JSON.stringify(safe)); } catch (e) { /* quota */ }
 }
 
 // Called once at startup. Brings back an in-progress verification after a
 // refresh, and clears it out if the 15-minute window already elapsed.
 function restorePendingSignup() {
   let raw;
-  try { raw = localStorage.getItem('al-pending-signup'); } catch (e) { return; }
+  try { raw = alGet('al-pending-signup'); } catch (e) { return; }
   if (!raw) return;
   let saved;
-  try { saved = JSON.parse(raw); } catch (e) { localStorage.removeItem('al-pending-signup'); return; }
+  try { saved = JSON.parse(raw); } catch (e) { alRemove('al-pending-signup'); return; }
   if (!saved || !saved.expires || Date.now() > saved.expires) {
-    localStorage.removeItem('al-pending-signup');
+    alRemove('al-pending-signup');
     return;
   }
   pendingSignup = saved;         // note: no .code and no .pass — see below
@@ -651,7 +651,7 @@ function restorePendingSignup() {
 
 function clearPendingSignup() {
   pendingSignup = null;
-  try { localStorage.removeItem('al-pending-signup'); } catch (e) { /* ignore */ }
+  try { alRemove('al-pending-signup'); } catch (e) { /* ignore */ }
 }
 
 // Sends the real verification email via EmailJS (see config.js for setup steps).
@@ -665,9 +665,9 @@ let emailjsInitializedKey = null;
 // panel hasn't been used yet — so either setup path works.
 function getEmailjsConfig() {
   const local = (typeof localStorage !== 'undefined') ? {
-    publicKey: localStorage.getItem('al-emailjs-publickey') || '',
-    serviceId: localStorage.getItem('al-emailjs-serviceid') || '',
-    templateId: localStorage.getItem('al-emailjs-templateid') || ''
+    publicKey: alGet('al-emailjs-publickey') || '',
+    serviceId: alGet('al-emailjs-serviceid') || '',
+    templateId: alGet('al-emailjs-templateid') || ''
   } : null;
   if (local && local.publicKey && local.serviceId && local.templateId) return local;
   const fileCfg = (typeof window !== 'undefined' && window.AFTERLIGHT_EMAILJS_CONFIG) || null;
@@ -820,7 +820,7 @@ async function handleVerifyEmail() {
     return;
   }
   resetVerifyAttempts();
-  let users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  let users = JSON.parse(alGet('al-users') || '[]');
   if (users.find(u => u.name === pendingSignup.name)) {
     err.textContent = 'That username was just taken. Please sign up again with a different one.';
     err.style.display = 'block';
@@ -832,7 +832,7 @@ async function handleVerifyEmail() {
     bio: '', pronouns: '', favoriteGenre: '', emailVerified: true, totalSeconds: 0,
     code: generateFriendCode(new Set(users.map(u => u.code).filter(Boolean)))
   });
-  localStorage.setItem('al-users', JSON.stringify(users));
+  alSet('al-users', JSON.stringify(users));
   currentUser = { name: pendingSignup.name };
   saveUser();
   // Register the real, cross-device account (bcrypt-hashed server-side) if
@@ -900,7 +900,7 @@ function submitGoogleAlias() {
   const err = document.getElementById('ga-error');
   const name = input ? input.value.trim() : '';
   if (!isValidAnonName(name)) { err.textContent = 'Invalid name.'; err.style.display = 'block'; return; }
-  let users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  let users = JSON.parse(alGet('al-users') || '[]');
   const existing = users.find(u => u.name === name);
   if (!existing && googleAliasIntent === 'login') {
     err.textContent = "No account found with that name. Please sign up first.";
@@ -919,7 +919,7 @@ function submitGoogleAlias() {
   }
   const isNewAccount = !existing;
   if (isNewAccount) users.push({ name: name, password: 'google_oauth', created: Date.now(), avatar: null, gender: '', bio: '', totalSeconds: 0, code: generateFriendCode(new Set(users.map(u => u.code).filter(Boolean))) });
-  localStorage.setItem('al-users', JSON.stringify(users));
+  alSet('al-users', JSON.stringify(users));
   currentUser = { name: name };
   saveUser();
   closeAuth();
@@ -945,7 +945,11 @@ function userLogout() {
 
 // Permanently deletes the signed-in account. Removes the server-side row
 // (and everything tied to it, via the alias_delete_account RPC) first when
-// connected, then clears every local trace and logs the browser out.
+// connected, then removes the underlying Supabase Auth identity itself via
+// the delete-auth-user Edge Function (see supabase/functions/delete-auth-
+// user) so the account can't linger as an orphaned, still-loggable-in
+// identity with no profile left — then clears every local trace and logs
+// the browser out.
 // Returns true on success, false if the server delete failed (in which case
 // nothing local is touched, so the caller can let the person retry).
 async function deleteMyAccount() {
@@ -955,10 +959,22 @@ async function deleteMyAccount() {
   if (isDbConnected() && sb) {
     try {
 
-      const { error } = await sb.rpc('alias_delete_account', { p_username: name });
+      const { data, error } = await sb.rpc('alias_delete_account', { p_username: name });
       if (error) {
         showToast(error.message || 'Could not delete your account on the server. Please try again.', { type: 'error' });
         return false;
+      }
+      // The app-side row (and everything tied to it) is already gone at
+      // this point — that's the part the person actually notices. Removing
+      // the auth identity itself is best-effort from here on: if it fails,
+      // their data is still fully deleted, only their login credential
+      // would linger, so this never blocks completing the deletion.
+      if (data && data.owner_id) {
+        try {
+          await sb.functions.invoke('delete-auth-user', { body: { owner_id: data.owner_id } });
+        } catch (e) {
+          console.error('delete-auth-user failed (account data was still deleted):', e);
+        }
       }
     } catch (e) {
       console.error('alias_delete_account failed:', e);
@@ -968,13 +984,13 @@ async function deleteMyAccount() {
   }
 
   // Server delete succeeded (or we're in local-only mode) — clear local traces.
-  let users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  let users = JSON.parse(alGet('al-users') || '[]');
   users = users.filter(u => u.name !== name);
-  localStorage.setItem('al-users', JSON.stringify(users));
+  alSet('al-users', JSON.stringify(users));
 
-  let reqs = JSON.parse(localStorage.getItem('al-friend-requests') || '[]');
+  let reqs = JSON.parse(alGet('al-friend-requests') || '[]');
   reqs = reqs.filter(r => r.from !== name && r.to !== name);
-  localStorage.setItem('al-friend-requests', JSON.stringify(reqs));
+  alSet('al-friend-requests', JSON.stringify(reqs));
 
   teardownAliasSession(true);
   currentUser = null;
@@ -1045,7 +1061,7 @@ async function confirmDeleteAccountBtn() {
 }
 
 function userPfpHTML(name) {
-  const users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  const users = JSON.parse(alGet('al-users') || '[]');
   const record = users.find(u => u.name === name);
   const chosen = record && record.avatar ? getAvatars().find(a => a.id === record.avatar) : null;
   if (chosen) return `<img class="user-badge-pfp" src="${chosen.src}" alt="">`;
@@ -1195,7 +1211,7 @@ async function shareProfile() {
 
 function getCurrentUserRecord() {
   if (!currentUser) return null;
-  const users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  const users = JSON.parse(alGet('al-users') || '[]');
   return users.find(u => u.name === currentUser.name) || null;
 }
 
@@ -1210,7 +1226,7 @@ function isSongSaved(number) {
 
 function toggleSaveSong(number, btnEl) {
   if (!currentUser) { showLogin(); return; }
-  let users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  let users = JSON.parse(alGet('al-users') || '[]');
   const idx = users.findIndex(u => u.name === currentUser.name);
   if (idx === -1) return;
   const saved = Array.isArray(users[idx].saved) ? users[idx].saved.slice() : [];
@@ -1219,7 +1235,7 @@ function toggleSaveSong(number, btnEl) {
   if (pos === -1) { saved.push(number); nowSaved = true; }
   else { saved.splice(pos, 1); nowSaved = false; }
   users[idx] = { ...users[idx], saved: saved };
-  localStorage.setItem('al-users', JSON.stringify(users));
+  alSet('al-users', JSON.stringify(users));
   if (btnEl) {
     btnEl.classList.toggle('saved', nowSaved);
     btnEl.textContent = nowSaved ? '♥' : '♡';
@@ -1249,9 +1265,9 @@ const DEFAULT_AVATARS = [
 // there's something to pick from immediately; the admin can add more or remove any of
 // these later from Admin → Avatars, same as their own uploads.
 function getAvatars() {
-  const raw = localStorage.getItem('al-avatars');
+  const raw = alGet('al-avatars');
   if (raw === null) {
-    localStorage.setItem('al-avatars', JSON.stringify(DEFAULT_AVATARS));
+    alSet('al-avatars', JSON.stringify(DEFAULT_AVATARS));
     return DEFAULT_AVATARS.slice();
   }
   try { return JSON.parse(raw) || []; } catch (e) { return []; }
@@ -1483,11 +1499,11 @@ async function saveProfileSetup() {
   const pronouns = pronounsSelect === 'custom' ? pronounsCustom : pronounsSelect;
   const favoriteGenre = (document.getElementById('fa-genre').value || '').trim().slice(0, 80);
 
-  let users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  let users = JSON.parse(alGet('al-users') || '[]');
   const idx = users.findIndex(u => u.name === currentUser.name);
   if (idx === -1) return;
   users[idx] = { ...users[idx], avatar: profileSetupSelectedAvatar || users[idx].avatar, bio: bio, pronouns: pronouns, favoriteGenre: favoriteGenre };
-  localStorage.setItem('al-users', JSON.stringify(users));
+  alSet('al-users', JSON.stringify(users));
   closeForcedAvatarPicker();
   await pushUserProfile();
   showToast('Profile saved!');
@@ -1516,7 +1532,7 @@ function saveUserSettings() {
     err.style.display = 'block'; return;
   }
 
-  let users = JSON.parse(localStorage.getItem('al-users') || '[]');
+  let users = JSON.parse(alGet('al-users') || '[]');
   const oldName = currentUser.name;
   const isRenaming = newName !== oldName;
   const currentRecord = users.find(u => u.name === oldName) || {};
@@ -1557,7 +1573,7 @@ function saveUserSettings() {
     }
     return updated;
   });
-  localStorage.setItem('al-users', JSON.stringify(users));
+  alSet('al-users', JSON.stringify(users));
   currentUser = { name: newName };
   pendingAvatarSelection = undefined;
   saveUser();
