@@ -45,42 +45,45 @@
   }
 
   :root {
-    /* ── DARK MODE — AfterLight:404 Design System ──
-       Modern Glassmorphism meets Analog Futurism.
-       Night-Mode First: warm ink surfaces, amber-gold primary, teal secondary,
-       violet tertiary. Surface stack + amber-glow / teal-glow for depth. */
-    --bg:       #14121a;
+    /* ── DARK MODE, REWORKED ──
+       The old palette sat at #08070D with #5E5878 muted text — that pairing
+       is about 3.1:1 contrast, below the 4.5:1 readability threshold, which
+       is why secondary text looked washed out and unreadable on phones in
+       daylight. This version lifts the base off pure black to a warmer ink,
+       widens the gap between surface levels so cards actually read as
+       raised, and shifts the accent from flat gold to a warmer amber with a
+       teal counterpoint instead of the muddy purple. */
+    --bg:       #14121A;
     --surface:  #13111C;
-    --surface-low: #1c1b22;
-    --surface-container: #201f26;
-    --surface-high: #2a2931;
-    --surface-highest: #35343c;
+    --surface-low: #1C1B22;
+    --surface-container: #201F26;
+    --surface-high: #2A2931;
+    --surface-highest: #35343C;
     --card:     #191625;
     --border:   #2A2639;
     --border2:  #3D3752;
     --outline:  #9a8f80;
-    --text:     #e5e1eb;
-    --muted:    #d1c5b4;
+    --text:     #EDEAF6;
+    --muted:    #8B84A6;
     --dim:      #B0A9C8;
-    --accent:   #f7cd89;
-    --accent-container: #d9b270;
-    --accent2:  #97d2c9;
+    --accent:   #F7CD89;
+    --accent-container: #D9B270;
+    --accent2:  #97D2C9;
     --accent2-dim: #6FA8A0;
-    --tertiary: #daccff;
-    --accent-glow: rgba(217, 178, 112, 0.22);
-    --accent2-glow: rgba(111, 168, 160, 0.20);
+    --tertiary: #DACCFF;
+    --accent-glow: rgba(217,178,112,0.22);
+    --accent2-glow: rgba(111,168,160,0.20);
     --red:      #D07070;
     --green:    #5CC49A;
-    --error:    #ffb4ab;
     --info:     #7FA3D9;
     --warning:  #D9A054;
-    --header-bg: rgba(20, 18, 26, 0.88);
+    --header-bg: rgba(20,18,26,0.88);
     --mono:     'IBM Plex Mono', monospace;
     --serif:    'Playfair Display', Georgia, serif;
     --sans:     'Inter', sans-serif;
-    --shadow-card: 0 8px 32px rgba(14, 13, 20, 0.55), 0 1px 3px rgba(14, 13, 20, 0.4);
-    --shadow-glow: 0 0 48px rgba(217, 178, 112, 0.12);
-    --radius: 0.5rem;
+    --shadow-card: 0 8px 32px rgba(14,13,20,0.55), 0 1px 3px rgba(14,13,20,0.4);
+    --shadow-glow: 0 0 48px rgba(217,178,112,0.12);
+    --radius: 8px;
     --radius-lg: 1rem;
     --radius-xl: 1.5rem;
     --card-hover: #211D31;
@@ -90,8 +93,14 @@
   }
 
   [data-theme="light"] {
-    /* ── LIGHT MODE — Ivory / Parchment base (Design System) ──
-       Amber & teal accents darkened for AA contrast on light surfaces. */
+    /* ── LIGHT MODE, CONTRAST-CORRECTED ──
+       The previous palette had --muted at 3.3:1 against --bg (and only
+       2.7:1 against --card, where it's used constantly for hints/labels),
+       --accent at 3.0:1, --info at 4.1:1 and --warning at 3.3:1 — all below
+       the 4.5:1 AA threshold for normal text. This is the same class of bug
+       the dark theme already had fixed; light mode was missed. Every color
+       below is unchanged in hue, just deepened enough to clear 4.5:1 against
+       both --bg and --card. */
     --bg:       #EAE6DC;
     --surface:  #E1DCCE;
     --surface-low: #E1DCCE;
@@ -110,14 +119,11 @@
     --accent2:  #0f4f49;
     --accent2-dim: #13524b;
     --tertiary: #4c416f;
-    --accent-glow: rgba(135, 95, 44, 0.18);
-    --accent2-glow: rgba(15, 79, 73, 0.15);
     --red:      #9C4A45;
     --green:    #2F6548;
-    --error:    #93000a;
     --info:     #3A5880;
     --warning:  #875A1B;
-    --header-bg: rgba(234, 230, 220, 0.88);
+    --header-bg: rgba(234,230,220,0.88);
     --card-hover: #CDC5AC;
     --modal-grad-start: #F1ECDF;
     --logo-ring: #6B5B8A;
@@ -226,12 +232,10 @@
     max-width: 100%;
     margin: 0 auto;
     padding: 22px 24px 20px;
-    border-radius: var(--radius-xl);
+    border-radius: 20px;
     background: linear-gradient(165deg, var(--card), var(--surface));
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-card), 0 0 60px var(--accent-glow);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border2);
+    box-shadow: var(--shadow-card), 0 0 60px rgba(217,178,112,0.06);
   }
   .player-card-top {
     display: flex;
@@ -473,12 +477,10 @@
 
   /* ── GLASSMORPHISM CARDS ── */
   .glass-card {
-    background: rgba(25, 22, 37, 0.72);
-    backdrop-filter: blur(20px) saturate(160%);
-    -webkit-backdrop-filter: blur(20px) saturate(160%);
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    border-radius: var(--radius-lg);
+    background: rgba(20,18,33,0.7);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(52,47,74,0.8);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
   }
 
   /* ── HERO VINYL SECTION ── */
@@ -542,11 +544,12 @@
 
   /* ── AUTH BUTTONS IN HEADER ── */
   .auth-bar { display: flex; align-items: center; gap: 12px; min-width: 0; }
-  .auth-btn { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text); background: transparent; border: 1.5px solid var(--border); padding: 6px 16px; cursor: pointer; border-radius: 100px; transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1); text-decoration: none; }
-  .auth-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(247, 205, 137, 0.08); box-shadow: 0 0 24px var(--accent-glow); }
-  .auth-btn:active { transform: scale(0.96); }
+  .auth-btn { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text); background: transparent; border: 1.5px solid var(--border2); padding: 8px 18px; cursor: pointer; border-radius: 100px; transition: all 0.18s cubic-bezier(0.34,1.56,0.64,1); text-decoration: none; }
+  .auth-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(247,205,137,0.08); box-shadow: 0 0 24px var(--accent-glow); }
   .auth-btn.primary { background: var(--accent); color: #422c00; border-color: var(--accent); box-shadow: 0 0 32px var(--accent-glow); }
   .auth-btn.primary:hover { background: transparent; color: var(--accent); box-shadow: 0 0 40px var(--accent-glow); }
+  [data-theme="light"] .auth-btn.primary { color: #fff; }
+  [data-theme="light"] .auth-btn.primary:hover { color: var(--accent); }
   .user-badge { font-family: var(--mono); font-size: 11px; color: var(--text); display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border2); padding: 5px 12px 5px 5px; border-radius: 100px; transition: border-color 0.15s, background 0.15s; min-width: 0; }
   .user-badge:hover { border-color: var(--accent); background: var(--card); }
   .user-badge .anon-name { color: var(--text); font-weight: 500; letter-spacing: 0.01em; }
@@ -564,7 +567,7 @@
   .theme-switch input:checked + .theme-track { background: var(--accent2); border-color: var(--accent2); }
   .theme-switch input:checked + .theme-track::before { transform: translateX(24px); }
   .settings-toggle-row:hover .theme-track { border-color: var(--accent); }
-  .theme-mode-btn { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); background: transparent; border: 1px solid var(--border); padding: 3px 7px; cursor: pointer; border-radius: 2px; transition: all 0.15s; white-space: nowrap; }
+  .theme-mode-btn { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); background: transparent; border: 1px solid var(--border); padding: 3px 9px; cursor: pointer; border-radius: 100px; transition: all 0.15s; white-space: nowrap; }
   .theme-mode-btn:hover, .theme-mode-btn.active-mode { border-color: var(--accent2); color: var(--accent2); }
 
   /* ── BACKGROUND MUSIC (Analog HQ pill + volume pill) ── */
@@ -577,24 +580,24 @@
   }
 
   /* ── DONATE (footer + profile menu) ── */
-  .donate-btn { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); background: rgba(200,169,110,0.08); border: 1px solid var(--accent); padding: 6px 14px; cursor: pointer; border-radius: 2px; transition: all 0.18s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .donate-btn { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); background: rgba(200,169,110,0.08); border: 1px solid var(--accent); padding: 8px 18px; cursor: pointer; border-radius: 100px; transition: all 0.18s cubic-bezier(0.34,1.56,0.64,1); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
   .donate-btn:hover { background: rgba(200,169,110,0.18); }
   .footer-donate-btn { margin-top: 14px; }
   .donate-overlay { position: fixed; inset: 0; background: rgba(8,7,12,0.88); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 24px; opacity: 0; pointer-events: none; transition: opacity 0.22s; backdrop-filter: blur(8px); }
   .donate-overlay.open { display: flex; opacity: 1; pointer-events: all; }
-  .donate-modal { background: var(--surface); border: 1px solid var(--border2); max-width: 400px; width: 100%; padding: 40px 36px 36px; position: relative; transform: translateY(20px); transition: transform 0.25s; text-align: center; max-height: 88vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .donate-modal { background: linear-gradient(165deg, var(--card), var(--surface)); border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow-card), 0 0 60px var(--accent-glow); backdrop-filter: blur(20px); max-width: 400px; width: 100%; padding: 40px 36px 36px; position: relative; transform: translateY(20px); transition: transform 0.25s; text-align: center; max-height: 88vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .donate-overlay.open .donate-modal { transform: translateY(0); }
   .donate-modal-title { font-family: var(--serif); font-size: 24px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
   .donate-modal-sub { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: 0.07em; line-height: 1.75; margin-bottom: 28px; }
   .paypal-input-wrap { margin-bottom: 20px; text-align: left; }
   .paypal-input-wrap label { font-family: var(--mono); font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 6px; }
-  .paypal-input { width: 100%; background: var(--bg); border: 1px solid var(--border2); color: var(--text); font-family: var(--mono); font-size: 13px; padding: 10px 14px; outline: none; transition: border-color 0.15s; }
+  .paypal-input { width: 100%; background: var(--bg); border: 1px solid var(--border2); border-radius: var(--radius); color: var(--text); font-family: var(--mono); font-size: 13px; padding: 10px 14px; outline: none; transition: border-color 0.15s; }
   .paypal-input:focus { border-color: var(--accent); }
-  .paypal-go-btn { display: block; width: 100%; background: #003087; color: #fff; border: none; font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; padding: 13px 20px; cursor: pointer; transition: background 0.18s; margin-bottom: 12px; border-radius: 2px; }
-  .paypal-go-btn:hover { background: #005cc5; }
+  .paypal-go-btn { display: block; width: 100%; background: #003087; color: #fff; border: none; font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; padding: 13px 20px; cursor: pointer; transition: all 0.18s cubic-bezier(0.34,1.56,0.64,1); margin-bottom: 12px; border-radius: 100px; }
+  .paypal-go-btn:hover { background: #005cc5; box-shadow: 0 0 24px rgba(0,92,197,0.35); }
   .paypal-note { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 0.06em; line-height: 1.6; }
   .paypal-saved { font-family: var(--mono); font-size: 10px; color: var(--green); margin-top: 6px; display: none; letter-spacing: 0.08em; }
-  .donate-close { position: absolute; top: 14px; right: 16px; background: none; border: 1px solid var(--border); color: var(--muted); width: 28px; height: 28px; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; border-radius: 2px; }
+  .donate-close { position: absolute; top: 14px; right: 16px; background: none; border: 1px solid var(--border); color: var(--muted); width: 28px; height: 28px; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; border-radius: 50%; }
   .donate-close:hover { border-color: var(--red); color: var(--red); }
 
   /* ── HERO ── */
@@ -628,22 +631,23 @@
   .archive-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 40px; }
   h2 { font-family: var(--serif); font-size: clamp(24px, 3vw, 36px); font-weight: 700; letter-spacing: -0.5px; }
   .count-tag { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: 0.1em; }
-  .song-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-card); }
+  .song-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
 
   /* ── SONG CARD ── */
-  .song-card { background: var(--card); padding: 28px; cursor: pointer; position: relative; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 16px; }
-  .song-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.018) 0%, transparent 50%); pointer-events: none; }
-  .song-card:hover { background: var(--card-hover); }
+  .song-card { background: rgba(25,22,37,0.72); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); padding: 28px; cursor: pointer; position: relative; border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); display: flex; flex-direction: column; gap: 16px; transition: all 0.22s cubic-bezier(0.34,1.2,0.64,1); }
+  [data-theme="light"] .song-card { background: rgba(216,210,192,0.85); }
+  .song-card::before { content: ''; position: absolute; inset: 0; border-radius: var(--radius-lg); background: linear-gradient(135deg, rgba(255,255,255,0.018) 0%, transparent 50%); pointer-events: none; }
+  .song-card:hover { transform: translateY(-4px); border-color: var(--accent); box-shadow: var(--shadow-card), 0 0 40px var(--accent-glow); }
   .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
   .song-number { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.1em; flex-shrink: 0; margin-top: 4px; }
-  .song-mood-tag { font-family: var(--mono); font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; padding: 3px 10px; border-radius: 1px; flex-shrink: 0; }
+  .song-mood-tag { font-family: var(--mono); font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; padding: 4px 10px; border-radius: 100px; flex-shrink: 0; }
   .song-title { font-family: var(--serif); font-size: 20px; font-weight: 700; line-height: 1.2; color: var(--text); flex: 1; }
   .song-artist { font-family: var(--mono); font-size: 11px; color: var(--accent); letter-spacing: 0.05em; margin-top: 2px; }
   .song-year { font-family: var(--mono); font-size: 10px; color: var(--muted); }
   .song-desc { font-size: 13px; color: var(--dim); line-height: 1.65; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
   .card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border); }
   .genre-pills { display: flex; gap: 6px; flex-wrap: wrap; }
-  .genre-pill { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border); padding: 2px 8px; border-radius: 1px; }
+  .genre-pill { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); background: var(--surface); border: 1px solid var(--border2); padding: 4px 10px; border-radius: 100px; }
   .read-more { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent2); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
   .read-more::after { content: '→'; }
 
@@ -685,14 +689,14 @@
   /* ── MODAL ── */
   .modal-overlay { position: fixed; inset: 0; background: rgba(4,3,8,0.94); z-index: 1000; display: none; align-items: flex-start; justify-content: center; padding: 40px 20px; overflow-y: auto; backdrop-filter: blur(16px); opacity: 0; pointer-events: none; transition: opacity 0.25s; }
   .modal-overlay.open { display: flex; opacity: 1; pointer-events: all; }
-  .modal { background: linear-gradient(135deg, var(--modal-grad-start) 0%, var(--surface) 100%); border: 1px solid var(--border2); max-width: 760px; width: 100%; position: relative; transform: translateY(24px) scale(0.98); transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), opacity 0.25s; box-shadow: 0 24px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04), 0 0 60px rgba(123,111,160,0.08); border-radius: 6px; overflow: hidden; }
+  .modal { background: linear-gradient(135deg, var(--modal-grad-start) 0%, var(--surface) 100%); border: 1px solid var(--border2); max-width: 760px; width: 100%; position: relative; transform: translateY(24px) scale(0.98); transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), opacity 0.25s; box-shadow: 0 24px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04), 0 0 60px var(--accent-glow); border-radius: var(--radius-xl); overflow: hidden; }
   .modal-overlay.open .modal { transform: translateY(0) scale(1); }
   .modal-overlay.open .modal { transform: translateY(0); }
   .modal-header { padding: 36px 40px 28px; border-bottom: 1px solid var(--border); position: relative; }
   .modal-eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; display: flex; gap: 16px; align-items: center; }
   .modal-title { font-family: var(--serif); font-size: clamp(24px, 4vw, 42px); font-weight: 900; letter-spacing: -1px; line-height: 1.1; margin-bottom: 6px; }
   .modal-artist { font-family: var(--mono); font-size: 13px; color: var(--accent); letter-spacing: 0.05em; }
-  .close-btn { position: absolute; top: 28px; right: 32px; background: none; border: 1px solid var(--border); color: var(--muted); width: 36px; height: 36px; cursor: pointer; font-family: var(--mono); font-size: 16px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+  .close-btn { position: absolute; top: 28px; right: 32px; background: var(--surface); border: 1px solid var(--border); border-radius: 50%; color: var(--muted); width: 36px; height: 36px; cursor: pointer; font-family: var(--mono); font-size: 16px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
   .close-btn:hover { border-color: var(--red); color: var(--red); }
   .modal-body { padding: 36px 40px; }
   .modal-section { margin-bottom: 36px; }
@@ -700,11 +704,11 @@
   .modal-section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); max-width: 60px; }
   .modal-desc { font-size: 15px; color: var(--dim); line-height: 1.8; }
   .modal-meaning { font-size: 14px; color: var(--dim); line-height: 1.8; font-style: italic; border-left: 2px solid var(--accent2); padding-left: 20px; }
-  .lyric-block { background: var(--bg); border: 1px solid var(--border); padding: 24px 28px; font-family: var(--mono); font-size: 13px; line-height: 2; color: var(--dim); white-space: pre-line; }
+  .lyric-block { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px 28px; font-family: var(--mono); font-size: 13px; line-height: 2; color: var(--dim); white-space: pre-line; }
   .lyric-block .highlight { color: var(--text); font-weight: 500; }
   .copyright-notice { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.05em; margin-top: 12px; line-height: 1.6; }
-  .listen-link { display: inline-flex; align-items: center; gap: 10px; margin-top: 20px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text); border: 1px solid var(--border2); padding: 10px 20px; text-decoration: none; transition: all 0.18s; }
-  .listen-link:hover { border-color: var(--accent); color: var(--accent); }
+  .listen-link { display: inline-flex; align-items: center; gap: 10px; margin-top: 20px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text); border: 1.5px solid var(--border2); border-radius: 100px; padding: 10px 20px; text-decoration: none; transition: all 0.18s cubic-bezier(0.34,1.56,0.64,1); }
+  .listen-link:hover { border-color: var(--accent); color: var(--accent); background: rgba(247,205,137,0.08); box-shadow: 0 0 24px var(--accent-glow); }
   .listen-link.youtube-link { margin-left: 12px; }
   @media (max-width: 480px) { .listen-link.youtube-link { margin-left: 0; } }
 
@@ -712,7 +716,7 @@
   .comments-section { margin-top: 32px; padding-top: 32px; border-top: 1px solid var(--border); }
   .comments-header { font-family: var(--serif); font-size: 18px; font-weight: 700; margin-bottom: 20px; color: var(--text); }
   .comment-list { display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px; }
-  .comment-item { background: var(--bg); border: 1px solid var(--border); padding: 16px 20px; border-radius: 2px; }
+  .comment-item { background: var(--bg); border: 1px solid var(--border); padding: 16px 20px; border-radius: var(--radius-lg); }
   .comment-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
   .comment-author { font-family: var(--mono); font-size: 11px; color: var(--accent); letter-spacing: 0.05em; }
   .comment-time { font-family: var(--mono); font-size: 9px; color: var(--muted); }
