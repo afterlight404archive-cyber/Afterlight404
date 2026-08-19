@@ -45,37 +45,44 @@
   }
 
   :root {
-    /* ── DARK MODE, REWORKED ──
-       The old palette sat at #08070D with #5E5878 muted text — that pairing
-       is about 3.1:1 contrast, below the 4.5:1 readability threshold, which
-       is why secondary text looked washed out and unreadable on phones in
-       daylight. This version lifts the base off pure black to a warmer ink,
-       widens the gap between surface levels so cards actually read as
-       raised, and shifts the accent from flat gold to a warmer amber with a
-       teal counterpoint instead of the muddy purple. */
-    --bg:       #0B0A11;
+    /* ── DARK MODE — AfterLight:404 Design System ──
+       Modern Glassmorphism meets Analog Futurism.
+       Night-Mode First: warm ink surfaces, amber-gold primary, teal secondary,
+       violet tertiary. Surface stack + amber-glow / teal-glow for depth. */
+    --bg:       #14121a;
     --surface:  #13111C;
+    --surface-low: #1c1b22;
+    --surface-container: #201f26;
+    --surface-high: #2a2931;
+    --surface-highest: #35343c;
     --card:     #191625;
     --border:   #2A2639;
     --border2:  #3D3752;
-    --text:     #EDEAF6;
-    --muted:    #8B84A6;
+    --outline:  #9a8f80;
+    --text:     #e5e1eb;
+    --muted:    #d1c5b4;
     --dim:      #B0A9C8;
-    --accent:   #D9B270;
-    --accent2:  #6FA8A0;
-    --accent-glow: rgba(217,178,112,0.22);
-    --accent2-glow: rgba(111,168,160,0.20);
+    --accent:   #f7cd89;
+    --accent-container: #d9b270;
+    --accent2:  #97d2c9;
+    --accent2-dim: #6FA8A0;
+    --tertiary: #daccff;
+    --accent-glow: rgba(217, 178, 112, 0.22);
+    --accent2-glow: rgba(111, 168, 160, 0.20);
     --red:      #D07070;
     --green:    #5CC49A;
+    --error:    #ffb4ab;
     --info:     #7FA3D9;
     --warning:  #D9A054;
-    --header-bg: rgba(11,10,17,0.92);
+    --header-bg: rgba(20, 18, 26, 0.88);
     --mono:     'IBM Plex Mono', monospace;
     --serif:    'Playfair Display', Georgia, serif;
     --sans:     'Inter', sans-serif;
-    --shadow-card: 0 6px 28px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.35);
-    --shadow-glow: 0 0 48px rgba(217,178,112,0.10);
-    --radius: 4px;
+    --shadow-card: 0 8px 32px rgba(14, 13, 20, 0.55), 0 1px 3px rgba(14, 13, 20, 0.4);
+    --shadow-glow: 0 0 48px rgba(217, 178, 112, 0.12);
+    --radius: 0.5rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.5rem;
     --card-hover: #211D31;
     --modal-grad-start: #1A1727;
     --logo-ring: #7A6BA0;
@@ -83,29 +90,34 @@
   }
 
   [data-theme="light"] {
-    /* ── LIGHT MODE, CONTRAST-CORRECTED ──
-       The previous palette had --muted at 3.3:1 against --bg (and only
-       2.7:1 against --card, where it's used constantly for hints/labels),
-       --accent at 3.0:1, --info at 4.1:1 and --warning at 3.3:1 — all below
-       the 4.5:1 AA threshold for normal text. This is the same class of bug
-       the dark theme already had fixed; light mode was missed. Every color
-       below is unchanged in hue, just deepened enough to clear 4.5:1 against
-       both --bg and --card. */
+    /* ── LIGHT MODE — Ivory / Parchment base (Design System) ──
+       Amber & teal accents darkened for AA contrast on light surfaces. */
     --bg:       #EAE6DC;
     --surface:  #E1DCCE;
+    --surface-low: #E1DCCE;
+    --surface-container: #D8D2C0;
+    --surface-high: #CDC5AC;
+    --surface-highest: #C6BFA9;
     --card:     #D8D2C0;
     --border:   #C6BFA9;
     --border2:  #AFA68C;
+    --outline:  #9a8f80;
     --text:     #2B2720;
     --muted:    #5B5646;
     --dim:      #4D473B;
     --accent:   #875F2C;
-    --accent2:  #6B5B8A;
+    --accent-container: #875F2C;
+    --accent2:  #0f4f49;
+    --accent2-dim: #13524b;
+    --tertiary: #4c416f;
+    --accent-glow: rgba(135, 95, 44, 0.18);
+    --accent2-glow: rgba(15, 79, 73, 0.15);
     --red:      #9C4A45;
     --green:    #2F6548;
+    --error:    #93000a;
     --info:     #3A5880;
     --warning:  #875A1B;
-    --header-bg: rgba(234,230,220,0.88);
+    --header-bg: rgba(234, 230, 220, 0.88);
     --card-hover: #CDC5AC;
     --modal-grad-start: #F1ECDF;
     --logo-ring: #6B5B8A;
@@ -214,10 +226,12 @@
     max-width: 100%;
     margin: 0 auto;
     padding: 22px 24px 20px;
-    border-radius: 20px;
+    border-radius: var(--radius-xl);
     background: linear-gradient(165deg, var(--card), var(--surface));
-    border: 1px solid var(--border2);
-    box-shadow: var(--shadow-card), 0 0 60px rgba(217,178,112,0.06);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-card), 0 0 60px var(--accent-glow);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
   }
   .player-card-top {
     display: flex;
@@ -459,10 +473,12 @@
 
   /* ── GLASSMORPHISM CARDS ── */
   .glass-card {
-    background: rgba(20,18,33,0.7);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(52,47,74,0.8);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
+    background: rgba(25, 22, 37, 0.72);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    border-radius: var(--radius-lg);
   }
 
   /* ── HERO VINYL SECTION ── */
@@ -526,10 +542,11 @@
 
   /* ── AUTH BUTTONS IN HEADER ── */
   .auth-bar { display: flex; align-items: center; gap: 12px; min-width: 0; }
-  .auth-btn { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text); background: transparent; border: 1px solid var(--border2); padding: 6px 14px; cursor: pointer; border-radius: 2px; transition: all 0.18s; text-decoration: none; }
-  .auth-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .auth-btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
-  .auth-btn.primary:hover { background: transparent; color: var(--accent); }
+  .auth-btn { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text); background: transparent; border: 1.5px solid var(--border); padding: 6px 16px; cursor: pointer; border-radius: 100px; transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1); text-decoration: none; }
+  .auth-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(247, 205, 137, 0.08); box-shadow: 0 0 24px var(--accent-glow); }
+  .auth-btn:active { transform: scale(0.96); }
+  .auth-btn.primary { background: var(--accent); color: #422c00; border-color: var(--accent); box-shadow: 0 0 32px var(--accent-glow); }
+  .auth-btn.primary:hover { background: transparent; color: var(--accent); box-shadow: 0 0 40px var(--accent-glow); }
   .user-badge { font-family: var(--mono); font-size: 11px; color: var(--text); display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border2); padding: 5px 12px 5px 5px; border-radius: 100px; transition: border-color 0.15s, background 0.15s; min-width: 0; }
   .user-badge:hover { border-color: var(--accent); background: var(--card); }
   .user-badge .anon-name { color: var(--text); font-weight: 500; letter-spacing: 0.01em; }
