@@ -256,9 +256,9 @@ function _ensureRecentDelegation(grid) {
   if (_recentDelegated || !grid) return;
   _recentDelegated = true;
   grid.addEventListener('click', function (e) {
-    const btn = e.target.closest('.recent-cover');
-    if (!btn || !grid.contains(btn)) return;
-    const i = +btn.getAttribute('data-index');
+    const row = e.target.closest('.recent-song-bar, .dm-song-card');
+    if (!row || !grid.contains(row)) return;
+    const i = +row.getAttribute('data-index');
     if (Number.isFinite(i)) openSongFromRecent(i);
   });
 }
@@ -303,18 +303,20 @@ function renderRecentlyAdded(force) {
     const i = n - 1 - k;
     const s = songs[i];
     const mood = (typeof MOOD_MAP !== 'undefined' && s && MOOD_MAP[s.mood]) ? MOOD_MAP[s.mood] : null;
-    const letter = _escapeAttr((s.title || '?').charAt(0).toUpperCase());
     const title = _escapeAttr(s.title || '');
     const artist = _escapeAttr(s.artist || '');
-    let coverStyle = '';
-    if (mood) {
-      const bg = mood.bg || 'var(--surface-high)';
-      const col = mood.color || 'var(--accent)';
-      coverStyle = 'background:linear-gradient(145deg,' + bg + ',color-mix(in oklab,' + col + ' 35%,#1a1510))';
-    }
+    const moodLabel = mood ? _escapeAttr(mood.label || s.mood || '') : '';
+    const moodColor = mood && mood.color ? mood.color : 'var(--accent)';
+    // Same bar style as Saved Songs (dm-song-card): note + title + artist · mood
     parts[k] =
-      '<button type="button" class="recent-cover" data-index="' + i + '" title="' + title + ' — ' + artist + '">' +
-        '<div class="recent-cover-art" style="' + coverStyle + '"><span>' + letter + '</span></div>' +
+      '<button type="button" class="dm-song-card recent-song-bar" data-index="' + i + '" title="' + title + ' — ' + artist + '">' +
+        '<div class="dsc-note">♪</div>' +
+        '<div class="dsc-info">' +
+          '<div class="dsc-title">' + title + '</div>' +
+          '<div class="dsc-artist">' + artist +
+            (moodLabel ? ' · <span style="color:' + moodColor + '">' + moodLabel + '</span>' : '') +
+          '</div>' +
+        '</div>' +
       '</button>';
   }
   grid.innerHTML = parts.join('');
