@@ -86,7 +86,9 @@ function renderChatsListPage() {
   const roomRowHTML = (r, showDot) => {
     showDot = showDot || isRoomUnread(r.name);
     const count = (msgsByRoom[r.name] || []).length;
-    const meta = r.description ? escapeHtml(r.description) : (count + ' message' + (count === 1 ? '' : 's'));
+    const activeApprox = Math.max(1, Math.min(count, 12));
+    const meta = (r.memberCount ? r.memberCount + ' members' : (count + ' messages')) +
+      (count ? ' · ' + activeApprox + ' active' : '');
     return `<div class="room-row" onclick="openTopicChat('${escapeJs(r.name)}')">
       <div class="room-row-avatar">${escapeHtml(r.name.slice(0, 1).toUpperCase())}</div>
       <div class="room-row-text">
@@ -98,14 +100,27 @@ function renderChatsListPage() {
     </div>`;
   };
 
+  let lastGlobalPreview = '';
+  try {
+    const gMsgs = getMessages('general') || [];
+    if (gMsgs.length) {
+      const last = gMsgs[gMsgs.length - 1];
+      const t = (last.text || '').slice(0, 60);
+      lastGlobalPreview = t ? `"${escapeHtml(t)}${t.length >= 60 ? '…' : ''}"` : '';
+    }
+  } catch (e) {}
+
   let html = `
     <div class="chats-list-sectionlabel">Global</div>
     <div class="global-chat-card" onclick="showPage('chat')">
       <div class="global-chat-avatar"><span class="gca-dot"></span></div>
       <div class="global-chat-text">
-        <div class="global-chat-title">Global Chat</div>
+        <div class="global-chat-title-row">
+          <div class="global-chat-title">Global Chat</div>
+          <span class="global-chat-now">Now</span>
+        </div>
         <div class="global-chat-sub">${getLiveOnlineCount().toLocaleString()} online</div>
-        <div class="global-chat-desc">Talk about anything music.</div>
+        ${lastGlobalPreview ? `<div class="global-chat-preview">${lastGlobalPreview}</div>` : '<div class="global-chat-desc">Talk about anything music.</div>'}
       </div>
       <span class="room-row-chev">›</span>
     </div>`;
@@ -122,6 +137,39 @@ function renderChatsListPage() {
     html += `<p class="friends-empty">No rooms yet. Tap + above to create one.</p>`;
   }
   body.innerHTML = html;
+
+  // Recent DMs aside
+  const asideDms = document.getElementById('chats-aside-dms');
+  if (asideDms && typeof getFriendsList === 'function' && currentUser) {
+    const friends = getFriendsList();
+    const withPreview = friends.map(n => ({ name: n, preview: typeof getDmPreview === 'function' ? getDmPreview(n) : { text: '', time: 0 } }));
+    withPreview.sort((a, b) => (b.preview.time || 0) - (a.preview.time || 0));
+    const top = withPreview.slice(0, 3);
+    if (top.length) {
+      asideDms.innerHTML = top.map(f => {
+        const initials = escapeHtml(f.name.slice(0, 2).toUpperCase());
+        const preview = f.preview.text
+          ? escapeHtml((f.preview.mine ? 'You: ' : '') + f.preview.text).slice(0, 36)
+          : 'Say hi';
+        const timeStr = f.preview.time && typeof formatDmRowTime === 'function' ? formatDmRowTime(f.preview.time) : '';
+        return `<div class="chats-aside-dm" onclick="openDm('${escapeJs(f.name)}')">
+          <div class="friend-row-avatar">${initials}</div>
+          <div class="chats-aside-dm-text">
+            <div class="chats-aside-dm-name">${escapeHtml(f.name)}</div>
+            <div class="chats-aside-dm-preview">${preview}${preview.length >= 36 ? '…' : ''}</div>
+          </div>
+          ${timeStr ? `<span class="chats-aside-dm-time">${timeStr}</span>` : ''}
+        </div>`;
+      }).join('');
+    } else {
+      asideDms.innerHTML = '<p class="friends-empty" style="padding:12px 0;">No direct messages yet.</p>';
+    }
+  }
+
+  const filesEl = document.getElementById('chats-stat-files');
+  const audioEl = document.getElementById('chats-stat-audio');
+  if (filesEl) filesEl.textContent = Math.min(99, rooms.reduce((s, r) => s + ((msgsByRoom[r.name] || []).filter(m => m.songKey || m.gifUrl).length), 0) || 0);
+  if (audioEl) audioEl.textContent = Math.min(99, Math.max(0, Math.floor(getLiveOnlineCount() / 400) || 0));
 }
 
 function renderRoomList() {

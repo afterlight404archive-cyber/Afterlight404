@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover, interactive-widget=resizes-content">
-<meta name="theme-color" content="#14121a">
+<meta name="theme-color" content="#0C0B0F">
 <meta name="format-detection" content="telephone=no">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -878,10 +878,31 @@
 <div class="page-section" id="page-chats-list">
 <section class="chats-list-section">
   <div class="chats-list-topbar">
-    <h2>Chats</h2>
+    <div>
+      <h2>Chats</h2>
+      <p class="chats-list-sub">Connect and discuss archival discoveries.</p>
+    </div>
     <button class="chats-list-add-btn" onclick="openCreateRoomSheet()" aria-label="Create a room">+</button>
   </div>
-  <div class="chats-list-body" id="chats-list-body"></div>
+  <div class="chats-list-layout">
+    <div class="chats-list-body" id="chats-list-body"></div>
+    <aside class="chats-list-aside" id="chats-list-aside">
+      <div class="chats-aside-label">Recent Direct Messages</div>
+      <div class="chats-aside-dms" id="chats-aside-dms"></div>
+      <div class="chats-aside-stats">
+        <div class="chats-stat-card chats-stat-dark">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span class="chats-stat-num" id="chats-stat-files">0</span>
+          <span class="chats-stat-lbl">Files Shared</span>
+        </div>
+        <div class="chats-stat-card">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          <span class="chats-stat-num" id="chats-stat-audio">0</span>
+          <span class="chats-stat-lbl">Active Audio</span>
+        </div>
+      </div>
+    </aside>
+  </div>
 </section>
 </div>
 
@@ -897,29 +918,41 @@
   <div id="social-hub-body" style="display:none;">
     <div class="social-hub-header">
       <div class="social-hub-eyebrow">Connect</div>
-      <h2>Social</h2>
-      <p class="social-hub-sub">Talk in the rooms, or add friends and message them one-on-one.</p>
+      <h2>Social Hub</h2>
+      <p class="social-hub-sub">Talk in the curated rooms, or build your archive network by adding friends and messaging them directly.</p>
     </div>
     <div class="social-hub-cards">
-      <div class="social-hub-card" onclick="showPage('chats-list');setBottomNavActive('social');">
-        <div class="shc-icon">◐</div>
-        <div class="shc-text">
-          <div class="shc-title">Chats</div>
-          <div class="shc-desc">Global &amp; topic chat rooms — talk with everyone.</div>
+      <div class="social-hub-card social-hub-card-chat" onclick="showPage('chats-list');setBottomNavActive('social');">
+        <div class="shc-icon-wrap">
+          <div class="shc-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <span class="shc-arrow-icon">→</span>
         </div>
-        <div class="shc-arrow">›</div>
-      </div>
-      <div class="social-hub-card" onclick="showPage('friends')">
-        <div class="shc-icon">☺</div>
         <div class="shc-text">
-          <div class="shc-title">Friends</div>
-          <div class="shc-desc">Add friends by username and message them privately.</div>
+          <div class="shc-title">Join a Chat Room</div>
+          <div class="shc-desc">Global and genre-specific rooms — discuss the analog era with everyone.</div>
+        </div>
+      </div>
+      <div class="social-hub-card social-hub-card-friends" onclick="showPage('friends')">
+        <div class="shc-icon-wrap">
+          <div class="shc-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+          </div>
+          <span class="shc-arrow-icon">→</span>
+        </div>
+        <div class="shc-text">
+          <div class="shc-title">Find Friends</div>
+          <div class="shc-desc">Build your network. Search by username and connect privately.</div>
         </div>
         <span class="shc-badge" id="social-hub-friend-badge" style="display:none;"></span>
-        <div class="shc-arrow">›</div>
       </div>
     </div>
-    <div class="social-hub-friends-preview" id="social-hub-friends-preview"></div>
+    <div class="social-hub-network">
+      <div class="social-hub-network-label">Your Network Activity</div>
+      <div class="social-hub-friends-preview" id="social-hub-friends-preview"></div>
+      <button class="social-hub-view-all" onclick="showPage('friends')" id="social-hub-view-all" style="display:none;">View Complete Network ↓</button>
+    </div>
   </div>
 </section>
 </div>
@@ -929,13 +962,18 @@
 <section class="friends-section">
   <div class="friends-page-header">
     <button class="topic-back-btn friends-back-btn" onclick="showPage('social')">‹</button>
-    <div class="friends-page-title">Friends</div>
-    <button class="friends-compose-btn" onclick="toggleFriendsAddPanel()" aria-label="Add a friend">✎</button>
+    <div class="friends-page-title-block">
+      <div class="friends-page-title">Friends</div>
+      <p class="friends-page-sub">Manage your connections. Discover fellow archivists and expand your musical network.</p>
+    </div>
+    <button class="friends-compose-btn" onclick="toggleFriendsAddPanel()" aria-label="Add a friend" title="Add a friend">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+    </button>
   </div>
 
   <div class="friends-add-panel" id="friends-add-panel">
     <div class="friends-add-row">
-      <input type="text" class="chat-search" id="friend-search-input" placeholder="Search by username or #000-000 code...">
+      <input type="text" class="chat-search" id="friend-search-input" placeholder="Search by username or tag to add a friend...">
       <button class="form-btn" onclick="searchFriendUsers()">Search</button>
     </div>
     <div class="friends-search-results" id="friend-search-results"></div>
@@ -943,17 +981,25 @@
   </div>
 
   <div class="friends-search-bar">
-    <input type="text" class="chat-search" id="friends-page-search" placeholder="Search friends..." oninput="renderMessagesTab()">
+    <div class="friends-search-wrap">
+      <svg class="friends-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" class="chat-search" id="friends-page-search" placeholder="Search friends..." oninput="renderMessagesTab(); renderFriendsGrid();">
+    </div>
   </div>
 
   <div class="friends-tabs">
     <button class="friends-tab-btn active" data-tab="messages" onclick="switchFriendsTab('messages')">Messages</button>
+    <button class="friends-tab-btn" data-tab="friends" onclick="switchFriendsTab('friends')">Friends</button>
     <button class="friends-tab-btn" id="friends-tab-requests-btn" data-tab="requests" onclick="switchFriendsTab('requests')">Requests</button>
   </div>
 
   <div class="friends-body">
     <div class="friends-tab-panel" id="friends-messages-tab">
       <div class="friends-list msg-list" id="friends-messages-list"></div>
+    </div>
+
+    <div class="friends-tab-panel" id="friends-grid-tab" style="display:none;">
+      <div class="friends-cards-grid" id="friends-cards-grid"></div>
     </div>
 
     <div class="friends-tab-panel" id="friends-requests-tab" style="display:none;">
@@ -965,7 +1011,7 @@
         <div class="friends-block-title">Pending (sent)</div>
         <div class="friends-list" id="friend-outgoing-list"></div>
       </div>
-      <p class="friends-empty" id="friends-requests-empty">No pending requests. Tap ✎ above to add someone.</p>
+      <p class="friends-empty" id="friends-requests-empty">No pending requests. Tap the pen above to add someone.</p>
     </div>
   </div>
   <div class="topic-chat-meta" id="friends-meta" style="display:none;">—</div>
@@ -1142,9 +1188,12 @@
 <div class="page-section" id="page-dm">
 <section class="chat-section">
   <div class="dm-empty-state" id="page-dm-empty">
-    <div class="dm-empty-icon">💬</div>
+    <div class="dm-empty-icon-wrap">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.35"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span class="dm-empty-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+    </div>
     <div class="dm-empty-title">Your Messages</div>
-    <div class="dm-empty-sub">Select a conversation to start chatting.</div>
+    <div class="dm-empty-sub">Select a conversation from the sidebar to start chatting, or compose a new message.</div>
   </div>
   <div class="dm-content" id="page-dm-content" style="display:none;">
     <div class="chat-header">

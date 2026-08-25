@@ -2918,3 +2918,378 @@
   border-radius: var(--radius); padding: 12px 14px; margin: 4px 0 18px;
 }
 #delete-account-overlay .form-btn.secondary { margin-top: 10px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   SOCIAL UI — screenshot-matched layout (Social Hub / Friends /
+   Chats list / network cards)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Social Hub — two large cards + network activity */
+.social-hub-section { padding: 32px 24px 48px; max-width: 920px; margin: 0 auto; }
+.social-hub-eyebrow {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 10px;
+  text-align: center;
+}
+.social-hub-header h2 {
+  font-family: var(--serif); font-size: 34px; font-weight: 700;
+  text-align: center; margin-bottom: 10px; color: var(--text);
+}
+.social-hub-sub {
+  font-family: var(--sans); font-size: 14px; color: var(--muted);
+  line-height: 1.65; margin: 0 auto 36px; max-width: 520px; text-align: center;
+}
+.social-hub-cards {
+  display: grid; grid-template-columns: 1fr; gap: 16px; max-width: 720px; margin: 0 auto 40px;
+}
+@media (min-width: 700px) {
+  .social-hub-cards { grid-template-columns: 1fr 1fr; }
+}
+.social-hub-card {
+  display: flex; flex-direction: column; gap: 18px;
+  background: color-mix(in oklab, var(--surface-high) 55%, var(--card));
+  border: 1px solid var(--border); border-radius: 20px;
+  padding: 28px 24px 26px; cursor: pointer; position: relative;
+  min-height: 180px; transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  box-shadow: var(--shadow-card, 0 4px 20px rgba(0,0,0,0.06));
+}
+.social-hub-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in oklab, var(--accent2) 40%, var(--border));
+  box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+}
+.social-hub-card .shc-icon-wrap {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.social-hub-card .shc-icon {
+  width: 48px; height: 48px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in oklab, var(--accent) 18%, transparent);
+  color: var(--accent);
+}
+.social-hub-card-friends .shc-icon {
+  background: color-mix(in oklab, var(--accent2) 18%, transparent);
+  color: var(--accent2);
+}
+.social-hub-card .shc-arrow-icon {
+  font-size: 16px; color: var(--muted); opacity: 0.7;
+}
+.social-hub-card .shc-title {
+  font-family: var(--serif); font-size: 22px; font-weight: 700; margin-bottom: 6px;
+}
+.social-hub-card .shc-desc {
+  font-family: var(--sans); font-size: 13px; color: var(--muted); line-height: 1.55;
+}
+.shc-badge {
+  position: absolute; top: 16px; right: 16px;
+  background: var(--accent2); color: #fff; font-family: var(--mono);
+  font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 100px;
+}
+
+.social-hub-network { max-width: 720px; margin: 0 auto; }
+.social-hub-network-label {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 14px;
+}
+.sh-network-row {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+  padding: 14px 16px; margin-bottom: 10px;
+}
+.sh-network-info { flex: 1; min-width: 0; }
+.sh-network-name { font-family: var(--sans); font-size: 14px; font-weight: 600; color: var(--text); }
+.sh-network-sub { font-family: var(--sans); font-size: 12px; color: var(--muted); margin-top: 2px; }
+.sh-network-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.sh-msg-btn {
+  font-family: var(--sans); font-size: 12px; font-weight: 600;
+  background: var(--accent2); color: #fff; border: none; border-radius: 100px;
+  padding: 8px 16px; cursor: pointer;
+}
+.sh-msg-btn:hover { filter: brightness(1.08); }
+.sh-remove-btn {
+  font-family: var(--sans); font-size: 12px; font-weight: 500;
+  background: transparent; color: var(--muted); border: 1px solid var(--border2);
+  border-radius: 100px; padding: 8px 14px; cursor: pointer;
+}
+.sh-remove-btn:hover { border-color: var(--red); color: var(--red); }
+.social-hub-view-all {
+  display: block; width: 100%; margin-top: 8px; padding: 14px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted); background: none; border: none;
+  cursor: pointer; text-align: center;
+}
+.social-hub-view-all:hover { color: var(--accent2); }
+
+/* Friends page header + subtitle */
+.friends-page-title-block { flex: 1; min-width: 0; }
+.friends-page-title { font-family: var(--serif); font-size: 28px; font-weight: 700; }
+.friends-page-sub {
+  font-family: var(--sans); font-size: 13px; color: var(--muted);
+  line-height: 1.5; margin-top: 4px; max-width: 480px;
+}
+.friends-compose-btn {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: var(--accent2); border: none; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 16px color-mix(in oklab, var(--accent2) 35%, transparent);
+}
+.friends-search-wrap {
+  position: relative; display: flex; align-items: center;
+}
+.friends-search-icon {
+  position: absolute; left: 14px; color: var(--muted); pointer-events: none;
+}
+.friends-search-bar .chat-search {
+  width: 100%; padding-left: 40px !important; border-radius: 12px;
+  background: color-mix(in oklab, var(--surface-high) 70%, var(--card));
+  border: 1px solid var(--border);
+}
+
+/* Friends cards grid */
+.friends-cards-grid {
+  display: grid; grid-template-columns: 1fr; gap: 16px;
+  padding: 4px 0 24px;
+}
+@media (min-width: 560px) {
+  .friends-cards-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (min-width: 900px) {
+  .friends-cards-grid { grid-template-columns: 1fr 1fr 1fr; }
+}
+.friend-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 18px;
+  padding: 20px; display: flex; flex-direction: column; gap: 14px;
+  box-shadow: var(--shadow-card, 0 2px 12px rgba(0,0,0,0.04));
+  transition: transform 0.18s, box-shadow 0.18s;
+}
+.friend-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+.friend-card-top { display: flex; align-items: flex-start; gap: 12px; }
+.friend-card-avatar {
+  width: 48px; height: 48px; border-radius: 50%; background: var(--accent2);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 14px; color: #fff; flex-shrink: 0;
+  position: relative; cursor: pointer;
+}
+.friend-card-info { flex: 1; min-width: 0; }
+.friend-card-name {
+  font-family: var(--sans); font-size: 15px; font-weight: 700; color: var(--text);
+  cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.friend-card-handle {
+  font-family: var(--sans); font-size: 12px; color: var(--muted); margin-top: 2px;
+}
+.friend-card-more {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  padding: 4px; border-radius: 6px; flex-shrink: 0;
+}
+.friend-card-more:hover { color: var(--red); background: color-mix(in oklab, var(--red) 10%, transparent); }
+.fc-status {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--sans); font-size: 12px; color: var(--muted);
+  background: color-mix(in oklab, var(--surface-high) 80%, transparent);
+  border-radius: 100px; padding: 6px 12px; width: fit-content;
+}
+.fc-status.fc-online { color: var(--green); background: color-mix(in oklab, var(--green) 12%, transparent); }
+.fc-status.fc-away { color: var(--accent); background: color-mix(in oklab, var(--accent) 12%, transparent); }
+.fc-status-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: currentColor;
+}
+.friend-card-actions { display: flex; gap: 8px; margin-top: auto; }
+.fc-btn {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font-family: var(--sans); font-size: 13px; font-weight: 600;
+  padding: 10px 12px; border-radius: 100px; cursor: pointer;
+  border: 1px solid var(--border2); background: transparent; color: var(--text);
+  transition: all 0.15s;
+}
+.fc-btn.primary {
+  background: var(--accent2); color: #fff; border-color: var(--accent2);
+}
+.fc-btn.primary:hover { filter: brightness(1.08); }
+.fc-btn:not(.primary):hover { border-color: var(--accent2); color: var(--accent2); }
+
+.friend-card-empty {
+  border: 1.5px dashed var(--border2); background: transparent;
+  align-items: center; text-align: center; justify-content: center;
+  min-height: 200px; cursor: pointer;
+}
+.friend-card-empty:hover { border-color: var(--accent2); background: color-mix(in oklab, var(--accent2) 4%, transparent); }
+.fce-icon {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: color-mix(in oklab, var(--surface-high) 80%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted); margin-bottom: 4px;
+}
+.fce-title { font-family: var(--serif); font-size: 16px; font-weight: 700; color: var(--text); }
+.fce-sub { font-family: var(--sans); font-size: 12px; color: var(--muted); max-width: 160px; }
+
+/* Chats list layout with aside */
+.chats-list-section { padding: 24px 20px 40px; max-width: 1100px; margin: 0 auto; }
+.chats-list-topbar { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
+.chats-list-topbar h2 { font-family: var(--serif); font-size: 32px; font-weight: 800; }
+.chats-list-sub {
+  font-family: var(--sans); font-size: 14px; color: var(--muted); margin-top: 4px;
+}
+.chats-list-add-btn {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--accent2); border: none; color: #fff; font-size: 22px;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  box-shadow: 0 4px 16px color-mix(in oklab, var(--accent2) 35%, transparent);
+}
+.chats-list-layout {
+  display: grid; grid-template-columns: 1fr; gap: 24px; margin-top: 20px;
+}
+@media (min-width: 900px) {
+  .chats-list-layout { grid-template-columns: 1fr 300px; align-items: start; }
+}
+.chats-list-sectionlabel {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--muted);
+  display: flex; align-items: center; justify-content: space-between;
+  margin: 22px 0 12px;
+}
+.chats-list-sectionlabel:first-of-type { margin-top: 0; }
+.see-all-link {
+  font-family: var(--sans); font-size: 12px; color: var(--accent2);
+  background: none; border: none; cursor: pointer; text-transform: none; letter-spacing: 0;
+}
+.global-chat-card {
+  display: flex; align-items: center; gap: 16px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 18px;
+  padding: 18px 20px; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s;
+}
+.global-chat-card:hover { border-color: var(--accent2); box-shadow: 0 6px 20px rgba(0,0,0,0.06); }
+.global-chat-avatar {
+  width: 52px; height: 52px; border-radius: 50%; background: var(--accent2);
+  position: relative; flex-shrink: 0;
+}
+.gca-dot {
+  position: absolute; bottom: 2px; right: 2px; width: 12px; height: 12px;
+  border-radius: 50%; background: var(--green); border: 2px solid var(--card);
+}
+.global-chat-text { flex: 1; min-width: 0; }
+.global-chat-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.global-chat-title { font-family: var(--serif); font-size: 18px; font-weight: 700; }
+.global-chat-now { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.global-chat-sub { font-family: var(--sans); font-size: 13px; color: var(--muted); margin-top: 2px; }
+.global-chat-preview, .global-chat-desc {
+  font-family: var(--sans); font-size: 12.5px; color: var(--dim);
+  margin-top: 8px; background: color-mix(in oklab, var(--surface-high) 60%, transparent);
+  border-radius: 10px; padding: 8px 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.room-list-cards { display: flex; flex-direction: column; gap: 8px; }
+.room-row {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+  padding: 14px 16px; cursor: pointer; transition: background 0.15s, border-color 0.15s;
+}
+.room-row:hover { border-color: var(--border2); background: color-mix(in oklab, var(--surface-high) 40%, var(--card)); }
+.room-row-avatar {
+  width: 42px; height: 42px; border-radius: 12px;
+  background: color-mix(in oklab, var(--surface-high) 80%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--serif); font-size: 16px; font-weight: 700; color: var(--text);
+  flex-shrink: 0;
+}
+.room-row-text { flex: 1; min-width: 0; }
+.room-row-name { font-family: var(--sans); font-size: 14px; font-weight: 600; }
+.room-row-meta { font-family: var(--sans); font-size: 12px; color: var(--muted); margin-top: 2px; }
+.room-row-chev { color: var(--muted); font-size: 18px; }
+.room-row-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); flex-shrink: 0;
+}
+
+/* Chats aside (Recent DMs + stats) */
+.chats-list-aside {
+  background: color-mix(in oklab, var(--surface-high) 50%, var(--card));
+  border: 1px solid var(--border); border-radius: 18px; padding: 18px;
+}
+.chats-aside-label {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 14px;
+}
+.chats-aside-dm {
+  display: flex; align-items: center; gap: 12px; padding: 10px 0;
+  border-bottom: 1px solid var(--border); cursor: pointer;
+}
+.chats-aside-dm:last-child { border-bottom: none; }
+.chats-aside-dm .friend-row-avatar { width: 40px; height: 40px; font-size: 12px; }
+.chats-aside-dm-text { flex: 1; min-width: 0; }
+.chats-aside-dm-name { font-family: var(--sans); font-size: 13px; font-weight: 600; }
+.chats-aside-dm-preview {
+  font-family: var(--sans); font-size: 12px; color: var(--muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.chats-aside-dm-time { font-family: var(--mono); font-size: 10px; color: var(--muted); flex-shrink: 0; }
+.chats-aside-stats {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px;
+}
+.chats-stat-card {
+  border-radius: 14px; padding: 16px 12px; text-align: center;
+  background: var(--card); border: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  color: var(--muted);
+}
+.chats-stat-card.chats-stat-dark {
+  background: var(--accent2); border-color: var(--accent2); color: #fff;
+}
+.chats-stat-num { font-family: var(--serif); font-size: 24px; font-weight: 700; color: inherit; }
+.chats-stat-lbl {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em;
+  text-transform: uppercase; opacity: 0.85;
+}
+
+/* DM empty state polish */
+.dm-empty-icon-wrap {
+  position: relative; width: 80px; height: 80px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 8px;
+}
+.dm-empty-icon-wrap > svg { color: var(--muted); }
+.dm-empty-badge {
+  position: absolute; bottom: 4px; right: 0;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent2); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+}
+.dm-empty-title { font-family: var(--serif); font-size: 22px; font-weight: 700; }
+.dm-empty-sub {
+  font-family: var(--sans); font-size: 14px; color: var(--muted);
+  max-width: 280px; line-height: 1.55;
+}
+
+/* Light theme: lean into cream + forest green feel from screenshots */
+[data-theme="light"] .social-hub-card,
+[data-theme="light"] .friend-card,
+[data-theme="light"] .global-chat-card,
+[data-theme="light"] .room-row,
+[data-theme="light"] .sh-network-row {
+  background: #F7F4EE;
+  border-color: #E5DFD4;
+}
+[data-theme="light"] .social-hub-card:hover,
+[data-theme="light"] .friend-card:hover {
+  box-shadow: 0 10px 28px rgba(43, 39, 32, 0.08);
+}
+[data-theme="light"] .friends-compose-btn,
+[data-theme="light"] .chats-list-add-btn,
+[data-theme="light"] .sh-msg-btn,
+[data-theme="light"] .fc-btn.primary,
+[data-theme="light"] .chats-stat-card.chats-stat-dark {
+  background: #1a3a2f;
+  border-color: #1a3a2f;
+  color: #fff;
+}
+[data-theme="light"] .global-chat-avatar,
+[data-theme="light"] .friend-card-avatar,
+[data-theme="light"] .friend-row-avatar {
+  background: #1a3a2f;
+  color: #fff;
+}
+[data-theme="light"] .social-hub-card-friends .shc-icon {
+  background: color-mix(in oklab, #1a3a2f 14%, transparent);
+  color: #1a3a2f;
+}
+[data-theme="light"] .friends-tab-btn.active::after {
+  background: #1a3a2f;
+}

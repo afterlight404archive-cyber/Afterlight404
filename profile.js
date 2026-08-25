@@ -507,13 +507,32 @@ function renderSocialHubPreview() {
     else badge.style.display = 'none';
   }
   const preview = document.getElementById('social-hub-friends-preview');
+  const viewAll = document.getElementById('social-hub-view-all');
   if (!preview) return;
   if (friends.length === 0) {
-    preview.innerHTML = '<p class="friends-empty">You haven\'t added any friends yet — head to the Friends tab to find people.</p>';
+    preview.innerHTML = '<p class="friends-empty">You haven\'t added any friends yet — head to Friends to find people.</p>';
+    if (viewAll) viewAll.style.display = 'none';
     return;
   }
-  preview.innerHTML = '<div class="friends-block-title">Your Friends</div><div class="friends-list">' +
-    friends.slice(0, 6).map(n => friendRowHTML(n, null)).join('') + '</div>';
+  if (viewAll) viewAll.style.display = 'block';
+  preview.innerHTML = friends.slice(0, 4).map(n => {
+    const initials = escapeHtml(n.slice(0, 2).toUpperCase());
+    const presence = getFriendPresence(n);
+    const code = getUserCode(n) || '';
+    let sub = presence === 'online' ? 'Online' : presence === 'away' ? 'Away' : 'Offline · Last seen recently';
+    return `
+      <div class="sh-network-row">
+        <div class="friend-row-avatar${ownerFrameClass(n)}" onclick="openUserProfileView('${escapeJs(n)}','')">${initials}${ownerCrownHTML(n)}${presenceDotHTML(n)}</div>
+        <div class="sh-network-info">
+          <div class="sh-network-name">@${escapeHtml(n)}${code ? ` <span class="frn-code">${escapeHtml(code)}</span>` : ''}</div>
+          <div class="sh-network-sub">${sub}</div>
+        </div>
+        <div class="sh-network-actions">
+          <button class="sh-msg-btn" onclick="openDm('${escapeJs(n)}')">Message</button>
+          <button class="sh-remove-btn" onclick="removeFriend('${escapeJs(n)}')">Remove</button>
+        </div>
+      </div>`;
+  }).join('');
 }
 
 function initFriendsPage() {
@@ -540,8 +559,13 @@ let friendsActiveTab = 'messages';
 function switchFriendsTab(tab) {
   friendsActiveTab = tab;
   document.querySelectorAll('.friends-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-  document.getElementById('friends-messages-tab').style.display = tab === 'messages' ? 'flex' : 'none';
-  document.getElementById('friends-requests-tab').style.display = tab === 'requests' ? 'flex' : 'none';
+  const msgTab = document.getElementById('friends-messages-tab');
+  const gridTab = document.getElementById('friends-grid-tab');
+  const reqTab = document.getElementById('friends-requests-tab');
+  if (msgTab) msgTab.style.display = tab === 'messages' ? 'flex' : 'none';
+  if (gridTab) gridTab.style.display = tab === 'friends' ? 'flex' : 'none';
+  if (reqTab) reqTab.style.display = tab === 'requests' ? 'flex' : 'none';
+  if (tab === 'friends') renderFriendsGrid();
 }
 
 function messageRowHTML(name) {
@@ -579,7 +603,64 @@ function renderMessagesTab() {
   } else if (friends.length) {
     listEl.innerHTML = '<p class="friends-empty">No matches.</p>';
   } else {
-    listEl.innerHTML = '<p class="friends-empty">No friends yet — tap ✎ above to add someone.</p>';
+    listEl.innerHTML = '<p class="friends-empty">No friends yet — tap the pen above to add someone.</p>';
+  }
+}
+
+function friendCardHTML(name) {
+  const initials = escapeHtml(name.slice(0, 2).toUpperCase());
+  const presence = getFriendPresence(name);
+  let statusHtml = '';
+  if (presence === 'online') {
+    statusHtml = `<div class="fc-status fc-online"><span class="fc-status-dot"></span> Online</div>`;
+  } else if (presence === 'away') {
+    statusHtml = `<div class="fc-status fc-away"><span class="fc-status-dot"></span> Away</div>`;
+  } else {
+    statusHtml = `<div class="fc-status fc-offline">Last seen recently</div>`;
+  }
+  return `
+    <div class="friend-card" data-user="${escapeHtml(name)}">
+      <div class="friend-card-top">
+        <div class="friend-card-avatar${ownerFrameClass(name)}" onclick="openUserProfileView('${escapeJs(name)}','')">${initials}${ownerCrownHTML(name)}${presenceDotHTML(name)}</div>
+        <div class="friend-card-info">
+          <div class="friend-card-name" onclick="openUserProfileView('${escapeJs(name)}','')">${escapeHtml(name)} ${ownerTagHTML(name)}</div>
+          <div class="friend-card-handle">@${escapeHtml(name)}</div>
+        </div>
+        <button class="friend-card-more" onclick="removeFriend('${escapeJs(name)}')" title="Remove friend" aria-label="Remove">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="18" y1="8" x2="23" y2="13"/><line x1="23" y1="8" x2="18" y2="13"/></svg>
+        </button>
+      </div>
+      ${statusHtml}
+      <div class="friend-card-actions">
+        <button class="fc-btn primary" onclick="openDm('${escapeJs(name)}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Message
+        </button>
+        <button class="fc-btn" onclick="openUserProfileView('${escapeJs(name)}','')">View Profile</button>
+      </div>
+    </div>`;
+}
+
+function renderFriendsGrid() {
+  const grid = document.getElementById('friends-cards-grid');
+  if (!grid || !currentUser) return;
+  const friends = getFriendsList();
+  const searchEl = document.getElementById('friends-page-search');
+  const q = searchEl ? searchEl.value.trim().toLowerCase() : '';
+  const filtered = q ? friends.filter(n => n.toLowerCase().includes(q)) : friends;
+  let html = filtered.map(n => friendCardHTML(n)).join('');
+  html += `
+    <div class="friend-card friend-card-empty" onclick="toggleFriendsAddPanel()">
+      <div class="fce-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+      </div>
+      <div class="fce-title">Find more curators</div>
+      <div class="fce-sub">Explore the global archive to connect.</div>
+    </div>`;
+  if (!filtered.length && friends.length) {
+    grid.innerHTML = '<p class="friends-empty">No matches.</p>' + html;
+  } else {
+    grid.innerHTML = html;
   }
 }
 
@@ -626,9 +707,13 @@ function renderFriendsPage() {
   }
 
   renderMessagesTab();
+  renderFriendsGrid();
 
-  document.getElementById('friends-meta').textContent = friends.length + ' friend' + (friends.length === 1 ? '' : 's') +
-    (incoming.length ? ' · ' + incoming.length + ' request' + (incoming.length === 1 ? '' : 's') : '');
+  const metaEl = document.getElementById('friends-meta');
+  if (metaEl) {
+    metaEl.textContent = friends.length + ' friend' + (friends.length === 1 ? '' : 's') +
+      (incoming.length ? ' · ' + incoming.length + ' request' + (incoming.length === 1 ? '' : 's') : '');
+  }
 
   updateSocialBadge();
   refreshDmPreviews();
