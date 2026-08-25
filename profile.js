@@ -566,6 +566,7 @@ function switchFriendsTab(tab) {
   if (gridTab) gridTab.style.display = tab === 'friends' ? 'flex' : 'none';
   if (reqTab) reqTab.style.display = tab === 'requests' ? 'flex' : 'none';
   if (tab === 'friends') renderFriendsGrid();
+  if (typeof updateMusicHubNav === 'function') updateMusicHubNav('friends');
 }
 
 function messageRowHTML(name) {

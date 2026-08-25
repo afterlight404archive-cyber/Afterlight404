@@ -235,6 +235,100 @@ function renderSongGrid() {
 // ones a photo of the site once caught stuck at 06/07/03 forever) in sync
 // with whatever's actually in the archive right now — called after every
 // song, mood, or genre add/edit/delete, plus on first load.
+
+// ── Recently Added (hero) — optimized ──────────────────────────
+// Goals: no double-render from updateHomeStats + renderSongGrid,
+// skip DOM work when the top-6 fingerprint is unchanged, O(1) index
+// (no indexOf), cheap string escape, event delegation (one listener).
+let _recentFingerprint = '';
+let _recentRaf = 0;
+let _recentDelegated = false;
+
+function _escapeAttr(t) {
+  return String(t == null ? '' : t)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function _ensureRecentDelegation(grid) {
+  if (_recentDelegated || !grid) return;
+  _recentDelegated = true;
+  grid.addEventListener('click', function (e) {
+    const btn = e.target.closest('.recent-cover');
+    if (!btn || !grid.contains(btn)) return;
+    const i = +btn.getAttribute('data-index');
+    if (Number.isFinite(i)) openSongFromRecent(i);
+  });
+}
+
+function renderRecentlyAdded(force) {
+  // Coalesce rapid calls (stats + grid refresh in the same tick)
+  if (!force) {
+    if (_recentRaf) return;
+    _recentRaf = requestAnimationFrame(function () {
+      _recentRaf = 0;
+      renderRecentlyAdded(true);
+    });
+    return;
+  }
+
+  const grid = document.getElementById('recently-added-grid');
+  if (!grid || typeof songs === 'undefined') return;
+  _ensureRecentDelegation(grid);
+
+  const n = songs.length;
+  if (!n) {
+    if (_recentFingerprint !== 'empty') {
+      _recentFingerprint = 'empty';
+      grid.innerHTML = '<p class="recently-added-empty">No songs yet — be the first to submit one.</p>';
+    }
+    return;
+  }
+
+  // Newest first without allocating a reversed copy of the full array
+  const take = Math.min(6, n);
+  // Fingerprint: song numbers of the last `take` entries (newest end)
+  let fp = String(n) + ':';
+  for (let k = 0; k < take; k++) {
+    const s = songs[n - 1 - k];
+    fp += (s && s.number != null ? s.number : k) + ',';
+  }
+  if (fp === _recentFingerprint) return;
+  _recentFingerprint = fp;
+
+  const parts = new Array(take);
+  for (let k = 0; k < take; k++) {
+    const i = n - 1 - k;
+    const s = songs[i];
+    const mood = (typeof MOOD_MAP !== 'undefined' && s && MOOD_MAP[s.mood]) ? MOOD_MAP[s.mood] : null;
+    const letter = _escapeAttr((s.title || '?').charAt(0).toUpperCase());
+    const title = _escapeAttr(s.title || '');
+    const artist = _escapeAttr(s.artist || '');
+    let coverStyle = '';
+    if (mood) {
+      const bg = mood.bg || 'var(--surface-high)';
+      const col = mood.color || 'var(--accent)';
+      coverStyle = 'background:linear-gradient(145deg,' + bg + ',color-mix(in oklab,' + col + ' 35%,#1a1510))';
+    }
+    parts[k] =
+      '<button type="button" class="recent-cover" data-index="' + i + '" title="' + title + ' — ' + artist + '">' +
+        '<div class="recent-cover-art" style="' + coverStyle + '"><span>' + letter + '</span></div>' +
+      '</button>';
+  }
+  grid.innerHTML = parts.join('');
+}
+
+function openSongFromRecent(index) {
+  if (typeof window.openSongModal === 'function') {
+    window.openSongModal(index);
+    return;
+  }
+  const card = document.querySelector('.song-card[data-index="' + index + '"]');
+  if (card) card.click();
+}
+
 function updateHomeStats() {
   const songsEl = document.getElementById('stat-songs');
   const moodsEl = document.getElementById('stat-moods');
@@ -244,6 +338,7 @@ function updateHomeStats() {
   if (genresEl && typeof getGenres === 'function') {
     genresEl.textContent = String(getGenres().length).padStart(2, '0');
   }
+  renderRecentlyAdded();
 }
 
 function escapeHtml(t) {
@@ -484,6 +579,7 @@ function initModal() {
       </div>`;
   };
 
+  window.openSongModal = openModal;
   function openModal(idx) {
     currentModalSong = idx;
     const s = songs[idx];

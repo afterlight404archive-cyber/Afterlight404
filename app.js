@@ -672,6 +672,9 @@ function showPage(page) {
   closeChatDrawer();
   document.body.classList.toggle('on-chat-page', page === 'chat' || page === 'topic-chat');
   document.body.classList.toggle('on-friends-page', page === 'friends' || page === 'dm');
+  const hubPages = ['social', 'chats-list', 'friends', 'dm', 'chat', 'topic-chat'];
+  document.body.classList.toggle('on-music-hub', hubPages.includes(page));
+  if (typeof updateMusicHubNav === 'function') updateMusicHubNav(page);
   if (page !== 'topic-chat') currentTopicRoom = null;
   if (page !== 'dm' && page !== 'friends') dmActiveFriend = null;
 
@@ -694,7 +697,7 @@ function showPage(page) {
   if (page === 'profile') renderProfilePage();
   if (page === 'home') setBottomNavActive('home');
   else if (page === 'submit') setBottomNavActive('submit');
-  else if (page === 'chat' || page === 'topic-chat' || page === 'social' || page === 'chats-list' || page === 'friends' || page === 'dm' || page === 'profile' || page === 'edit-profile') setBottomNavActive('account');
+  else if (page === 'chat' || page === 'topic-chat' || page === 'social' || page === 'chats-list' || page === 'friends' || page === 'dm' || page === 'profile' || page === 'edit-profile') setBottomNavActive('social');
 
   // Keep the top nav underline (Archive/About/Submit a Song/Social) in sync with
   // whatever page we just switched to. goToHomeSection() overrides this right
@@ -704,6 +707,20 @@ function showPage(page) {
   if (page === 'home') setDesktopNavActive('archive');
   else if (page === 'submit') setDesktopNavActive('submit');
   else if (page === 'social' || page === 'chat' || page === 'topic-chat' || page === 'chats-list' || page === 'friends' || page === 'dm' || page === 'profile' || page === 'edit-profile') setDesktopNavActive('social');
+}
+
+function updateMusicHubNav(page) {
+  const items = document.querySelectorAll('.mhs-item');
+  if (!items.length) return;
+  let key = page;
+  if (page === 'chat' || page === 'topic-chat') key = 'chats-list';
+  if (page === 'dm') key = 'friends-messages';
+  if (page === 'friends' && typeof friendsActiveTab !== 'undefined') {
+    key = friendsActiveTab === 'messages' ? 'friends-messages' : 'friends';
+  }
+  items.forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-hub') === key);
+  });
 }
 
 function setBottomNavActive(key) {
