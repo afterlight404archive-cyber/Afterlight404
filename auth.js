@@ -152,17 +152,10 @@ async function handleGoogleAuthCallback() {
         // Signup intent, no existing account — create one for real, in Supabase.
         let alias = sanitizeGoogleAlias(displayName);
         // Don't silently take over an existing name that belongs to a different account.
-        // Check both localStorage AND the server (case-insensitive).
-        const isTaken = async (n) => {
-          if (users.find(u => String(u.name || '').toLowerCase() === n.toLowerCase())) return true;
-          try {
-            const { data: taken } = await sb.rpc('alias_name_taken', { p_username: n });
-            return !!taken;
-          } catch (e) { return false; }
-        };
-        if (await isTaken(alias)) {
+        let takenLocally = (n) => users.find(u => u.name === n);
+        if (takenLocally(alias)) {
           let suffix = 2;
-          while (await isTaken((alias + suffix).slice(0, 20)) && suffix < 100) suffix++;
+          while (takenLocally((alias + suffix).slice(0, 20))) suffix++;
           alias = (alias + suffix).slice(0, 20);
         }
         try {
@@ -367,26 +360,11 @@ function handleForcedLogout() {
 // that has never seen this account before still gets code/bio/gender/avatar.
 async function finishAliasLogin(name, token, users, local) {
   try {
-    // Prefer exact match, fall back to case-insensitive (ilike) so mixed-case
-    // logins still pick up the real profile row.
-    let remote = null;
-    {
-      const { data: rows } = await sb.from('users').select('username,code,bio,gender,avatar,blocked').eq('username', name).limit(1);
-      remote = rows && rows[0];
-    }
-    if (!remote) {
-      const { data: rows } = await sb.from('users').select('username,code,bio,gender,avatar,blocked').ilike('username', name).limit(1);
-      remote = rows && rows[0];
-    }
-    if (remote && remote.username) name = remote.username; // canonical casing
-    if (!local) {
-      local = users.find(u => String(u.name || '').toLowerCase() === String(name).toLowerCase());
-    }
+    const { data: rows } = await sb.from('users').select('username,code,bio,gender,avatar,blocked').eq('username', name).limit(1);
+    const remote = rows && rows[0];
     if (!local) {
       local = { name: name, password: 'cloud', created: Date.now(), avatar: null, gender: '', bio: '', totalSeconds: 0, code: null };
       users.push(local);
-    } else {
-      local.name = name; // keep local copy on the canonical casing
     }
     if (remote) {
       local.code = remote.code || local.code;
@@ -417,15 +395,8 @@ async function handleUserLogin() {
   const pass = document.getElementById('ul-pass').value;
   const err = document.getElementById('ul-error');
   err.style.display = 'none';
-  if (!name || !pass) {
-    err.textContent = 'Enter your name and password.';
-    err.style.display = 'block';
-    return;
-  }
   let users = JSON.parse(alGet('al-users') || '[]');
-  // Case-insensitive local match — usernames are unique ignoring case on the server.
-  let local = users.find(u => u.name === name) ||
-    users.find(u => String(u.name || '').toLowerCase() === name.toLowerCase());
+  let local = users.find(u => u.name === name);
 
   if (isDbConnected()) {
     try {
@@ -433,7 +404,6 @@ async function handleUserLogin() {
       // aliasAuthEmail above). This is what makes the login work on ANY
       // browser/device, not just the one that originally signed up, and is
       // what lets chat/comments/DMs actually write to the database afterward.
-      // Auth email is always lowercased, so mixed-case input still works.
       const { data: signInData, error: signInErr } = await sb.auth.signInWithPassword({
         email: aliasAuthEmail(name), password: pass
       });
@@ -441,14 +411,8 @@ async function handleUserLogin() {
       if (!signInErr && signInData && signInData.session) {
         // Real session established. Confirm/refresh ownership + get a fresh
         // single-device session token via the existing server-side check.
-        // alias_login is case-insensitive (see setup.sql).
         const { data: token, error } = await sb.rpc('alias_login', { p_username: name, p_password: pass });
-        if (!error && token) {
-          // Prefer the canonical stored username from the local record if we have it.
-          const canonical = local ? local.name : name;
-          await finishAliasLogin(canonical, token, users, local);
-          return;
-        }
+        if (!error && token) { await finishAliasLogin(name, token, users, local); return; }
         err.textContent = (error && error.message) ? error.message : 'Invalid name or password.';
         err.style.display = 'block';
         return;
@@ -464,12 +428,11 @@ async function handleUserLogin() {
         // Legacy password is correct — migrate this account to a real,
         // pre-confirmed session now, silently, so it works everywhere from
         // now on (see createRealAliasSession() above).
-        const canonical = local ? local.name : name;
         try {
-          await createRealAliasSession(canonical, pass);
+          await createRealAliasSession(name, pass);
           // Reclaim ownership of the existing row under the new real session.
-          const { data: newToken, error: reclaimErr } = await sb.rpc('alias_login', { p_username: canonical, p_password: pass });
-          if (!reclaimErr && newToken) { await finishAliasLogin(canonical, newToken, users, local); return; }
+          const { data: newToken, error: reclaimErr } = await sb.rpc('alias_login', { p_username: name, p_password: pass });
+          if (!reclaimErr && newToken) { await finishAliasLogin(name, newToken, users, local); return; }
         } catch (e) {
           console.error('Real-session migration failed:', e);
           if (e && e.message && /Edge Function/i.test(e.message)) {
@@ -480,7 +443,7 @@ async function handleUserLogin() {
           // Migration failed for some other reason — still let them in on
           // this browser rather than lock them out entirely.
         }
-        await finishAliasLogin(canonical, legacyToken, users, local);
+        await finishAliasLogin(name, legacyToken, users, local);
         return;
       }
 
@@ -547,12 +510,8 @@ async function handleUserSignup() {
   if (pass.length < 6) { err.textContent = 'Password must be at least 6 characters.'; err.style.display='block'; return; }
   if (pass !== pass2) { err.textContent = 'Passwords do not match.'; err.style.display='block'; return; }
   let users = JSON.parse(alGet('al-users') || '[]');
-  if (users.find(u => String(u.name || '').toLowerCase() === name.toLowerCase())) {
-    err.textContent = 'That anonymous name is already taken.'; err.style.display='block'; return;
-  }
-  if (users.find(u => (u.email || '').toLowerCase() === email.toLowerCase())) {
-    err.textContent = 'An account with that email already exists.'; err.style.display='block'; return;
-  }
+  if (users.find(u => u.name === name)) { err.textContent = 'That anonymous name is already taken.'; err.style.display='block'; return; }
+  if (users.find(u => (u.email || '').toLowerCase() === email.toLowerCase())) { err.textContent = 'An account with that email already exists.'; err.style.display='block'; return; }
   // Don't write the account yet — hold it as a pending signup until the
   // email code checks out, so nobody can create an account with an email
   // they don't actually control.
@@ -620,17 +579,9 @@ async function handleUserSignup() {
     passHash: passHash, pass: pass, code: generateVerificationCode(), expires: Date.now() + 15 * 60 * 1000
   };
   await savePendingSignup();
-  // Transition signup → OTP without flashing the main site.
-  // closeAuth() would remove the signup overlay AND reset body overflow,
-  // letting the page show for the duration of the email send. Instead we
-  // open the verify overlay first (it's a forced-overlay, higher z-index),
-  // then close only the signup form underneath.
-  showVerifyEmail();
-  document.getElementById('user-signup-overlay').classList.remove('open');
-  document.querySelectorAll('#user-signup-overlay .auth-error').forEach(e => {
-    e.style.display = 'none'; e.textContent = '';
-  });
+  closeAuth();
   await sendVerificationEmail(pendingSignup.email, pendingSignup.code, pendingSignup.name);
+  showVerifyEmail();
 }
 
 function generateVerificationCode() {
@@ -685,28 +636,17 @@ async function savePendingSignup() {
 // refresh, and clears it out if the 15-minute window already elapsed.
 function restorePendingSignup() {
   let raw;
-  try { raw = alGet('al-pending-signup'); } catch (e) {
-    try { document.documentElement.classList.remove('al-boot-pending'); } catch (e2) {}
-    return;
-  }
-  if (!raw) {
-    try { document.documentElement.classList.remove('al-boot-pending'); } catch (e) {}
-    return;
-  }
+  try { raw = alGet('al-pending-signup'); } catch (e) { return; }
+  if (!raw) return;
   let saved;
-  try { saved = JSON.parse(raw); } catch (e) {
-    alRemove('al-pending-signup');
-    try { document.documentElement.classList.remove('al-boot-pending'); } catch (e2) {}
-    return;
-  }
+  try { saved = JSON.parse(raw); } catch (e) { alRemove('al-pending-signup'); return; }
   if (!saved || !saved.expires || Date.now() > saved.expires) {
     alRemove('al-pending-signup');
-    try { document.documentElement.classList.remove('al-boot-pending'); } catch (e) {}
     return;
   }
   pendingSignup = saved;         // note: no .code and no .pass — see below
   pendingSignup.restored = true;
-  showVerifyEmail(); // also clears al-boot-pending
+  showVerifyEmail();
 }
 
 function clearPendingSignup() {
@@ -823,8 +763,6 @@ function showVerifyEmail() {
   if (err) { err.style.display = 'none'; err.textContent = ''; }
   document.getElementById('verify-email-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
-  // Clear the boot-time hide-everything class once the OTP screen is up.
-  try { document.documentElement.classList.remove('al-boot-pending'); } catch (e) {}
   if (codeInput) setTimeout(() => codeInput.focus(), 100);
 }
 
@@ -849,7 +787,6 @@ function cancelVerification() {
   clearPendingSignup();
   document.getElementById('verify-email-overlay').classList.remove('open');
   document.body.style.overflow = '';
-  try { document.documentElement.classList.remove('al-boot-pending'); } catch (e) {}
   showSignup();
 }
 
@@ -884,7 +821,7 @@ async function handleVerifyEmail() {
   }
   resetVerifyAttempts();
   let users = JSON.parse(alGet('al-users') || '[]');
-  if (users.find(u => String(u.name || '').toLowerCase() === String(pendingSignup.name || '').toLowerCase())) {
+  if (users.find(u => u.name === pendingSignup.name)) {
     err.textContent = 'That username was just taken. Please sign up again with a different one.';
     err.style.display = 'block';
     return;
@@ -935,7 +872,6 @@ async function handleVerifyEmail() {
   if (cloudToken) setActiveAliasSession(currentUser.name, cloudToken);
   document.getElementById('verify-email-overlay').classList.remove('open');
   document.body.style.overflow = '';
-  try { document.documentElement.classList.remove('al-boot-pending'); } catch (e) {}
   updateAuthUI();
   updateCommentForm();
   updateSubmitForm();
@@ -999,51 +935,12 @@ function userLogout() {
   teardownAliasSession(true);
   currentUser = null;
   saveUser();
-  // Clear the real Supabase Auth session too — otherwise a leftover session
-  // from a previous alias/Google login can linger and confuse the next login
-  // or make RLS think a different user is still signed in.
-  if (sb) {
-    try { sb.auth.signOut().catch(() => {}); } catch (e) { /* ignore */ }
-  }
   updateAuthUI();
   updateCommentForm();
   updateSubmitForm();
   stopSocialPolling();
   dmActiveFriend = null;
   updateSocialBadge();
-}
-
-// Called once at startup after currentUser is restored from localStorage.
-// Keeps the person logged in across refresh / reopen:
-//   1. If Supabase still has a persisted Auth session, re-attach the
-//      single-device alias session listener and we're done.
-//   2. If the Auth session is gone (expired refresh token, cleared storage,
-//      etc.) we still keep the local currentUser so the UI stays signed-in.
-//      Writes that need a real session will prompt a re-login when they fail;
-//      we deliberately do NOT wipe currentUser here — that was the
-//      "logged out every time I refresh" bug.
-async function ensureUserSessionOnLoad() {
-  if (!currentUser) return;
-  const savedToken = alGet('al-session-token');
-  const savedUser = alGet('al-session-user');
-  if (savedToken && savedUser === currentUser.name && isDbConnected()) {
-    subscribeAliasSession(currentUser.name, savedToken);
-  }
-  if (!sb || !isDbConnected()) return;
-  try {
-    const { data: { session } } = await sb.auth.getSession();
-    if (session && session.user) {
-      // Auth session survived the refresh — perfect. Nothing else to do.
-      return;
-    }
-    // No Auth session. Leave currentUser alone so the person stays visually
-    // logged in. The next action that needs a real session (chat send, etc.)
-    // will surface a clear error; they can log out and back in once to
-    // re-establish it. Wiping currentUser here is what made every refresh
-    // feel like a forced logout.
-  } catch (e) {
-    console.error('ensureUserSessionOnLoad failed:', e);
-  }
 }
 
 // Permanently deletes the signed-in account. Removes the server-side row

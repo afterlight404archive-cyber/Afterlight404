@@ -100,8 +100,10 @@
 <!-- HEADER — matches main-site bar: logo left, nav center-left, tools + user + Analog HQ right -->
 <header>
   <div class="header-left">
-    <a href="#" class="logo" onclick="showPage('home');return false;">
-      <span class="logo-full">AfterLight<span class="colon">:</span><span class="four">404</span></span>
+    <a href="#" class="logo" onclick="showPage('home');return false;" aria-label="AfterLight:404 Home">
+      <img class="logo-img logo-img-light" src="icons/logos/logo-light-h@2x.png" alt="AfterLight:404" width="110" height="36" decoding="async">
+      <img class="logo-img logo-img-dark" src="icons/logos/logo-dark-h@2x.png" alt="AfterLight:404" width="36" height="36" decoding="async">
+      <span class="logo-full logo-text-fallback">AfterLight<span class="colon">:</span><span class="four">404</span></span>
     </a>
     <nav id="desktop-nav">
       <a href="#home" class="active" data-nav="home" onclick="showPage('home');return false;">Home</a>
@@ -565,20 +567,18 @@
       </div>
 
       <div class="settings-block">
-        <div class="settings-block-label">App icon</div>
-        <p class="anon-hint" style="margin-top:0;">Controls the logo mark used for your browser tab icon and home‑screen icon. "Auto" matches your site theme above.</p>
-        <div class="device-toggle-panel" id="icon-theme-toggle" title="App icon appearance">
-          <div class="device-toggle-glider" id="icon-theme-toggle-glider"></div>
-          <button class="device-toggle-btn" id="icon-mode-auto" onclick="setIconTheme('auto')" title="Match site theme">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2.5l1.9 5.6 5.6 1.9-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.9z"/></svg>
-          </button>
-          <button class="device-toggle-btn" id="icon-mode-light" onclick="setIconTheme('light')" title="Always light icon">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4" y1="12" x2="2" y2="12"/><line x1="22" y1="12" x2="20" y2="12"/></svg>
-          </button>
-          <button class="device-toggle-btn" id="icon-mode-dark" onclick="setIconTheme('dark')" title="Always dark icon">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
-          </button>
-        </div>
+        <div class="settings-block-label">Customize Web/App</div>
+        <p class="anon-hint" style="margin-top:0;margin-bottom:12px;">Make AfterLight more fun with custom themes and designs.</p>
+        <button type="button" class="customize-row" id="customize-app-icon-btn" onclick="openAppIconPicker()">
+          <span class="customize-row-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/><path d="M5 19l1 3 3-1"/></svg>
+          </span>
+          <span class="customize-row-text">
+            <span class="customize-row-title">Customize App Icon</span>
+            <span class="customize-row-sub">Grab more attention by giving your icon a new look</span>
+          </span>
+          <span class="customize-row-chevron" aria-hidden="true">›</span>
+        </button>
       </div>
 
       <div class="settings-block" style="margin-bottom:0;">
@@ -594,6 +594,34 @@
         <p class="anon-hint" id="notif-settings-hint" style="margin-top:8px;margin-bottom:0;"></p>
       </div>
 
+    </div>
+  </div>
+</div>
+
+<!-- APP ICON PICKER OVERLAY (FamApp-style) -->
+<div class="auth-overlay" id="app-icon-picker-overlay" style="z-index:4100;">
+  <div class="auth-modal app-icon-picker-modal">
+    <button class="auth-close" onclick="closeAppIconPicker()" aria-label="Close">✕</button>
+    <div class="app-icon-picker-header">
+      <button type="button" class="app-icon-picker-back" onclick="closeAppIconPicker()" aria-label="Back">←</button>
+      <div class="auth-modal-title" style="margin:0;">Customize App Icon</div>
+    </div>
+
+    <div class="app-icon-theme-tabs" role="tablist">
+      <button type="button" class="app-icon-theme-tab active" id="icon-tab-dark" role="tab" aria-selected="true" onclick="setIconPickerTab('dark')">Dark</button>
+      <button type="button" class="app-icon-theme-tab" id="icon-tab-light" role="tab" aria-selected="false" onclick="setIconPickerTab('light')">Light</button>
+    </div>
+
+    <div class="app-icon-preview-wrap">
+      <div class="app-icon-preview-glow" aria-hidden="true"></div>
+      <img class="app-icon-preview-img" id="app-icon-preview-img" src="icons/icon-512.png" alt="Selected app icon">
+      <div class="app-icon-preview-name" id="app-icon-preview-name">AfterLight</div>
+    </div>
+
+    <button type="button" class="app-icon-set-btn" id="app-icon-set-btn" onclick="confirmAppIconSelection()">Set as app icon</button>
+
+    <div class="app-icon-strip-wrap">
+      <div class="app-icon-strip" id="app-icon-strip" role="listbox" aria-label="Available app icons"></div>
     </div>
   </div>
 </div>
@@ -672,13 +700,13 @@
           A nerd's archive of niche indie, alternative &amp; pop — with liner notes, meanings, and the exact moods they belong to. No algorithms. Just obsession.
         </p>
       </div>
-      <div class="hero-meta hero-meta-v3">
+      <div class="hero-meta">
         <div class="meta-item">
-          <span class="meta-num" id="stat-songs">#0006</span>
+          <span class="meta-num" id="stat-songs">06</span>
           <label>Songs archived</label>
         </div>
         <div class="meta-item">
-          <span class="meta-num" id="stat-moods">007</span>
+          <span class="meta-num" id="stat-moods">07</span>
           <label>Moods mapped</label>
         </div>
         <div class="meta-item">
@@ -709,11 +737,13 @@
       <button type="button" class="archive-search-clear" id="archive-search-clear" aria-label="Clear search" style="display:none;">✕</button>
     </div>
   </div>
-  <div class="song-grid" id="song-grid-compact"></div>
-  <div class="load-more-wrap" id="load-more-wrap" style="display:none;">
-    <button type="button" class="load-more-btn" id="load-more-btn" onclick="loadMoreSongs()">Load More Records <span class="lmb-arrow">↓</span></button>
+  <div class="song-grid song-grid-featured" id="song-grid-featured"></div>
+  <div class="song-grid song-grid-classic" id="song-grid"></div>
+  <div class="archive-load-more-wrap" id="archive-load-more-wrap" style="display:none;">
+    <button type="button" class="archive-load-more-btn" id="archive-load-more-btn" onclick="loadMoreArchiveRecords()">
+      Load more records <span aria-hidden="true">↓</span>
+    </button>
   </div>
-  <div class="song-grid" id="song-grid"></div>
 </section>
 
 <!-- ABOUT -->

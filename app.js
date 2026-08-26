@@ -790,45 +790,70 @@ if (btnHeaderTheme) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  APP ICON THEME (favicon + PWA manifest icon)
+//  APP ICON THEME + CUSTOMIZE PICKER (favicon + PWA manifest)
 // ═══════════════════════════════════════════════════════════════
-// The in-app header logo (.logo-mark) already re-colors itself via CSS
-// variables whenever the site theme flips (see --logo-ring/--logo-dot in
-// styles.css), so it always tracks Light/Dark/System automatically.
-// This section is about the browser-tab favicon and the icon used when
-// someone "Add to Home Screen"s the site, which are plain image files and
-// can't repaint themselves via CSS — they have to be swapped out for a
-// different file. 'auto' (default) makes them follow the site theme too;
-// Light/Dark lets a user pin the icon regardless of site theme.
+// Browser-tab favicon + "Add to Home Screen" icons are plain image files,
+// so they can't recolor via CSS — we swap files. Each icon pack has a
+// dark + light variant. 'auto' follows the site theme; pinning light/dark
+// (or picking from the Customize App Icon UI) locks the choice.
+//
+// Add more packs here when new icon assets arrive — Dark tab only lists
+// packs that have a dark set, Light tab only those with a light set.
 
+const APP_ICON_PACKS = [
+  {
+    id: 'classic',
+    name: 'AfterLight',
+    dark: {
+      preview: 'icons/icon-512.png',
+      manifest: 'manifest.json',
+      favicon512: 'icons/icon-512.png',
+      favicon192: 'icons/icon-192.png',
+      favicon32: 'icons/icon-32.png',
+      favicon16: 'icons/icon-16.png',
+      favicon180: 'icons/icon-180.png',
+    },
+    light: {
+      preview: 'icons/light/icon-512.png',
+      manifest: 'manifest-light.json',
+      favicon512: 'icons/light/icon-512.png',
+      favicon192: 'icons/light/icon-192.png',
+      favicon32: 'icons/light/icon-32.png',
+      favicon16: 'icons/light/icon-16.png',
+      favicon180: 'icons/light/icon-180.png',
+    },
+  },
+];
+
+// Legacy two-mode map still used by resolve path when only theme is set.
 const ICON_ASSETS = {
-  dark: {
-    manifest: 'manifest.json',
-    favicon512: 'icons/icon-512.png',
-    favicon192: 'icons/icon-192.png',
-    favicon32: 'icons/icon-32.png',
-    favicon16: 'icons/icon-16.png',
-    favicon180: 'icons/icon-180.png',
-  },
-  light: {
-    manifest: 'manifest-light.json',
-    favicon512: 'icons/light/icon-512.png',
-    favicon192: 'icons/light/icon-192.png',
-    favicon32: 'icons/light/icon-32.png',
-    favicon16: 'icons/light/icon-16.png',
-    favicon180: 'icons/light/icon-180.png',
-  },
+  dark: APP_ICON_PACKS[0].dark,
+  light: APP_ICON_PACKS[0].light,
 };
+
+let _iconPickerTab = 'dark';
+let _iconPickerSelectedId = null;
+
+function getIconPack(id) {
+  return APP_ICON_PACKS.find((p) => p.id === id) || APP_ICON_PACKS[0];
+}
 
 function resolveIconTheme(pref) {
   if (pref === 'light' || pref === 'dark') return pref;
-  // 'auto': follow whatever the site theme currently resolved to.
   return htmlEl.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
 }
 
-function applyIconTheme() {
+function getActiveIconAssets() {
+  const packId = alGet('al-icon-pack') || 'classic';
+  const pack = getIconPack(packId);
   const pref = alGet('al-icon-theme') || 'auto';
-  const assets = ICON_ASSETS[resolveIconTheme(pref)];
+  const theme = resolveIconTheme(pref);
+  return (pack && pack[theme]) || ICON_ASSETS[theme];
+}
+
+function applyIconTheme() {
+  const assets = getActiveIconAssets();
+  if (!assets) return;
 
   const manifestLink = document.getElementById('app-manifest-link');
   if (manifestLink) manifestLink.setAttribute('href', assets.manifest);
@@ -850,23 +875,107 @@ function setIconTheme(mode) {
   if (mode === 'auto') alRemove('al-icon-theme');
   else alSet('al-icon-theme', mode);
   applyIconTheme();
-  updateIconThemeUI();
 }
 
-function updateIconThemeUI() {
-  const mode = alGet('al-icon-theme') || 'auto';
-  const order = ['auto', 'light', 'dark'];
-  order.forEach((m) => {
-    const btn = document.getElementById('icon-mode-' + m);
-    if (btn) btn.classList.toggle('device-mode-active', m === mode);
-  });
-  const glider = document.getElementById('icon-theme-toggle-glider');
-  if (glider) glider.style.transform = `translateX(${order.indexOf(mode) * 38}px)`;
+function openAppIconPicker() {
+  const overlay = document.getElementById('app-icon-picker-overlay');
+  if (!overlay) return;
+  const pref = alGet('al-icon-theme') || 'auto';
+  _iconPickerTab = resolveIconTheme(pref);
+  _iconPickerSelectedId = alGet('al-icon-pack') || 'classic';
+  setIconPickerTab(_iconPickerTab);
+  overlay.classList.add('open');
 }
 
-// Keep the favicon/manifest in sync whenever the site theme changes (covers
-// the header sun/moon toggle and the OS-level prefers-color-scheme switch,
-// both of which already call applyTheme() above).
+function closeAppIconPicker() {
+  const overlay = document.getElementById('app-icon-picker-overlay');
+  if (overlay) overlay.classList.remove('open');
+}
+
+function setIconPickerTab(tab) {
+  _iconPickerTab = tab === 'light' ? 'light' : 'dark';
+  const darkTab = document.getElementById('icon-tab-dark');
+  const lightTab = document.getElementById('icon-tab-light');
+  if (darkTab) {
+    darkTab.classList.toggle('active', _iconPickerTab === 'dark');
+    darkTab.setAttribute('aria-selected', _iconPickerTab === 'dark' ? 'true' : 'false');
+  }
+  if (lightTab) {
+    lightTab.classList.toggle('active', _iconPickerTab === 'light');
+    lightTab.setAttribute('aria-selected', _iconPickerTab === 'light' ? 'true' : 'false');
+  }
+  // Prefer current selection if it has this theme; else first pack that does.
+  const packs = APP_ICON_PACKS.filter((p) => p[_iconPickerTab]);
+  if (!packs.some((p) => p.id === _iconPickerSelectedId)) {
+    _iconPickerSelectedId = packs[0] ? packs[0].id : 'classic';
+  }
+  renderAppIconStrip();
+  updateAppIconPreview();
+}
+
+function renderAppIconStrip() {
+  const strip = document.getElementById('app-icon-strip');
+  if (!strip) return;
+  const packs = APP_ICON_PACKS.filter((p) => p[_iconPickerTab]);
+  const activePack = alGet('al-icon-pack') || 'classic';
+  const activeTheme = resolveIconTheme(alGet('al-icon-theme') || 'auto');
+  strip.innerHTML = packs
+    .map((p) => {
+      const assets = p[_iconPickerTab];
+      const selected = p.id === _iconPickerSelectedId;
+      const isLive = p.id === activePack && _iconPickerTab === activeTheme;
+      return (
+        '<button type="button" class="app-icon-chip' +
+        (selected ? ' is-selected' : '') +
+        (isLive ? ' is-live' : '') +
+        '" role="option" aria-selected="' +
+        (selected ? 'true' : 'false') +
+        '" data-icon-id="' +
+        p.id +
+        '" onclick="selectAppIconPack(\'' +
+        p.id +
+        '\')" title="' +
+        (p.name || p.id) +
+        '">' +
+        '<img src="' +
+        assets.preview +
+        '" alt="' +
+        (p.name || p.id) +
+        '">' +
+        '</button>'
+      );
+    })
+    .join('');
+}
+
+function selectAppIconPack(id) {
+  const pack = getIconPack(id);
+  if (!pack || !pack[_iconPickerTab]) return;
+  _iconPickerSelectedId = id;
+  renderAppIconStrip();
+  updateAppIconPreview();
+}
+
+function updateAppIconPreview() {
+  const pack = getIconPack(_iconPickerSelectedId);
+  const assets = pack && pack[_iconPickerTab];
+  const img = document.getElementById('app-icon-preview-img');
+  const nameEl = document.getElementById('app-icon-preview-name');
+  if (img && assets) img.src = assets.preview;
+  if (nameEl) nameEl.textContent = (pack && pack.name) || 'AfterLight';
+}
+
+function confirmAppIconSelection() {
+  const pack = getIconPack(_iconPickerSelectedId);
+  if (!pack || !pack[_iconPickerTab]) return;
+  alSet('al-icon-pack', pack.id);
+  alSet('al-icon-theme', _iconPickerTab); // pin to the tab they chose from
+  applyIconTheme();
+  renderAppIconStrip();
+  closeAppIconPicker();
+}
+
+// Keep favicon/manifest in sync when site theme changes (auto mode).
 const _applyThemeOrig = applyTheme;
 applyTheme = function (mode) {
   _applyThemeOrig(mode);
@@ -874,7 +983,6 @@ applyTheme = function (mode) {
 };
 
 applyIconTheme();
-updateIconThemeUI();
 
 // ═══════════════════════════════════════════════════════════════
 //  HEADER VOLUME PILL (mirrors the Analog HQ background-music toggle)
