@@ -672,13 +672,13 @@
           A nerd's archive of niche indie, alternative &amp; pop — with liner notes, meanings, and the exact moods they belong to. No algorithms. Just obsession.
         </p>
       </div>
-      <div class="hero-meta">
+      <div class="hero-meta hero-meta-v3">
         <div class="meta-item">
-          <span class="meta-num" id="stat-songs">06</span>
+          <span class="meta-num" id="stat-songs">#0006</span>
           <label>Songs archived</label>
         </div>
         <div class="meta-item">
-          <span class="meta-num" id="stat-moods">07</span>
+          <span class="meta-num" id="stat-moods">007</span>
           <label>Moods mapped</label>
         </div>
         <div class="meta-item">
@@ -708,6 +708,10 @@
       <input type="search" class="archive-search-input" id="archive-search-input" placeholder="Search songs, artists, genres…" autocomplete="off" spellcheck="false" aria-label="Search the archive">
       <button type="button" class="archive-search-clear" id="archive-search-clear" aria-label="Clear search" style="display:none;">✕</button>
     </div>
+  </div>
+  <div class="song-grid" id="song-grid-compact"></div>
+  <div class="load-more-wrap" id="load-more-wrap" style="display:none;">
+    <button type="button" class="load-more-btn" id="load-more-btn" onclick="loadMoreSongs()">Load More Records <span class="lmb-arrow">↓</span></button>
   </div>
   <div class="song-grid" id="song-grid"></div>
 </section>

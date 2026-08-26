@@ -739,6 +739,33 @@
   .read-more { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent2); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
   .read-more::after { content: '→'; }
 
+  /* ── COMPACT SONG CARD (archive preview grid) ── */
+  .song-card.song-card-compact {
+    padding: 22px;
+    gap: 10px;
+  }
+  .scc-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .scc-number { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: var(--accent); flex-shrink: 0; }
+  .scc-tags { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+  .scc-tag { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); background: var(--surface); border: 1px solid var(--border2); padding: 3px 9px; border-radius: 100px; white-space: nowrap; }
+  .song-card-compact .song-title { font-size: 18px; }
+  .song-card-compact .scc-artist { font-family: var(--mono); font-size: 11px; color: var(--accent); letter-spacing: 0.03em; margin-top: -4px; }
+  .song-card-compact .scc-artist .scc-year { color: var(--muted); }
+  .song-card-compact .song-desc { -webkit-line-clamp: 2; }
+
+  /* ── LOAD MORE ── */
+  .load-more-wrap { display: flex; justify-content: center; margin-top: 32px; }
+  .load-more-btn {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--text); background: transparent; border: 1px solid var(--border2);
+    padding: 13px 28px; border-radius: 100px; cursor: pointer;
+    display: flex; align-items: center; gap: 10px;
+    transition: all 0.2s ease;
+  }
+  .load-more-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+  .lmb-arrow { display: inline-block; transition: transform 0.2s ease; }
+  .load-more-btn:hover .lmb-arrow { transform: translateY(2px); }
+
   /* ── RATING SYSTEM (LOCKED AFTER VOTE) ── */
   .rating-wrap { display: flex; flex-direction: column; align-items: stretch; gap: 10px; padding-top: 14px; border-top: 1px solid var(--border); margin-top: 4px; }
   .rating-your-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -3779,6 +3806,39 @@ body.on-music-hub #page-friends .friends-page-header {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+/* Stat counter v3 — bold left-aligned mono digits, no dividers
+   (matches the "#0404 / 024 / 12" reference mockup) */
+.hero.hero-v2 .hero-meta.hero-meta-v3 {
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 44px;
+}
+.hero.hero-v2 .hero-meta.hero-meta-v3 .meta-item {
+  align-items: flex-start;
+  text-align: left;
+  padding: 0;
+  gap: 6px;
+}
+.hero.hero-v2 .hero-meta.hero-meta-v3 .meta-item::after {
+  content: none;
+}
+.hero.hero-v2 .hero-meta.hero-meta-v3 .meta-num {
+  font-family: var(--mono);
+  font-weight: 800;
+  font-size: 38px;
+  letter-spacing: -0.01em;
+  color: var(--accent);
+}
+.hero.hero-v2 .hero-meta.hero-meta-v3 .meta-item label {
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+}
+@media (max-width: 640px) {
+  .hero.hero-v2 .hero-meta.hero-meta-v3 { gap: 28px; }
+  .hero.hero-v2 .hero-meta.hero-meta-v3 .meta-num { font-size: 28px; }
 }
 
 /* Player card with vinyl */

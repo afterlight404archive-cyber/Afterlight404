@@ -174,61 +174,132 @@ function teardownSubmissionsRealtime() {
 //  RENDER SONG GRID
 // ═══════════════════════════════════════════════════════════════
 
+// Archive preview shows this many songs (as compact cards) up front —
+// three rows at the desktop 3-column width — before "Load More Records"
+// reveals the rest using the full song-card design.
+const ARCHIVE_COMPACT_ROWS = 3;
+const ARCHIVE_COMPACT_COLS = 3;
+const ARCHIVE_COMPACT_COUNT = ARCHIVE_COMPACT_ROWS * ARCHIVE_COMPACT_COLS;
+
+function buildFullSongCard(s, i) {
+  const mood = MOOD_MAP[s.mood] || MOOD_MAP['3am'];
+  const card = document.createElement('div');
+  card.className = 'song-card';
+  card.dataset.mood = s.mood;
+  card.dataset.index = i;
+  card.innerHTML = `
+    <div class="card-top">
+      <div>
+        <div class="song-title">${escapeHtml(s.title)}</div>
+        <div class="song-artist">${escapeHtml(s.artist)}</div>
+        <div class="song-year">${escapeHtml(s.year)}</div>
+      </div>
+      <div class="card-top-actions">
+        <button class="song-save-btn${isSongSaved(s.number) ? ' saved' : ''}" onclick="event.stopPropagation();toggleSaveSong('${escapeJs(s.number)}', this)" title="Save song">${isSongSaved(s.number) ? '♥' : '♡'}</button>
+        <span class="song-mood-tag" style="background:${mood.bg};color:${mood.color};">${mood.label}</span>
+      </div>
+    </div>
+    <div class="song-number">${s.number}</div>
+    ${getSongUploader(s) ? (isDeletedUploader(getSongUploader(s))
+        ? `<div class="song-card-uploader song-card-uploader-deleted">↑ uploaded by a deleted user</div>`
+        : `<div class="song-card-uploader" onclick="event.stopPropagation();openUserProfileView('${escapeJs(getSongUploader(s))}')">↑ uploaded by @${escapeHtml(getSongUploader(s))}</div>`) : ''}
+    <div class="song-desc">${escapeHtml(s.about.split('\\n')[0])}</div>
+    <div class="card-footer">
+      <div class="genre-pills">
+        ${s.genre.map(g => `<span class="genre-pill">${escapeHtml(g)}</span>`).join('')}
+      </div>
+      <span class="read-more">Read more</span>
+    </div>
+    <div class="rating-wrap" data-song="${s.number.replace('#','')}">
+      <div class="rating-your-row">
+        <span class="rating-label">Your Rating</span>
+        <div class="rating-stars">
+          <span class="rating-note" data-val="1"><svg class="rating-note-icon"><use href="#premNoteIcon"/></svg></span>
+          <span class="rating-note" data-val="2"><svg class="rating-note-icon"><use href="#premNoteIcon"/></svg></span>
+          <span class="rating-note" data-val="3"><svg class="rating-note-icon"><use href="#premNoteIcon"/></svg></span>
+          <span class="rating-note" data-val="4"><svg class="rating-note-icon"><use href="#premNoteIcon"/></svg></span>
+          <span class="rating-note" data-val="5"><svg class="rating-note-icon"><use href="#premNoteIcon"/></svg></span>
+        </div>
+        <span class="rating-count"></span>
+        <span class="rating-locked-msg">✓ Rated</span>
+      </div>
+      <div class="rating-community" data-role="community">${ratingCommunityHtml(s.number.replace('#',''))}</div>
+      <div class="rating-actions"></div>
+    </div>
+  `;
+  return card;
+}
+
+function buildCompactSongCard(s, i) {
+  const mood = MOOD_MAP[s.mood] || MOOD_MAP['3am'];
+  const yearMatch = s.year ? String(s.year).match(/\d{4}/) : null;
+  const card = document.createElement('div');
+  card.className = 'song-card song-card-compact';
+  card.dataset.mood = s.mood;
+  card.dataset.index = i;
+  card.innerHTML = `
+    <div class="scc-top">
+      <span class="scc-number">${escapeHtml(s.number)}</span>
+      <div class="scc-tags">
+        <span class="scc-tag" style="color:${mood.color};">// ${escapeHtml(mood.label)}</span>
+        ${s.genre && s.genre[0] ? `<span class="scc-tag">// ${escapeHtml(s.genre[0])}</span>` : ''}
+      </div>
+    </div>
+    <div class="song-title">${escapeHtml(s.title)}</div>
+    <div class="scc-artist">${escapeHtml(s.artist)}${yearMatch ? ' <span class="scc-year">• ' + yearMatch[0] + '</span>' : ''}</div>
+    <div class="song-desc">${escapeHtml(s.about.split('\\n')[0])}</div>
+  `;
+  return card;
+}
+
 function renderSongGrid() {
+  const compactGrid = document.getElementById('song-grid-compact');
   const grid = document.getElementById('song-grid');
+  const loadMoreWrap = document.getElementById('load-more-wrap');
+  if (!grid) return;
   grid.innerHTML = '';
-  songs.forEach((s, i) => {
-    const mood = MOOD_MAP[s.mood] || MOOD_MAP['3am'];
-    const card = document.createElement('div');
-    card.className = 'song-card';
-    card.dataset.mood = s.mood;
-    card.dataset.index = i;
-    card.innerHTML = `
-      <div class="card-top">
-        <div>
-          <div class="song-title">${escapeHtml(s.title)}</div>
-          <div class="song-artist">${escapeHtml(s.artist)}</div>
-          <div class="song-year">${escapeHtml(s.year)}</div>
-        </div>
-        <div class="card-top-actions">
-          <button class="song-save-btn${isSongSaved(s.number) ? ' saved' : ''}" onclick="event.stopPropagation();toggleSaveSong('${escapeJs(s.number)}', this)" title="Save song">${isSongSaved(s.number) ? '♥' : '♡'}</button>
-          <span class="song-mood-tag" style="background:${mood.bg};color:${mood.color};">${mood.label}</span>
-        </div>
-      </div>
-      <div class="song-number">${s.number}</div>
-      ${getSongUploader(s) ? (isDeletedUploader(getSongUploader(s))
-          ? `<div class="song-card-uploader song-card-uploader-deleted">↑ uploaded by a deleted user</div>`
-          : `<div class="song-card-uploader" onclick="event.stopPropagation();openUserProfileView('${escapeJs(getSongUploader(s))}')">↑ uploaded by @${escapeHtml(getSongUploader(s))}</div>`) : ''}
-      <div class="song-desc">${escapeHtml(s.about.split('\\n')[0])}</div>
-      <div class="card-footer">
-        <div class="genre-pills">
-          ${s.genre.map(g => `<span class="genre-pill">${escapeHtml(g)}</span>`).join('')}
-        </div>
-        <span class="read-more">Read more</span>
-      </div>
-      <div class="rating-wrap" data-song="${s.number.replace('#','')}">
-        <div class="rating-your-row">
-          <span class="rating-label">Your Rating</span>
-          <div class="rating-stars">
-            <span class="rating-note" data-val="1"><svg class="rating-note-icon"><use href="#premNoteIcon"/></svg></span>
-            <span class="rating-note" data-val="2"><svg class="rating-note-icon"><use href="#premNoteIcon"/></svg></span>
-            <span class="rating-note" data-val="3"><svg class="rating-note-icon"><use href="#premNoteIcon"/></svg></span>
-            <span class="rating-note" data-val="4"><svg class="rating-note-icon"><use href="#premNoteIcon"/></svg></span>
-            <span class="rating-note" data-val="5"><svg class="rating-note-icon"><use href="#premNoteIcon"/></svg></span>
-          </div>
-          <span class="rating-count"></span>
-          <span class="rating-locked-msg">✓ Rated</span>
-        </div>
-        <div class="rating-community" data-role="community">${ratingCommunityHtml(s.number.replace('#',''))}</div>
-        <div class="rating-actions"></div>
-      </div>
-    `;
-    grid.appendChild(card);
-  });
+
+  const useCompact = !!compactGrid;
+  const compactCount = useCompact ? Math.min(ARCHIVE_COMPACT_COUNT, songs.length) : 0;
+
+  if (useCompact) {
+    compactGrid.innerHTML = '';
+    for (let i = 0; i < compactCount; i++) {
+      compactGrid.appendChild(buildCompactSongCard(songs[i], i));
+    }
+  }
+
+  // Remaining songs get appended (as full cards) once "Load More" is used —
+  // or immediately if there's no compact grid in this markup.
+  window._archiveRemaining = useCompact ? compactCount : 0;
+  if (!useCompact) {
+    songs.forEach((s, i) => grid.appendChild(buildFullSongCard(s, i)));
+  }
+
+  if (loadMoreWrap) {
+    loadMoreWrap.style.display = (useCompact && songs.length > compactCount) ? '' : 'none';
+  }
+
   initRatings();
   initMoodFilter();
   initModal();
   updateHomeStats();
+}
+
+// Reveals the rest of the archive (past the compact preview rows) using
+// the full song-card design, appended below the "Load More Records" button.
+function loadMoreSongs() {
+  const grid = document.getElementById('song-grid');
+  const loadMoreWrap = document.getElementById('load-more-wrap');
+  if (!grid || typeof songs === 'undefined') return;
+  const start = window._archiveRemaining || 0;
+  for (let i = start; i < songs.length; i++) {
+    grid.appendChild(buildFullSongCard(songs[i], i));
+  }
+  window._archiveRemaining = songs.length;
+  if (loadMoreWrap) loadMoreWrap.style.display = 'none';
+  initRatings();
+  applyArchiveFilters();
 }
 
 // Keeps the "Songs archived / Moods mapped / Genres" hero counters (the
@@ -335,10 +406,12 @@ function updateHomeStats() {
   const songsEl = document.getElementById('stat-songs');
   const moodsEl = document.getElementById('stat-moods');
   const genresEl = document.getElementById('stat-genres');
-  if (songsEl) songsEl.textContent = String(songs.length).padStart(2, '0');
-  if (moodsEl) moodsEl.textContent = String(Object.keys(MOOD_MAP).length).padStart(2, '0');
+  // Formatted like archive record numbers — "#0006 / 007 / 3" — to match
+  // the bold left-aligned stat counter design.
+  if (songsEl) songsEl.textContent = '#' + String(songs.length).padStart(4, '0');
+  if (moodsEl) moodsEl.textContent = String(Object.keys(MOOD_MAP).length).padStart(3, '0');
   if (genresEl && typeof getGenres === 'function') {
-    genresEl.textContent = String(getGenres().length).padStart(2, '0');
+    genresEl.textContent = String(getGenres().length);
   }
   renderRecentlyAdded();
 }
@@ -626,17 +699,29 @@ function initMoodFilter() {
 //  MODAL (with comments)
 // ═══════════════════════════════════════════════════════════════
 
+let _songCardClickDelegated = false;
+function _bindSongCardClickDelegation() {
+  if (_songCardClickDelegated) return;
+  _songCardClickDelegated = true;
+  // Delegated so cards added later (compact preview + cards revealed via
+  // "Load More") all open the modal without needing to be re-bound.
+  ['song-grid-compact', 'song-grid'].forEach(id => {
+    const container = document.getElementById(id);
+    if (!container) return;
+    container.addEventListener('click', (e) => {
+      if (e.target.closest('.rating-wrap')) return;
+      const card = e.target.closest('.song-card');
+      if (!card || !container.contains(card)) return;
+      const i = +card.dataset.index;
+      if (Number.isFinite(i) && typeof window.openSongModal === 'function') window.openSongModal(i);
+    });
+  });
+}
+
 function initModal() {
   const modal = document.getElementById('modal');
   const closeBtn = document.getElementById('close-modal');
-  const cards = document.querySelectorAll('.song-card');
-
-  cards.forEach((card, i) => {
-    card.addEventListener('click', (e) => {
-      if (e.target.closest('.rating-wrap')) return;
-      openModal(i);
-    });
-  });
+  _bindSongCardClickDelegation();
 
   window.renderModalFunFact = function(funFact) {
     const section = document.getElementById('m-funfact-section');
