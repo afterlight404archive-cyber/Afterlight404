@@ -704,7 +704,7 @@ function showPage(page) {
   // after with the specific section (archive vs about) since both live under
   // the 'home' page. Pages with no matching top-nav link (chat, profile, admin,
   // etc.) fall under "Social" since that's the flow they're reached from.
-  if (page === 'home') setDesktopNavActive('archive');
+  if (page === 'home') setDesktopNavActive('home');
   else if (page === 'submit') setDesktopNavActive('submit');
   else if (page === 'social' || page === 'chat' || page === 'topic-chat' || page === 'chats-list' || page === 'friends' || page === 'dm' || page === 'profile' || page === 'edit-profile') setDesktopNavActive('social');
 }

@@ -1123,7 +1123,8 @@ async function openGifSharePickerForRoom() {
       '<p class="friends-empty" style="grid-column:1/-1;">GIF search isn\'t set up yet — add a free Giphy API key in Admin → Chat System, or config.js.</p>';
     return;
   }
-  loadGifResults('trending');
+  if (typeof bindGifShareScroll === 'function') bindGifShareScroll();
+  loadGifResults('trending', true);
 }
 function sendGifToRoom(url) {
   if (!gifRoomTarget) return;

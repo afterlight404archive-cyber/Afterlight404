@@ -104,10 +104,10 @@
       <span class="logo-full">AfterLight<span class="colon">:</span><span class="four">404</span></span>
     </a>
     <nav id="desktop-nav">
-      <a href="#archive" class="active" data-nav="archive" onclick="goToHomeSection('archive');return false;">Archive</a>
+      <a href="#home" class="active" data-nav="home" onclick="showPage('home');return false;">Home</a>
       <a href="#about" data-nav="about" onclick="goToHomeSection('about');return false;">About</a>
-      <a href="#archive" data-nav="moods" onclick="goToHomeSection('archive');return false;">Moods</a>
-      <a href="#archive" data-nav="genres" onclick="goToHomeSection('archive');return false;">Genres</a>
+      <a href="#submit" data-nav="submit" onclick="showPage('submit');return false;">Submit</a>
+      <a href="#social" data-nav="social" onclick="showPage('social');return false;">Social</a>
     </nav>
   </div>
   <div class="header-right">
@@ -124,10 +124,6 @@
       </div>
     </div>
     <div class="header-icon-cluster">
-      <button class="header-search-btn" id="btn-header-search" onclick="showToast('Search coming soon.')" aria-label="Search">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      </button>
-      <span class="header-divider" aria-hidden="true"></span>
       <button class="header-theme-toggle" id="btn-header-theme" aria-label="Toggle theme" title="Toggle theme">
         <span class="htt-sun" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><circle cx="12" cy="12" r="4"/><g stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.9" y1="4.9" x2="6.3" y2="6.3"/><line x1="17.7" y1="17.7" x2="19.1" y2="19.1"/><line x1="4.9" y1="19.1" x2="6.3" y2="17.7"/><line x1="17.7" y1="6.3" x2="19.1" y2="4.9"/></g></svg>
@@ -691,88 +687,6 @@
         </div>
       </div>
     </div>
-    <div class="hero-vinyl-side">
-      <!-- 3D turntable player — spins with BGM; wired via toggleVinyl()/vinylNext()/vinylPrev() -->
-      <div class="player-card tt-player" id="player-card">
-        <div class="tt-deck" aria-hidden="true">
-          <!-- Platter + spinning disc -->
-          <div class="tt-platter">
-            <div class="tt-platter-rim"></div>
-            <div class="tt-disc player-vinyl-disc">
-              <div class="tt-grooves"></div>
-              <div class="tt-label player-vinyl-label">
-                <div class="tt-label-ring"></div>
-                <div class="tt-label-core">
-                  <span class="tt-label-brand">AfterLight</span>
-                  <span class="tt-label-mark">:404</span>
-                </div>
-              </div>
-              <div class="tt-spindle"></div>
-            </div>
-          </div>
-          <!-- Tonearm -->
-          <div class="tt-tonearm">
-            <div class="tt-pivot"></div>
-            <div class="tt-arm">
-              <div class="tt-headshell">
-                <div class="tt-stylus"></div>
-              </div>
-            </div>
-          </div>
-          <!-- Deck hardware -->
-          <div class="tt-start-stop"></div>
-          <div class="tt-logo-mark" title="Analog HQ">
-            <svg viewBox="0 0 64 16" width="48" height="12" aria-hidden="true">
-              <path d="M2 8 C6 2,10 14,14 8 S22 2,26 8 S34 14,38 8 S46 2,50 8 S58 14,62 8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-              <circle cx="32" cy="8" r="2.2" fill="currentColor"/>
-            </svg>
-          </div>
-          <div class="tt-knobs">
-            <div class="tt-knob"><span></span></div>
-            <div class="tt-knob"><span></span></div>
-            <div class="tt-knob"><span></span></div>
-          </div>
-          <!-- Subtle 3D sheen -->
-          <div class="tt-sheen"></div>
-        </div>
-
-        <div class="tt-meta">
-          <div class="player-card-titles">
-            <div class="player-card-title" id="player-track-title">Ambient Piano</div>
-            <div class="player-card-subtitle">Generative · never repeats</div>
-          </div>
-          <div class="player-wave" id="player-wave" aria-hidden="true">
-            <span></span><span></span><span></span><span></span><span></span>
-            <span></span><span></span><span></span><span></span><span></span>
-            <span></span><span></span><span></span><span></span><span></span>
-          </div>
-          <div class="player-progress-row">
-            <span class="player-time player-time-live" id="player-time-live" aria-hidden="true"></span>
-            <div class="player-progress-track" id="player-progress-track">
-              <div class="player-progress-fill"></div>
-              <div class="player-progress-thumb"></div>
-            </div>
-            <span class="player-time player-time-end">∞</span>
-          </div>
-          <div class="player-controls-row">
-            <button class="player-ctrl-btn" onclick="vinylPrev()" aria-label="Previous background track" title="Previous background track"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
-            <button class="player-play-btn" id="vinyl-play-btn" onclick="toggleVinyl()" aria-label="Play background music" title="Play background music">
-              <svg class="player-icon player-icon-play" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
-              <svg class="player-icon player-icon-pause" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-            </button>
-            <button class="player-ctrl-btn" onclick="vinylNext()" aria-label="Next background track" title="Next background track"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
-          </div>
-        </div>
-        <!-- Hidden badge kept for any title-tooltip references -->
-        <div class="player-card-badge" id="player-card-badge" style="display:none;" title="Composed live in your browser with the Web Audio API — no samples, no loop, never the same twice."></div>
-      </div>
-
-      <!-- Recently Added — updates whenever songs are added/approved -->
-      <div class="recently-added" id="recently-added">
-        <h3 class="recently-added-title">Recently Added</h3>
-        <div class="recently-added-grid" id="recently-added-grid"></div>
-      </div>
-    </div>
   </div>
 </section>
 
@@ -785,8 +699,15 @@
 <!-- SONG ARCHIVE -->
 <section class="archive-section">
   <div class="archive-header">
-    <h2 id="archive-title">The Archive</h2>
-    <span class="count-tag" id="count-tag">06 entries</span>
+    <div class="archive-header-left">
+      <h2 id="archive-title">The Archive</h2>
+      <span class="count-tag" id="count-tag">06 entries</span>
+    </div>
+    <div class="archive-search-wrap">
+      <svg class="archive-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="search" class="archive-search-input" id="archive-search-input" placeholder="Search songs, artists, genres…" autocomplete="off" spellcheck="false" aria-label="Search the archive">
+      <button type="button" class="archive-search-clear" id="archive-search-clear" aria-label="Clear search" style="display:none;">✕</button>
+    </div>
   </div>
   <div class="song-grid" id="song-grid"></div>
 </section>

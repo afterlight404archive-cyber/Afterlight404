@@ -1031,6 +1031,12 @@ function shareSongToDm(number) {
 // rooms at all.
 let gifShareSearchTimer = null;
 let gifShareContext = 'dm'; // 'dm' | 'room'
+let gifShareQuery = 'trending';
+let gifShareOffset = 0;
+let gifShareLoading = false;
+let gifShareHasMore = true;
+let gifShareScrollBound = false;
+const GIF_PAGE_SIZE = 25;
 
 async function openGifSharePicker() {
   if (!dmActiveFriend) return;
@@ -1040,15 +1046,16 @@ async function openGifSharePicker() {
   document.getElementById('gif-share-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
   document.getElementById('gif-share-grid').innerHTML =
-    '<p class="friends-empty" style="grid-column:1/-1;">Loading…</p>';
+    '<p class="gif-share-status">Loading…</p>';
   await ensureGiphyConfigSynced();
   const cfg = getGiphyConfig();
   if (!cfg.apiKey) {
     document.getElementById('gif-share-grid').innerHTML =
-      '<p class="friends-empty" style="grid-column:1/-1;">GIF search isn\'t set up yet — add a free Giphy API key in Admin → Chat System, or config.js.</p>';
+      '<p class="gif-share-status">GIF search isn\'t set up yet — add a free Giphy API key in Admin → Chat System, or config.js.</p>';
     return;
   }
-  loadGifResults('trending');
+  bindGifShareScroll();
+  loadGifResults('trending', true);
 }
 function closeGifSharePicker() {
   document.getElementById('gif-share-overlay').classList.remove('open');
@@ -1057,43 +1064,123 @@ function closeGifSharePicker() {
 function onGifShareSearchInput() {
   clearTimeout(gifShareSearchTimer);
   const q = document.getElementById('gif-share-search').value.trim();
-  gifShareSearchTimer = setTimeout(() => loadGifResults(q || 'trending'), 350);
+  gifShareSearchTimer = setTimeout(() => loadGifResults(q || 'trending', true), 350);
 }
-async function loadGifResults(query) {
+
+function gifItemHTML(r) {
+  const imgs = r.images || {};
+  const tiny = imgs.fixed_width || imgs.fixed_width_small || imgs.preview_gif;
+  const full = imgs.fixed_width || imgs.original;
+  if (!tiny || !full || !tiny.url || !full.url) return '';
+  return `<div class="gif-share-item" onclick="handleGifPicked('${escapeJs(full.url)}')">
+    <img src="${escapeHtml(tiny.url)}" alt="${escapeHtml(r.title || 'GIF')}" loading="lazy">
+  </div>`;
+}
+
+function bindGifShareScroll() {
+  const grid = document.getElementById('gif-share-grid');
+  if (!grid || gifShareScrollBound) return;
+  gifShareScrollBound = true;
+  grid.addEventListener('scroll', function () {
+    if (gifShareLoading || !gifShareHasMore) return;
+    const nearBottom = grid.scrollTop + grid.clientHeight >= grid.scrollHeight - 140;
+    if (nearBottom) loadGifResults(gifShareQuery, false);
+  }, { passive: true });
+}
+
+function ensureGifLoaderEl(grid) {
+  let el = document.getElementById('gif-share-loader');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'gif-share-loader';
+    el.className = 'gif-share-loader';
+    el.setAttribute('aria-hidden', 'true');
+    grid.appendChild(el);
+  }
+  return el;
+}
+
+async function loadGifResults(query, reset) {
   const cfg = getGiphyConfig();
   const grid = document.getElementById('gif-share-grid');
-  if (!cfg.apiKey) return;
-  grid.innerHTML = '<p class="friends-empty" style="grid-column:1/-1;">Loading…</p>';
+  if (!cfg.apiKey || !grid) return;
+
+  if (reset) {
+    gifShareQuery = query || 'trending';
+    gifShareOffset = 0;
+    gifShareHasMore = true;
+    gifShareLoading = false;
+    grid.innerHTML = '<p class="gif-share-status">Loading…</p>';
+  }
+
+  if (gifShareLoading || !gifShareHasMore) return;
+  gifShareLoading = true;
+
+  const loader = reset ? null : ensureGifLoaderEl(grid);
+  if (loader) loader.textContent = 'Loading more…';
+
   try {
-    const endpoint = query === 'trending'
-      ? `https://api.giphy.com/v1/gifs/trending?api_key=${encodeURIComponent(cfg.apiKey)}&limit=20&rating=pg-13`
-      : `https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(cfg.apiKey)}&q=${encodeURIComponent(query)}&limit=20&rating=pg-13`;
+    const q = gifShareQuery;
+    const offset = gifShareOffset;
+    const endpoint = q === 'trending'
+      ? `https://api.giphy.com/v1/gifs/trending?api_key=${encodeURIComponent(cfg.apiKey)}&limit=${GIF_PAGE_SIZE}&offset=${offset}&rating=pg-13`
+      : `https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(cfg.apiKey)}&q=${encodeURIComponent(q)}&limit=${GIF_PAGE_SIZE}&offset=${offset}&rating=pg-13`;
     const res = await fetch(endpoint);
     const data = await res.json();
+
+    // Ignore late responses from an older query
+    if (q !== gifShareQuery || offset !== gifShareOffset) return;
+
     if (data.meta && data.meta.status && data.meta.status !== 200) {
       console.error('Giphy API error:', data.meta.msg);
-      grid.innerHTML = '<p class="friends-empty" style="grid-column:1/-1;">Couldn\'t load GIFs — check the API key in Admin → Chat System.</p>';
+      if (reset) {
+        grid.innerHTML = '<p class="gif-share-status">Couldn\'t load GIFs — check the API key in Admin → Chat System.</p>';
+      }
+      gifShareHasMore = false;
       return;
     }
+
     const results = data.data || [];
-    if (results.length === 0) {
-      grid.innerHTML = '<p class="friends-empty" style="grid-column:1/-1;">No GIFs found.</p>';
-      return;
+    const pagination = data.pagination || {};
+    const total = typeof pagination.total_count === 'number' ? pagination.total_count : (offset + results.length);
+    gifShareOffset = offset + results.length;
+    gifShareHasMore = results.length > 0 && gifShareOffset < total;
+
+    if (reset) {
+      if (results.length === 0) {
+        grid.innerHTML = '<p class="gif-share-status">No GIFs found.</p>';
+      } else {
+        grid.innerHTML = results.map(gifItemHTML).join('');
+        if (gifShareHasMore) ensureGifLoaderEl(grid).textContent = '';
+      }
+    } else {
+      if (loader) loader.remove();
+      if (results.length) {
+        grid.insertAdjacentHTML('beforeend', results.map(gifItemHTML).join(''));
+      }
+      if (gifShareHasMore) {
+        ensureGifLoaderEl(grid).textContent = '';
+      } else {
+        const end = document.createElement('p');
+        end.className = 'gif-share-status gif-share-end';
+        end.textContent = 'End of results';
+        grid.appendChild(end);
+      }
     }
-    grid.innerHTML = results.map(r => {
-      const imgs = r.images || {};
-      const tiny = imgs.fixed_width || imgs.fixed_width_small || imgs.preview_gif;
-      const full = imgs.fixed_width || imgs.original;
-      if (!tiny || !full || !tiny.url || !full.url) return '';
-      return `<div class="gif-share-item" onclick="handleGifPicked('${escapeJs(full.url)}')">
-        <img src="${escapeHtml(tiny.url)}" alt="${escapeHtml(r.title || 'GIF')}" loading="lazy">
-      </div>`;
-    }).join('');
   } catch (e) {
     console.error('Giphy search failed:', e);
-    grid.innerHTML = '<p class="friends-empty" style="grid-column:1/-1;">Couldn\'t load GIFs — try again.</p>';
+    if (reset) {
+      grid.innerHTML = '<p class="gif-share-status">Couldn\'t load GIFs — try again.</p>';
+    } else {
+      const el = document.getElementById('gif-share-loader');
+      if (el) el.textContent = 'Couldn\'t load more — scroll to retry';
+      gifShareHasMore = true;
+    }
+  } finally {
+    gifShareLoading = false;
   }
 }
+
 // Routes a picked GIF to whichever picker opened it (DM vs room/global
 // chat). Room-side handling (openGifSharePickerForRoom) lives in chat.js.
 function handleGifPicked(url) {

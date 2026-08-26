@@ -515,25 +515,111 @@ function populateMoodSelects() {
   });
 }
 
-function initMoodFilter() {
-  const moodBtns = document.querySelectorAll('.mood-btn:not([data-filter-bound])');
+let archiveSearchQuery = '';
+let archiveSearchBound = false;
+
+function getActiveMoodFilter() {
+  const active = document.querySelector('.mood-btn.active');
+  return active ? (active.dataset.mood || 'all') : 'all';
+}
+
+function songMatchesSearch(s, q) {
+  if (!q) return true;
+  const hay = [
+    s.title, s.artist, s.year, s.number, s.mood, s.about,
+    (s.genre || []).join(' '), s.credit || ''
+  ].join(' ').toLowerCase();
+  return hay.includes(q);
+}
+
+function applyArchiveFilters() {
   const cards = document.querySelectorAll('.song-card');
   const countTag = document.getElementById('count-tag');
+  const mood = getActiveMoodFilter();
+  const q = (archiveSearchQuery || '').trim().toLowerCase();
+  let visible = 0;
+  let firstVisibleIdx = -1;
+  cards.forEach(card => {
+    const i = +card.dataset.index;
+    const s = (typeof songs !== 'undefined' && songs[i]) ? songs[i] : null;
+    const moodOk = mood === 'all' || card.dataset.mood === mood;
+    const searchOk = !s ? !q : songMatchesSearch(s, q);
+    const match = moodOk && searchOk;
+    card.classList.toggle('hidden', !match);
+    if (match) {
+      visible++;
+      if (firstVisibleIdx < 0) firstVisibleIdx = i;
+    }
+  });
+  if (countTag) {
+    const label = visible === 1 ? ' entry' : ' entries';
+    countTag.textContent = String(visible).padStart(2, '0') + label;
+  }
+  return firstVisibleIdx;
+}
+
+function initArchiveSearch() {
+  const input = document.getElementById('archive-search-input');
+  const clearBtn = document.getElementById('archive-search-clear');
+  if (!input || archiveSearchBound) return;
+  archiveSearchBound = true;
+
+  let debounce = 0;
+  const run = () => {
+    archiveSearchQuery = input.value || '';
+    if (clearBtn) clearBtn.style.display = archiveSearchQuery.trim() ? 'flex' : 'none';
+    applyArchiveFilters();
+  };
+
+  input.addEventListener('input', () => {
+    clearTimeout(debounce);
+    debounce = setTimeout(run, 120);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      clearTimeout(debounce);
+      run();
+      // Open the first matching song when Enter is pressed
+      const first = applyArchiveFilters();
+      if (first >= 0) {
+        if (typeof window.openSongModal === 'function') window.openSongModal(first);
+        else {
+          const card = document.querySelector('.song-card[data-index="' + first + '"]');
+          if (card && !card.classList.contains('hidden')) card.click();
+        }
+      }
+    } else if (e.key === 'Escape') {
+      input.value = '';
+      run();
+      input.blur();
+    }
+  });
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      input.value = '';
+      run();
+      input.focus();
+    });
+  }
+}
+
+function initMoodFilter() {
+  const moodBtns = document.querySelectorAll('.mood-btn:not([data-filter-bound])');
+  const countTag = document.getElementById('count-tag');
+  initArchiveSearch();
   moodBtns.forEach(btn => {
     btn.dataset.filterBound = '1';
     btn.addEventListener('click', () => {
       document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      const mood = btn.dataset.mood;
-      let visible = 0;
-      cards.forEach(card => {
-        const match = mood === 'all' || card.dataset.mood === mood;
-        card.classList.toggle('hidden', !match);
-        if (match) visible++;
-      });
-      if (countTag) countTag.textContent = String(visible).padStart(2, '0') + ' entries';
+      applyArchiveFilters();
     });
   });
+  // Re-apply current search after grid re-render
+  applyArchiveFilters();
 }
 
 // ═══════════════════════════════════════════════════════════════
