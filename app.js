@@ -823,6 +823,58 @@ const APP_ICON_PACKS = [
       favicon180: 'icons/light/icon-180.png',
     },
   },
+  {
+    id: 'flare',
+    name: 'Anamorphic',
+    dark: {
+      preview: 'icons/flare/dark/icon-512.png',
+      manifest: 'manifest-flare-dark.json',
+      favicon512: 'icons/flare/dark/icon-512.png',
+      favicon192: 'icons/flare/dark/icon-192.png',
+      favicon32: 'icons/flare/dark/icon-32.png',
+      favicon16: 'icons/flare/dark/icon-16.png',
+      favicon180: 'icons/flare/dark/icon-180.png',
+    },
+  },
+  {
+    id: 'vinylcard',
+    name: 'Vinyl Card',
+    light: {
+      preview: 'icons/vinylcard/light/icon-512.png',
+      manifest: 'manifest-vinylcard-light.json',
+      favicon512: 'icons/vinylcard/light/icon-512.png',
+      favicon192: 'icons/vinylcard/light/icon-192.png',
+      favicon32: 'icons/vinylcard/light/icon-32.png',
+      favicon16: 'icons/vinylcard/light/icon-16.png',
+      favicon180: 'icons/vinylcard/light/icon-180.png',
+    },
+  },
+  {
+    id: 'centered',
+    name: 'Centered',
+    light: {
+      preview: 'icons/centered/light/icon-512.png',
+      manifest: 'manifest-centered-light.json',
+      favicon512: 'icons/centered/light/icon-512.png',
+      favicon192: 'icons/centered/light/icon-192.png',
+      favicon32: 'icons/centered/light/icon-32.png',
+      favicon16: 'icons/centered/light/icon-16.png',
+      favicon180: 'icons/centered/light/icon-180.png',
+    },
+  },
+  {
+    id: 'refined',
+    name: 'Refined',
+    light: {
+      preview: 'icons/refined/light/icon-512.png',
+      manifest: 'manifest-refined-light.json',
+      favicon512: 'icons/refined/light/icon-512.png',
+      favicon192: 'icons/refined/light/icon-192.png',
+      favicon32: 'icons/refined/light/icon-32.png',
+      favicon16: 'icons/refined/light/icon-16.png',
+      favicon180: 'icons/refined/light/icon-180.png',
+    },
+  },
 ];
 
 // Legacy two-mode map still used by resolve path when only theme is set.
