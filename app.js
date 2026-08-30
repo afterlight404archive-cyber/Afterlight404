@@ -666,8 +666,15 @@ function showPage(page) {
   if ((page === 'friends' || page === 'dm' || page === 'profile' || page === 'edit-profile' || page === 'chats-list') && !currentUser) {
     page = 'social';
   }
-  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
-  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.page-section').forEach(s => {
+    s.classList.remove('active', 'page-fade-out');
+  });
+  const nextPage = document.getElementById('page-' + page);
+  if (nextPage) {
+    // Force reflow so the fade-in animation always restarts on switch
+    void nextPage.offsetWidth;
+    nextPage.classList.add('active');
+  }
   window.scrollTo(0, 0);
   closeChatDrawer();
   document.body.classList.toggle('on-chat-page', page === 'chat' || page === 'topic-chat');
@@ -821,58 +828,6 @@ const APP_ICON_PACKS = [
       favicon32: 'icons/light/icon-32.png',
       favicon16: 'icons/light/icon-16.png',
       favicon180: 'icons/light/icon-180.png',
-    },
-  },
-  {
-    id: 'flare',
-    name: 'Anamorphic',
-    dark: {
-      preview: 'icons/flare/dark/icon-512.png',
-      manifest: 'manifest-flare-dark.json',
-      favicon512: 'icons/flare/dark/icon-512.png',
-      favicon192: 'icons/flare/dark/icon-192.png',
-      favicon32: 'icons/flare/dark/icon-32.png',
-      favicon16: 'icons/flare/dark/icon-16.png',
-      favicon180: 'icons/flare/dark/icon-180.png',
-    },
-  },
-  {
-    id: 'vinylcard',
-    name: 'Vinyl Card',
-    light: {
-      preview: 'icons/vinylcard/light/icon-512.png',
-      manifest: 'manifest-vinylcard-light.json',
-      favicon512: 'icons/vinylcard/light/icon-512.png',
-      favicon192: 'icons/vinylcard/light/icon-192.png',
-      favicon32: 'icons/vinylcard/light/icon-32.png',
-      favicon16: 'icons/vinylcard/light/icon-16.png',
-      favicon180: 'icons/vinylcard/light/icon-180.png',
-    },
-  },
-  {
-    id: 'centered',
-    name: 'Centered',
-    light: {
-      preview: 'icons/centered/light/icon-512.png',
-      manifest: 'manifest-centered-light.json',
-      favicon512: 'icons/centered/light/icon-512.png',
-      favicon192: 'icons/centered/light/icon-192.png',
-      favicon32: 'icons/centered/light/icon-32.png',
-      favicon16: 'icons/centered/light/icon-16.png',
-      favicon180: 'icons/centered/light/icon-180.png',
-    },
-  },
-  {
-    id: 'refined',
-    name: 'Refined',
-    light: {
-      preview: 'icons/refined/light/icon-512.png',
-      manifest: 'manifest-refined-light.json',
-      favicon512: 'icons/refined/light/icon-512.png',
-      favicon192: 'icons/refined/light/icon-192.png',
-      favicon32: 'icons/refined/light/icon-32.png',
-      favicon16: 'icons/refined/light/icon-16.png',
-      favicon180: 'icons/refined/light/icon-180.png',
     },
   },
 ];
@@ -1053,8 +1008,138 @@ if (volumePill) {
 }
 document.addEventListener('afterlight-bgm-trackchange', (e) => {
   updateVolumePillLabel(!!(e.detail && e.detail.playing));
+  syncAnalogHQPanel(e.detail);
 });
 if (window.AfterlightBGM) updateVolumePillLabel(window.AfterlightBGM.isPlaying());
+
+// ═══════════════════════════════════════════════════════════════
+//  ANALOG HQ — music player panel (switch tracks + mute)
+// ═══════════════════════════════════════════════════════════════
+(function initAnalogHQPanel() {
+  const wrap = document.getElementById('analog-hq-wrap');
+  const btn = document.getElementById('bgm-toggle-btn');
+  const panel = document.getElementById('analog-hq-panel');
+  if (!wrap || !btn || !panel) return;
+
+  const trackNameEl = document.getElementById('ahq-track-name');
+  const statusEl = document.getElementById('ahq-status');
+  const playBtn = document.getElementById('ahq-play');
+  const prevBtn = document.getElementById('ahq-prev');
+  const nextBtn = document.getElementById('ahq-next');
+  const closeBtn = document.getElementById('ahq-close');
+  const listEl = document.getElementById('ahq-track-list');
+
+  function isOpen() {
+    return panel && !panel.hasAttribute('hidden');
+  }
+
+  function openPanel() {
+    panel.removeAttribute('hidden');
+    btn.setAttribute('aria-expanded', 'true');
+    rebuildTrackList();
+    syncAnalogHQPanel();
+  }
+
+  function closePanel() {
+    panel.setAttribute('hidden', '');
+    btn.setAttribute('aria-expanded', 'false');
+  }
+
+  function togglePanel(e) {
+    if (e) e.stopPropagation();
+    if (isOpen()) closePanel();
+    else openPanel();
+  }
+
+  function rebuildTrackList() {
+    if (!listEl || !window.AfterlightBGM) return;
+    const tracks = window.AfterlightBGM.getTracks() || [];
+    const active = window.AfterlightBGM.getCurrentTrackIndex ? window.AfterlightBGM.getCurrentTrackIndex() : 0;
+    listEl.innerHTML = tracks.map((name, i) =>
+      `<button type="button" class="ahq-track-item${i === active ? ' active' : ''}" role="option" aria-selected="${i === active}" data-idx="${i}">` +
+      `<span class="ahq-ti-num">${String(i + 1).padStart(2, '0')}</span>` +
+      `<span class="ahq-ti-name">${name.replace(/</g, '&lt;')}</span>` +
+      `</button>`
+    ).join('');
+  }
+
+  window.syncAnalogHQPanel = function syncAnalogHQPanel(detail) {
+    if (!window.AfterlightBGM) return;
+    const playing = detail && typeof detail.playing === 'boolean'
+      ? detail.playing
+      : window.AfterlightBGM.isPlaying();
+    const name = (detail && detail.name) || window.AfterlightBGM.getCurrentTrackName() || 'Background music';
+    const idx = (detail && typeof detail.index === 'number')
+      ? detail.index
+      : (window.AfterlightBGM.getCurrentTrackIndex ? window.AfterlightBGM.getCurrentTrackIndex() : 0);
+
+    if (trackNameEl) trackNameEl.textContent = name;
+    if (statusEl) {
+      statusEl.textContent = playing ? 'Playing' : 'Muted';
+      statusEl.classList.toggle('is-live', playing);
+    }
+    if (playBtn) {
+      playBtn.textContent = playing ? '⏸' : '▶';
+      playBtn.classList.toggle('is-playing', playing);
+      playBtn.setAttribute('aria-label', playing ? 'Mute background music' : 'Play background music');
+      playBtn.title = playing ? 'Mute' : 'Play';
+    }
+    const vinyl = document.getElementById('ahq-vinyl');
+    if (vinyl) vinyl.classList.toggle('is-spinning', playing);
+    // Keep pill bars in sync (updateIcon in bgmusic also runs)
+    btn.classList.toggle('is-playing', playing);
+    btn.setAttribute('aria-pressed', playing ? 'true' : 'false');
+
+    if (listEl) {
+      listEl.querySelectorAll('.ahq-track-item').forEach((el, i) => {
+        const on = i === idx;
+        el.classList.toggle('active', on);
+        el.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+    }
+  };
+
+  btn.addEventListener('click', togglePanel);
+  if (closeBtn) closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closePanel(); });
+  if (playBtn) playBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (window.AfterlightBGM) window.AfterlightBGM.toggle();
+  });
+  if (prevBtn) prevBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (window.AfterlightBGM) window.AfterlightBGM.prev();
+  });
+  if (nextBtn) nextBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (window.AfterlightBGM) window.AfterlightBGM.next();
+  });
+  if (listEl) listEl.addEventListener('click', (e) => {
+    const item = e.target.closest('.ahq-track-item');
+    if (!item || !window.AfterlightBGM) return;
+    e.stopPropagation();
+    const i = parseInt(item.dataset.idx, 10);
+    if (!isNaN(i) && window.AfterlightBGM.switchTo) window.AfterlightBGM.switchTo(i);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!isOpen()) return;
+    if (!wrap.contains(e.target)) closePanel();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isOpen()) closePanel();
+  });
+
+  // Initial paint when BGM is ready
+  if (window.AfterlightBGM) {
+    rebuildTrackList();
+    syncAnalogHQPanel();
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      rebuildTrackList();
+      syncAnalogHQPanel();
+    });
+  }
+})();
 
 // ═══════════════════════════════════════════════════════════════
 //  DONATE
@@ -1191,3 +1276,84 @@ document.addEventListener('afterlight-bgm-trackchange', syncVinylToBGM);
 document.addEventListener('DOMContentLoaded', syncVinylToBGM);
 
 // ═══════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════
+//  QUOTE OF THE DAY — daily rotation + smooth marquee
+// ═══════════════════════════════════════════════════════════════
+const AL_QUOTES_KEY = 'al-daily-quotes';
+const DEFAULT_QUOTES = [
+  { text: 'Some songs only make sense after midnight.', attr: 'AfterLight' },
+  { text: 'The silence between tracks is also music.', attr: '' },
+  { text: 'Vinyl crackle is a feature, not a bug.', attr: '' },
+  { text: 'Not every masterpiece charts. Some just live in your head.', attr: 'AfterLight' },
+  { text: 'Mood first. Genre second. Algorithms never.', attr: '' },
+];
+
+function loadQuotePool() {
+  try {
+    const raw = JSON.parse(alGet(AL_QUOTES_KEY) || '[]');
+    if (Array.isArray(raw) && raw.length) {
+      return raw
+        .map(q => (typeof q === 'string' ? { text: q, attr: '' } : { text: String(q.text || '').trim(), attr: String(q.attr || '').trim() }))
+        .filter(q => q.text);
+    }
+  } catch (e) {}
+  return DEFAULT_QUOTES.slice();
+}
+
+function dayIndex(len) {
+  if (!len) return 0;
+  const d = new Date();
+  const key = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  // Stable mix so consecutive days don't always feel sequential
+  let h = key * 2654435761;
+  h = Math.abs(h >>> 0);
+  return h % len;
+}
+
+function getQuoteOfTheDay() {
+  const pool = loadQuotePool();
+  if (!pool.length) return { text: 'Add quotes in Admin → Quotes.', attr: '' };
+  return pool[dayIndex(pool.length)];
+}
+
+function renderQuoteTicker() {
+  const track = document.getElementById('quote-ticker-track');
+  const textEl = document.getElementById('quote-ticker-text');
+  const section = document.getElementById('quote-ticker');
+  if (!track || !textEl) return;
+
+  const q = getQuoteOfTheDay();
+  const attrHtml = q.attr
+    ? ' <span class="quote-attr">— ' + q.attr.replace(/</g, '&lt;') + '</span>'
+    : '';
+  const body = '“' + String(q.text).replace(/</g, '&lt;') + '”' + attrHtml;
+
+  // Duplicate content so the marquee can loop seamlessly
+  textEl.innerHTML = body;
+  const clone = textEl.cloneNode(true);
+  clone.removeAttribute('id');
+  clone.setAttribute('aria-hidden', 'true');
+  // Clear extra clones from prior renders
+  track.querySelectorAll('.quote-ticker-text:not(#quote-ticker-text)').forEach(n => n.remove());
+  track.appendChild(clone);
+
+  track.classList.remove('is-scrolling');
+  // Only animate if the text is wider than the viewport strip
+  requestAnimationFrame(() => {
+    const wrap = track.parentElement;
+    if (wrap && textEl.scrollWidth > wrap.clientWidth * 0.85) {
+      track.classList.add('is-scrolling');
+    }
+  });
+  if (section) section.style.display = '';
+}
+
+document.addEventListener('DOMContentLoaded', renderQuoteTicker);
+// Re-render if admin updates quotes in another tab
+window.addEventListener('storage', (e) => {
+  if (e.key === AL_QUOTES_KEY || (e.key && e.key.indexOf('al-daily-quotes') !== -1)) renderQuoteTicker();
+});
+window.renderQuoteTicker = renderQuoteTicker;
+window.loadQuotePool = loadQuotePool;
+window.getQuoteOfTheDay = getQuoteOfTheDay;

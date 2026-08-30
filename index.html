@@ -139,11 +139,39 @@
         <button class="auth-btn" id="btn-login">Log In</button>
         <button class="auth-btn primary" id="btn-signup">Sign Up</button>
       </div>
-      <button class="analog-pill" id="bgm-toggle-btn" aria-pressed="false" aria-label="Play background music" title="Play background music">
-        <span class="analog-pill-dot" aria-hidden="true"></span>
-        <span class="analog-bars" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span class="analog-pill-label">Analog HQ</span>
-      </button>
+      <div class="analog-hq-wrap" id="analog-hq-wrap">
+        <button class="analog-pill" id="bgm-toggle-btn" type="button" aria-pressed="false" aria-haspopup="true" aria-expanded="false" aria-controls="analog-hq-panel" aria-label="Open Analog HQ music player" title="Analog HQ — background music">
+          <span class="analog-pill-dot" aria-hidden="true"></span>
+          <span class="analog-bars" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="analog-pill-label">Analog HQ</span>
+        </button>
+        <div class="analog-hq-panel" id="analog-hq-panel" role="dialog" aria-label="Background music player" hidden>
+          <div class="ahq-head">
+            <span class="ahq-kicker">Analog HQ</span>
+            <button type="button" class="ahq-close" id="ahq-close" aria-label="Close">✕</button>
+          </div>
+          <div class="ahq-now">
+            <div class="ahq-now-label">Now playing</div>
+            <div class="ahq-now-row">
+              <div class="ahq-vinyl" id="ahq-vinyl" aria-hidden="true">
+                <span class="ahq-vinyl-disc"></span>
+                <span class="ahq-vinyl-label"></span>
+              </div>
+              <div class="ahq-now-text">
+                <div class="ahq-track-name" id="ahq-track-name">—</div>
+                <div class="ahq-status" id="ahq-status">Paused</div>
+              </div>
+            </div>
+          </div>
+          <div class="ahq-controls">
+            <button type="button" class="ahq-btn" id="ahq-prev" title="Previous track" aria-label="Previous track">⏮</button>
+            <button type="button" class="ahq-btn ahq-play" id="ahq-play" title="Play / Mute" aria-label="Play or mute">▶</button>
+            <button type="button" class="ahq-btn" id="ahq-next" title="Next track" aria-label="Next track">⏭</button>
+          </div>
+          <div class="ahq-list-label">Tracks</div>
+          <div class="ahq-track-list" id="ahq-track-list" role="listbox" aria-label="Background tracks"></div>
+        </div>
+      </div>
       <button class="volume-pill" id="volume-pill" aria-label="Toggle background music" title="Toggle mute" style="display:none;">
         <svg class="vp-icon vp-icon-on" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M4 9v6h4l5 5V4L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M19 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
         <svg class="vp-icon vp-icon-off" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M4 9v6h4l5 5V4L8 9H4z"/><path d="M15.5 8.5l5.5 7M21 8.5l-5.5 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
@@ -716,6 +744,32 @@
       </div>
     </div>
   </div>
+</section>
+
+<!-- QUOTE OF THE DAY (smooth marquee) -->
+<section class="quote-ticker" id="quote-ticker" aria-label="Quote of the day">
+  <div class="quote-ticker-inner">
+    <span class="quote-ticker-label">Quote of the day</span>
+    <div class="quote-ticker-track-wrap">
+      <div class="quote-ticker-track" id="quote-ticker-track">
+        <span class="quote-ticker-text" id="quote-ticker-text">Loading…</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RECENTLY ADDED -->
+<section class="recently-added-section" id="recently-added" aria-label="Recently added songs">
+  <div class="recently-added-header">
+    <div>
+      <div class="section-label">// Fresh ink</div>
+      <h2 class="recently-added-title">Recently Added</h2>
+    </div>
+    <button type="button" class="recently-added-see-all" onclick="document.getElementById('archive')?.scrollIntoView({behavior:'smooth'});return false;">
+      Browse archive →
+    </button>
+  </div>
+  <div class="recently-added-grid" id="recently-added-grid"></div>
 </section>
 
 <!-- MOOD FILTER -->
@@ -1421,6 +1475,7 @@
       <div class="admin-nav-item" onclick="showAdminTab('add')"><span class="ni-icon">＋</span>Add New Song</div>
       <div class="admin-nav-item" onclick="showAdminTab('genres')"><span class="ni-icon">▤</span>Genres</div>
       <div class="admin-nav-item" onclick="showAdminTab('moods')"><span class="ni-icon">◐</span>Moods</div>
+      <div class="admin-nav-item" onclick="showAdminTab('quotes')"><span class="ni-icon">❝</span>Quotes</div>
       <div class="admin-nav-group-label">Community</div>
       <div class="admin-nav-item" onclick="showAdminTab('users')"><span class="ni-icon">◍</span>Users</div>
       <div class="admin-nav-item" onclick="showAdminTab('avatars')"><span class="ni-icon">▣</span>Avatars</div>
@@ -1696,6 +1751,28 @@
             </div>
           </div>
           <button class="form-btn" onclick="addMood()" style="max-width:200px;margin-top:8px;">Add Mood</button>
+        </div>
+      </div>
+
+      <!-- Quotes of the Day -->
+      <div id="admin-tab-quotes" style="display:none;">
+        <h3>Quotes of the Day</h3>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:16px;line-height:1.7;max-width:560px;">
+          One quote is shown on the homepage each day (rotates automatically). Add many at once — one quote per line. Optional attribution after a pipe: <code style="color:var(--accent);">quote text | Author</code>
+        </p>
+        <div class="admin-form">
+          <div class="form-group full">
+            <label>Bulk add (one per line)</label>
+            <textarea class="form-input" id="adm-quotes-bulk" rows="8" placeholder="The silence between songs is also music.&#10;Some tracks only make sense at 3am. | AfterLight&#10;Vinyl crackle is a feature, not a bug."></textarea>
+          </div>
+          <button class="form-btn" onclick="adminAddQuotesBulk()" style="max-width:220px;">Add Quotes</button>
+        </div>
+        <div style="margin-top:28px;padding-top:20px;border-top:1px solid var(--border);">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+            <h3 style="margin:0;font-size:15px;">Saved quotes <span id="adm-quotes-count" style="color:var(--muted);font-weight:400;"></span></h3>
+            <button type="button" class="form-btn" style="max-width:none;padding:6px 12px;font-size:10px;background:transparent;border:1px solid var(--red);color:var(--red);" onclick="adminClearAllQuotes()">Clear all</button>
+          </div>
+          <div class="admin-songs-list" id="admin-quotes-list"></div>
         </div>
       </div>
 

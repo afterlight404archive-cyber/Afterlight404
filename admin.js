@@ -1109,6 +1109,7 @@ function showAdminTab(tab) {
   if (tab === 'genres') renderAdminGenres();
   if (tab === 'avatars') renderAdminAvatars();
   if (tab === 'moods') renderAdminMoods();
+  if (tab === 'quotes') renderAdminQuotes();
   if (tab === 'chat') renderAdminChat();
   if (tab === 'safety') renderAdminSafety();
   if (tab === 'email') renderAdminEmail();
@@ -2334,4 +2335,112 @@ async function refreshSafetyStatus() {
     'Honeypot field on signup, per-message send cooldowns, database-level rate limits (1 message/second per person), message length caps, and row-level security on every table.'));
 
   el.innerHTML = rows.join('<div style="height:2px;"></div>');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  QUOTES OF THE DAY (admin bulk add + list)
+// ═══════════════════════════════════════════════════════════════
+const ADM_QUOTES_KEY = 'al-daily-quotes';
+
+function _parseQuoteLine(line) {
+  const raw = String(line || '').trim();
+  if (!raw) return null;
+  const pipe = raw.indexOf('|');
+  if (pipe === -1) return { text: raw, attr: '' };
+  return {
+    text: raw.slice(0, pipe).trim(),
+    attr: raw.slice(pipe + 1).trim(),
+  };
+}
+
+function _readQuotes() {
+  try {
+    const raw = JSON.parse(alGet(ADM_QUOTES_KEY) || '[]');
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map(q => (typeof q === 'string' ? { text: q, attr: '' } : { text: String(q.text || '').trim(), attr: String(q.attr || '').trim() }))
+      .filter(q => q.text);
+  } catch (e) {
+    return [];
+  }
+}
+
+function _writeQuotes(list) {
+  alSet(ADM_QUOTES_KEY, JSON.stringify(list));
+  if (typeof renderQuoteTicker === 'function') renderQuoteTicker();
+}
+
+function renderAdminQuotes() {
+  const listEl = document.getElementById('admin-quotes-list');
+  const countEl = document.getElementById('adm-quotes-count');
+  const quotes = _readQuotes();
+  if (countEl) countEl.textContent = '(' + quotes.length + ')';
+  if (!listEl) return;
+  if (!quotes.length) {
+    listEl.innerHTML = '<p style="font-family:var(--mono);font-size:11px;color:var(--muted);">No custom quotes yet — defaults are used on the homepage until you add some.</p>';
+    return;
+  }
+  listEl.innerHTML = quotes.map((q, i) =>
+    '<div class="adm-quote-row">' +
+      '<div class="aq-body">' +
+        escapeHtmlAdmin(q.text) +
+        (q.attr ? '<div class="aq-attr">— ' + escapeHtmlAdmin(q.attr) + '</div>' : '') +
+      '</div>' +
+      '<button type="button" class="aq-del" onclick="adminDeleteQuote(' + i + ')" title="Remove">✕</button>' +
+    '</div>'
+  ).join('');
+}
+
+function escapeHtmlAdmin(t) {
+  return String(t || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function adminAddQuotesBulk() {
+  const ta = document.getElementById('adm-quotes-bulk');
+  if (!ta) return;
+  const lines = String(ta.value || '').split(/\r?\n/);
+  const incoming = [];
+  lines.forEach(line => {
+    const q = _parseQuoteLine(line);
+    if (q && q.text) incoming.push(q);
+  });
+  if (!incoming.length) {
+    if (typeof showToast === 'function') showToast('Paste at least one quote (one per line).');
+    return;
+  }
+  const existing = _readQuotes();
+  // Dedupe by text (case-insensitive)
+  const seen = new Set(existing.map(q => q.text.toLowerCase()));
+  let added = 0;
+  incoming.forEach(q => {
+    const key = q.text.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    existing.push(q);
+    added++;
+  });
+  _writeQuotes(existing);
+  ta.value = '';
+  renderAdminQuotes();
+  if (typeof showToast === 'function') showToast(added ? ('Added ' + added + ' quote' + (added === 1 ? '' : 's') + '.') : 'No new quotes (duplicates skipped).');
+}
+
+function adminDeleteQuote(index) {
+  const quotes = _readQuotes();
+  if (index < 0 || index >= quotes.length) return;
+  quotes.splice(index, 1);
+  _writeQuotes(quotes);
+  renderAdminQuotes();
+  if (typeof showToast === 'function') showToast('Quote removed.');
+}
+
+function adminClearAllQuotes() {
+  if (!confirm('Remove all custom quotes? The homepage will fall back to built-in defaults.')) return;
+  _writeQuotes([]);
+  renderAdminQuotes();
+  if (typeof showToast === 'function') showToast('All custom quotes cleared.');
 }

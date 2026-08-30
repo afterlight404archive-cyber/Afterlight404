@@ -730,8 +730,8 @@
   }
 
   document.addEventListener('DOMContentLoaded', function () {
-    const btn = document.getElementById('bgm-toggle-btn');
-    if (btn) btn.addEventListener('click', toggle);
+    // Analog HQ button opens the player panel (wired in app.js) —
+    // it no longer toggles mute on a single click.
     attemptAutoplay();
   });
 
@@ -740,7 +740,9 @@
     isPlaying: () => playing,
     next,
     prev,
+    switchTo: switchTrack,
     getCurrentTrackName: () => TRACKS[currentTrackIndex].name,
+    getCurrentTrackIndex: () => currentTrackIndex,
     getTracks: () => TRACKS.map(t => t.name),
   };
 })();
