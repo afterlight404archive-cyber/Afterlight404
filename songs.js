@@ -975,7 +975,14 @@ document.getElementById('submit-form').addEventListener('submit', async function
   let submitError = null;
   if (isDbConnected() && sb) {
     try {
-
+      // Submissions require a real Auth session tied to this username (RLS).
+      // If the Edge Function failed at signup, the user may look "logged in"
+      // locally but have no JWT — writes then fail with a confusing RLS error.
+      const { data: sessWrap } = await sb.auth.getSession();
+      const sess = sessWrap && sessWrap.session;
+      if (!sess || !sess.user) {
+        throw new Error('Your login is only saved on this device — the server session is missing. Log out and log back in once, then try again.');
+      }
       const { data, error } = await sb.from('submissions').insert({
         title: submission.title, artist: submission.artist, year: submission.year, mood: submission.mood,
         about: submission.about, meaning: submission.meaning, lyrics: submission.lyrics,

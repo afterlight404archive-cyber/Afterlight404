@@ -302,7 +302,13 @@ async function createRealAliasSession(username, password) {
   if (fnErr) {
     const msg = (fnErr.message || '').toLowerCase();
     if (msg.includes('not found') || msg.includes('404')) {
-      throw new Error('The create-alias-account Edge Function isn\'t deployed yet. See WHAT-CHANGED-NO-CONFIRM-EMAIL-TOGGLE.md for the one-time deploy step.');
+      throw new Error('The create-alias-account Edge Function isn\'t deployed yet. Deploy it from supabase/functions/create-alias-account (Supabase Dashboard → Edge Functions, or `supabase functions deploy create-alias-account`).');
+    }
+    // Mobile/network often surfaces as this generic message when the
+    // function isn't deployed, CORS fails, or the device briefly loses
+    // connectivity — rephrase so it doesn't look like "the whole site is offline".
+    if (msg.includes('failed to send a request') || msg.includes('failed to fetch') || msg.includes('network')) {
+      throw new Error('Could not reach the account server (Edge Function). Check your connection, or ask the site owner to deploy create-alias-account. Then log out and log back in once.');
     }
     throw fnErr;
   }

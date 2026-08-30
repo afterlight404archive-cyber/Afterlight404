@@ -450,9 +450,29 @@ async function pushLocalDataToSupabase() {
   const genreRows = getGenres().map(g => ({ name: g }));
   await tryPush('genres', genreRows, 'name');
 
-  // chat rooms
-  const roomRows = getRooms().map(r => ({ name: r.name, creator: r.creator, created_at: new Date(r.created).toISOString() }));
-  await tryPush('chat_rooms', roomRows, 'name');
+  // chat rooms — only push rooms this session actually owns (or all if site
+  // admin). Bulk-upserting every local room under other creators trips RLS
+  // ("new row violates row-level security policy for table chat_rooms").
+  try {
+    const allRooms = typeof getRooms === 'function' ? getRooms() : [];
+    let roomRows = allRooms.map(r => ({
+      name: r.name,
+      creator: r.creator,
+      created_at: new Date(r.created || Date.now()).toISOString()
+    }));
+    const me = (typeof currentUser !== 'undefined' && currentUser && currentUser.name) ? currentUser.name : null;
+    // Prefer filtering to rooms we can legally insert; admin seed of the full
+    // set still works when is_site_admin() is true on the DB side.
+    if (me) {
+      const owned = roomRows.filter(r => r.creator === me);
+      // If we own none, skip the push entirely rather than fail the whole sync
+      if (owned.length) roomRows = owned;
+      else roomRows = [];
+    }
+    await tryPush('chat_rooms', roomRows, 'name');
+  } catch (e) {
+    console.error('chat_rooms push skipped:', e);
+  }
 
   const adminErr = await pushAdminSettingsToSupabase();
   if (adminErr) failures.push({ table: 'admin_settings', error: adminErr });
@@ -788,6 +808,14 @@ returns boolean language sql stable security definer set search_path = public as
   );
 $$;
 
+create or replace function is_alias_session(p_username text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select auth.uid() is not null
+     and p_username is not null
+     and lower(coalesce(auth.jwt() ->> 'email', '')) =
+         lower(p_username) || '@alias.afterlight.internal';
+$$;
+
 create or replace function is_real_session()
 returns boolean language sql stable as $$
   select auth.uid() is not null
@@ -1106,8 +1134,8 @@ drop policy if exists "Public insert chat_rooms"  on chat_rooms;
 drop policy if exists "Session creates chat_rooms" on chat_rooms;
 drop policy if exists "Creator or admin deletes chat_rooms" on chat_rooms;
 create policy "Public read chat_rooms"     on chat_rooms for select using (true);
-create policy "Session creates chat_rooms" on chat_rooms for insert to authenticated with check (owns_alias(creator) or is_site_admin());
-create policy "Creator or admin deletes chat_rooms" on chat_rooms for delete to authenticated using (owns_alias(creator) or is_site_admin());
+create policy "Session creates chat_rooms" on chat_rooms for insert to authenticated with check (owns_alias(creator) or is_alias_session(creator) or is_site_admin());
+create policy "Creator or admin deletes chat_rooms" on chat_rooms for delete to authenticated using (owns_alias(creator) or is_alias_session(creator) or is_site_admin());
 
 drop policy if exists "Public read chat_messages"          on chat_messages;
 drop policy if exists "Public insert chat_messages"        on chat_messages;
@@ -1194,8 +1222,8 @@ create policy "Sender or admin inserts notifications" on notifications for inser
 drop policy if exists "Owner or admin reads submissions" on submissions;
 drop policy if exists "Owner creates submissions"        on submissions;
 drop policy if exists "Admin deletes submissions"        on submissions;
-create policy "Owner or admin reads submissions" on submissions for select to authenticated using (owns_alias(submitted_by) or is_site_admin());
-create policy "Owner creates submissions"        on submissions for insert to authenticated with check (owns_alias(submitted_by));
+create policy "Owner or admin reads submissions" on submissions for select to authenticated using (owns_alias(submitted_by) or is_alias_session(submitted_by) or is_site_admin());
+create policy "Owner creates submissions"        on submissions for insert to authenticated with check (owns_alias(submitted_by) or is_alias_session(submitted_by));
 create policy "Admin deletes submissions"        on submissions for delete to authenticated using (is_site_admin());
 
 drop policy if exists "Admin reads reports"   on reports;
