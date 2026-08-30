@@ -178,72 +178,49 @@ function renderSongGrid() {
   const featuredGrid = document.getElementById('song-grid-featured');
   const classicGrid = document.getElementById('song-grid');
   const loadWrap = document.getElementById('archive-load-more-wrap');
-  if (featuredGrid) featuredGrid.innerHTML = '';
+  // Featured bento grid retired — classic cards only (title, artist, info + ratings)
+  if (featuredGrid) {
+    featuredGrid.innerHTML = '';
+    featuredGrid.style.display = 'none';
+  }
   if (classicGrid) classicGrid.innerHTML = '';
 
-  const FEATURED_LIMIT = 6; // ~3 rows of the bento layout
+  const INITIAL_VISIBLE = 6; // first batch; rest behind Load more
   archiveExpanded = false;
 
   songs.forEach((s, i) => {
     const mood = MOOD_MAP[s.mood] || MOOD_MAP['3am'];
-    const isFeatured = i < FEATURED_LIMIT;
-
-    if (isFeatured && featuredGrid) {
-      const card = document.createElement('div');
-      card.className = 'song-card song-card-featured' + (i % 4 === 0 || i % 4 === 3 ? ' featured-wide' : '');
-      card.dataset.mood = s.mood;
-      card.dataset.index = i;
-      const desc = (s.about || '').split('\n')[0];
-      const shortDesc = desc.length > 160 ? desc.slice(0, 157) + '…' : desc;
-      const letter = escapeHtml((s.title || '?').charAt(0).toUpperCase());
-      const yearBit = (s.year || '').split('·')[0].trim();
-      const genres = (s.genre || []).slice(0, 3).map(g =>
-        `<span class="featured-tag">// ${escapeHtml(String(g).toUpperCase())}</span>`
-      ).join('');
-      card.innerHTML = `
-        <div class="featured-num">${escapeHtml(s.number)}</div>
-        <div class="featured-body">
-          ${s.cover
-            ? `<div class="featured-art"><img src="${escapeHtml(s.cover)}" alt="" loading="lazy"></div>`
-            : `<div class="featured-art featured-art-fallback" style="--mood-c:${mood.color || 'var(--accent)'}"><span>${letter}</span></div>`}
-          <div class="featured-text">
-            <div class="featured-title">${escapeHtml(s.title)}</div>
-            <div class="featured-sub"><span class="featured-artist">${escapeHtml(s.artist)}</span>${yearBit ? ` <span class="featured-dot">·</span> <span class="featured-year">${escapeHtml(yearBit)}</span>` : ''}</div>
-            <p class="featured-desc">${escapeHtml(shortDesc)}</p>
-            <div class="featured-tags">${genres}</div>
-          </div>
-        </div>
-      `;
-      featuredGrid.appendChild(card);
-    } else if (classicGrid) {
-      const card = document.createElement('div');
-      card.className = 'song-card song-card-classic archive-pending';
-      card.dataset.mood = s.mood;
-      card.dataset.index = i;
-      card.innerHTML = `
+    if (!classicGrid) return;
+    const card = document.createElement('div');
+    card.className = 'song-card song-card-classic' + (i >= INITIAL_VISIBLE ? ' archive-pending' : '');
+    card.dataset.mood = s.mood;
+    card.dataset.index = i;
+    const aboutLine = (s.about || '').split('\n')[0];
+    const genres = Array.isArray(s.genre) ? s.genre : [];
+    card.innerHTML = `
       <div class="card-top">
         <div>
           <div class="song-title">${escapeHtml(s.title)}</div>
           <div class="song-artist">${escapeHtml(s.artist)}</div>
-          <div class="song-year">${escapeHtml(s.year)}</div>
+          <div class="song-year">${escapeHtml(s.year || '')}</div>
         </div>
         <div class="card-top-actions">
           <button class="song-save-btn${isSongSaved(s.number) ? ' saved' : ''}" onclick="event.stopPropagation();toggleSaveSong('${escapeJs(s.number)}', this)" title="Save song">${isSongSaved(s.number) ? '♥' : '♡'}</button>
           <span class="song-mood-tag" style="background:${mood.bg};color:${mood.color};">${mood.label}</span>
         </div>
       </div>
-      <div class="song-number">${s.number}</div>
+      <div class="song-number">${escapeHtml(s.number)}</div>
       ${getSongUploader(s) ? (isDeletedUploader(getSongUploader(s))
           ? `<div class="song-card-uploader song-card-uploader-deleted">↑ uploaded by a deleted user</div>`
           : `<div class="song-card-uploader" onclick="event.stopPropagation();openUserProfileView('${escapeJs(getSongUploader(s))}')">↑ uploaded by @${escapeHtml(getSongUploader(s))}</div>`) : ''}
-      <div class="song-desc">${escapeHtml(s.about.split('\\n')[0])}</div>
+      <div class="song-desc">${escapeHtml(aboutLine)}</div>
       <div class="card-footer">
         <div class="genre-pills">
-          ${s.genre.map(g => `<span class="genre-pill">${escapeHtml(g)}</span>`).join('')}
+          ${genres.map(g => `<span class="genre-pill">${escapeHtml(g)}</span>`).join('')}
         </div>
         <span class="read-more">Read more</span>
       </div>
-      <div class="rating-wrap" data-song="${s.number.replace('#','')}">
+      <div class="rating-wrap" data-song="${String(s.number).replace('#','')}">
         <div class="rating-your-row">
           <span class="rating-label">Your Rating</span>
           <div class="rating-stars">
@@ -256,16 +233,15 @@ function renderSongGrid() {
           <span class="rating-count"></span>
           <span class="rating-locked-msg">✓ Rated</span>
         </div>
-        <div class="rating-community" data-role="community">${ratingCommunityHtml(s.number.replace('#',''))}</div>
+        <div class="rating-community" data-role="community">${ratingCommunityHtml(String(s.number).replace('#',''))}</div>
         <div class="rating-actions"></div>
       </div>
     `;
-      classicGrid.appendChild(card);
-    }
+    classicGrid.appendChild(card);
   });
 
   if (loadWrap) {
-    loadWrap.style.display = songs.length > FEATURED_LIMIT ? 'flex' : 'none';
+    loadWrap.style.display = songs.length > INITIAL_VISIBLE ? 'flex' : 'none';
   }
   const loadBtn = document.getElementById('archive-load-more-btn');
   if (loadBtn) loadBtn.disabled = false;

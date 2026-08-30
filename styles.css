@@ -505,22 +505,21 @@
   .header-left { display: flex; align-items: center; gap: 28px; flex-shrink: 1; min-width: 0; }
   .header-center { flex-shrink: 0; }
   .header-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; min-width: 0; margin-left: auto; }
-  .logo { font-family: var(--serif); font-size: 17px; font-weight: 700; letter-spacing: -0.01em; color: var(--text); text-decoration: none; display: flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0; }
+  .logo { font-family: var(--serif); font-size: 17px; font-weight: 700; letter-spacing: -0.01em; color: var(--text); text-decoration: none; display: flex; align-items: center; gap: 8px; white-space: nowrap; flex-shrink: 0; }
   .logo-mark { flex-shrink: 0; }
   .logo-ring { stroke: var(--logo-ring, #5F4E7E); transition: stroke 0.2s; }
   .logo-dot { fill: var(--logo-dot, #D9861F); transition: fill 0.2s; }
   .logo .colon { color: var(--text); }
   .logo .four { color: var(--text); }
-  /* Theme-aware image logos (new AfterLight:404 brand marks) */
-  .logo-img { display: block; height: 32px; width: auto; object-fit: contain; flex-shrink: 0; }
-  .logo-img-light { display: none; height: 32px; width: auto; max-width: 120px; }
-  .logo-img-dark { display: block; height: 32px; width: 32px; border-radius: 8px; }
+  /* Theme-aware logos */
+  .logo-img { display: block; object-fit: contain; flex-shrink: 0; }
+  /* Light: full horizontal brand image, hide text + dark mark */
+  .logo-img-light { display: none; height: 32px; width: auto; max-width: 130px; }
+  .logo-img-dark-mark { display: block; width: 28px; height: 28px; border-radius: 50%; }
   html[data-theme="light"] .logo-img-light { display: block; }
-  html[data-theme="light"] .logo-img-dark { display: none; }
-  html[data-theme="light"] .logo-text-fallback { display: none; }
-  /* Dark (default): show dark mark; hide light + keep text fallback as optional */
-  .logo-text-fallback { display: none; }
-  /* If images fail to load, text still available via onerror if needed */
+  html[data-theme="light"] .logo-img-dark-mark { display: none; }
+  html[data-theme="light"] .logo .logo-full { display: none; }
+  /* Dark (default): vinyl mark + text wordmark */
 
   #desktop-nav { display: flex; gap: 0; align-items: center; }
   #desktop-nav a {
@@ -2595,9 +2594,9 @@
   [data-device="mobile"] .subnav-row { display: none !important; }
   [data-device="mobile"] header { padding: 0 14px !important; }
   [data-device="mobile"] .logo { font-size: 13px !important; }
-  [data-device="mobile"] .logo-img { height: 28px !important; }
-  [data-device="mobile"] .logo-img-light { max-width: 96px !important; }
-  [data-device="mobile"] .logo-img-dark { width: 28px !important; height: 28px !important; }
+  [data-device="mobile"] .logo-img-light { height: 26px !important; max-width: 100px !important; }
+  [data-device="mobile"] .logo-img-dark-mark { width: 24px !important; height: 24px !important; }
+  [data-device="mobile"] .logo .logo-full { font-size: 13px !important; }
   [data-device="mobile"] .header-left { gap: 8px !important; }
   [data-device="mobile"] .header-right { gap: 8px !important; }
   [data-device="mobile"] .theme-toggle-wrap { gap: 0 !important; }
