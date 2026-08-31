@@ -1316,10 +1316,10 @@ function applySiteSettings() {
   const raw = alGet('al-site-settings');
   if (!raw) return;
   const s = JSON.parse(raw);
-  if (s.heroTitle) document.getElementById('hero-title').innerHTML = escapeHtml(s.heroTitle).replace(/\n/g, '<br>');
+  if (s.heroTitle) document.getElementById('hero-title').innerHTML = escapeHtml(s.heroTitle).replace(/\\n|\n/g, '<br>');
   if (s.heroSub) document.getElementById('hero-sub').textContent = s.heroSub;
-  if (s.aboutTitle) document.getElementById('about-title').innerHTML = escapeHtml(s.aboutTitle).replace(/\n/g, '<br>').replace(/&lt;em&gt;/g, '<em>').replace(/&lt;\/em&gt;/g, '</em>');
-  if (s.aboutBody) document.getElementById('about-body').innerHTML = escapeHtml(s.aboutBody).replace(/\n/g, '<br>').replace(/&lt;em&gt;/g, '<em>').replace(/&lt;\/em&gt;/g, '</em>');
+  if (s.aboutTitle) document.getElementById('about-title').innerHTML = escapeHtml(s.aboutTitle).replace(/\\n|\n/g, '<br>').replace(/&lt;em&gt;/g, '<em>').replace(/&lt;\/em&gt;/g, '</em>');
+  if (s.aboutBody) document.getElementById('about-body').innerHTML = escapeHtml(s.aboutBody).replace(/\\n|\n/g, '<br>').replace(/&lt;em&gt;/g, '<em>').replace(/&lt;\/em&gt;/g, '</em>');
   if (s.archiveTitle) document.getElementById('archive-title').textContent = s.archiveTitle;
   if (s.submitTitle) document.getElementById('submit-title').textContent = s.submitTitle;
   if (s.submitDesc) document.getElementById('submit-desc').textContent = s.submitDesc;

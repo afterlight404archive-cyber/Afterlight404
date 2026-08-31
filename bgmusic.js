@@ -25,12 +25,7 @@
                                      arcade tempo (100 BPM), filtered
                                      and kept gentle so it still reads
                                      as calm rather than frantic.
-     3. "Acoustic Fingerpicking"  — a Travis-picking guitar loop built
-                                     from real Karplus-Strong plucked-
-                                     string synthesis (no samples),
-                                     played over a soft, familiar
-                                     chord progression.
-     4. "Neon Pulse"              — a hypnotic, echo-drenched electronic
+     3. "Neon Pulse"              — a hypnotic, echo-drenched electronic
                                      pulse in the vein of atmospheric
                                      mobile-game soundtracks: a deep sub
                                      bass heartbeat under a glassy,
@@ -626,7 +621,6 @@
   const TRACKS = [
     { id: 'piano', name: 'Ambient Piano', start: startPianoTrack, stop: stopPianoTrack },
     { id: 'arcade', name: 'Retro Arcade', start: startArcadeTrack, stop: stopArcadeTrack },
-    { id: 'guitar', name: 'Acoustic Fingerpicking', start: startGuitarTrack, stop: stopGuitarTrack },
     { id: 'neon', name: 'Neon Pulse', start: startNeonTrack, stop: stopNeonTrack },
   ];
 

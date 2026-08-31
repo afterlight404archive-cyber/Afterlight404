@@ -1255,14 +1255,23 @@ function syncVinylToBGM() {
   const title = document.getElementById('player-track-title');
   const progressTrack = document.getElementById('player-progress-track');
   const liveTime = document.getElementById('player-time-live');
+  const vinyl = document.getElementById('hero-vinyl');
+  const nowPlaying = document.getElementById('vinyl-now-playing');
 
   const playing = window.AfterlightBGM.isPlaying();
   const trackName = window.AfterlightBGM.getCurrentTrackName();
 
   if (playBtn) {
     playBtn.classList.toggle('is-playing', playing);
+    playBtn.textContent = playing ? '⏸' : '▶';
     playBtn.setAttribute('aria-label', playing ? 'Pause background music' : 'Play background music');
     playBtn.title = playing ? 'Pause background music' : 'Play background music';
+  }
+  if (vinyl) vinyl.classList.toggle('spinning', playing);
+  if (nowPlaying) {
+    nowPlaying.innerHTML = playing && trackName
+      ? 'Now playing · <span>' + String(trackName).replace(/</g, '&lt;') + '</span>'
+      : (trackName ? String(trackName).replace(/</g, '&lt;') + ' — paused' : '— click play to spin —');
   }
   if (waveform) waveform.querySelectorAll('span').forEach(s => s.style.animationPlayState = playing ? 'running' : 'paused');
   if (trackBar) trackBar.classList.toggle('playing', playing);

@@ -33,7 +33,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=20260831163000">
+<link rel="stylesheet" href="styles.css?v=20260831170000">
 <style id="al-pending-verify-css">
   /* Hide main UI until scripts decide whether an OTP overlay is needed,
      so a mid-signup refresh never flashes the home page under the code screen. */
@@ -738,68 +738,43 @@
       </div>
       <div class="hero-meta">
         <div class="meta-item">
+          <label>Songs archived</label>
           <span class="meta-num" id="stat-songs">06</span>
-          <label>Archived</label>
         </div>
         <div class="meta-item">
+          <label>Moods mapped</label>
           <span class="meta-num" id="stat-moods">07</span>
-          <label>Moods</label>
         </div>
         <div class="meta-item">
-          <span class="meta-num" id="stat-genres">03</span>
           <label>Genres</label>
+          <span class="meta-num" id="stat-genres">03</span>
         </div>
       </div>
     </div>
 
-    <!-- Right side: 3D vinyl + blended transport -->
     <div class="hero-vinyl-side">
-      <div class="player-card tt-player" id="player-card" role="region" aria-label="Background music player">
-        <div class="tt-deck" aria-hidden="true">
-          <div class="tt-platter">
-            <div class="tt-platter-rim"></div>
-            <div class="tt-disc player-vinyl-disc">
-              <div class="tt-grooves"></div>
-              <div class="tt-label player-vinyl-label">
-                <div class="tt-label-ring"></div>
-                <div class="tt-label-core">
-                  <span class="tt-label-brand">AfterLight</span>
-                  <span class="tt-label-mark">404</span>
-                </div>
-              </div>
-              <div class="tt-spindle"></div>
+      <div class="vinyl-widget">
+        <div class="vinyl-disc-wrap">
+          <div class="vinyl-outer" id="hero-vinyl" aria-hidden="true">
+            <div class="vinyl-label">
+              <div class="vinyl-label-text">After<br>Light</div>
+              <div class="vinyl-hole"></div>
             </div>
           </div>
-          <div class="tt-tonearm">
-            <div class="tt-pivot"></div>
-            <div class="tt-arm">
-              <div class="tt-headshell"><div class="tt-stylus"></div></div>
-            </div>
-          </div>
-          <div class="tt-start-stop"></div>
-          <div class="tt-logo-mark" aria-hidden="true">
-            <svg width="28" height="28" viewBox="0 0 100 100" fill="none"><circle cx="50" cy="50" r="38" stroke="currentColor" stroke-width="3.5"/><circle cx="50" cy="50" r="6" fill="currentColor"/></svg>
-          </div>
-          <div class="tt-knobs"><span class="tt-knob"></span><span class="tt-knob"></span></div>
+          <div class="vinyl-arm" id="hero-vinyl-arm" aria-hidden="true"></div>
         </div>
-        <div class="hero-vinyl-meta">
-          <div class="hero-vinyl-track" id="player-track-title">Background music</div>
-          <div class="hero-vinyl-status"><span id="player-time-live"></span></div>
+        <div class="vinyl-controls" role="group" aria-label="Background music controls">
+          <button type="button" class="vinyl-btn" onclick="vinylPrev()" title="Previous track" aria-label="Previous track">⏮</button>
+          <button type="button" class="vinyl-btn vinyl-play-btn" id="vinyl-play-btn" onclick="toggleVinyl()" title="Play / Pause" aria-label="Play background music">▶</button>
+          <button type="button" class="vinyl-btn" onclick="vinylNext()" title="Next track" aria-label="Next track">⏭</button>
         </div>
-        <div class="hero-vinyl-controls" role="group" aria-label="Playback controls">
-          <button type="button" class="hero-vinyl-btn" id="vinyl-prev-btn" onclick="vinylPrev()" aria-label="Previous track" title="Previous track">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z"/></svg>
-          </button>
-          <button type="button" class="hero-vinyl-btn hero-vinyl-play" id="vinyl-play-btn" onclick="toggleVinyl()" aria-label="Play background music" title="Play background music">
-            <svg class="player-icon-play" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7L8 5z"/></svg>
-            <svg class="player-icon-pause" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z"/></svg>
-          </button>
-          <button type="button" class="hero-vinyl-btn" id="vinyl-next-btn" onclick="vinylNext()" aria-label="Next track" title="Next track">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 6h2v12h-2V6zM5 18l8.5-6L5 6v12z"/></svg>
-          </button>
-        </div>
+        <div class="vinyl-now-playing" id="vinyl-now-playing">— click play to spin —</div>
       </div>
     </div>
+  </div>
+  <div class="hero-track-bar" aria-hidden="true">
+    <div class="hero-track-progress"></div>
+    <div class="hero-track-needle"></div>
   </div>
 </section>
 
@@ -1552,7 +1527,8 @@
         <div class="admin-form">
           <div class="form-group full">
             <label>Hero Title</label>
-            <input class="form-input" type="text" id="adm-hero-title" value="Songs that found me\nin the dark">
+            <input class="form-input" type="text" id="adm-hero-title" value="Songs that found me
+in the dark">
           </div>
           <div class="form-group full">
             <label>Hero Subtitle</label>
@@ -2326,14 +2302,14 @@ serve(async (req) => {
 </div>
 
 <script src="config.js?v=20260831101554"></script>
-<script src="app.js?v=20260831163000"></script>
+<script src="app.js?v=20260831170000"></script>
 <script src="supabase.js?v=20260831101554"></script>
 <script src="songs.js?v=20260831101554"></script>
 <script src="auth.js?v=20260831101554"></script>
 <script src="chat.js?v=20260831101554"></script>
 <script src="profile.js?v=20260831101554"></script>
-<script src="admin.js?v=20260831101554"></script>
-<script src="bgmusic.js?v=20260831101554"></script>
+<script src="admin.js?v=20260831170000"></script>
+<script src="bgmusic.js?v=20260831170000"></script>
 <script>
 //  INIT
 // ═══════════════════════════════════════════════════════════════
