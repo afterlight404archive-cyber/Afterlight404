@@ -33,7 +33,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=20260831170000">
+<link rel="stylesheet" href="styles.css?v=20260831172000">
 <style id="al-pending-verify-css">
   /* Hide main UI until scripts decide whether an OTP overlay is needed,
      so a mid-signup refresh never flashes the home page under the code screen. */
@@ -126,66 +126,21 @@
       </div>
     </div>
     <div class="header-icon-cluster">
-      <button class="header-theme-toggle" id="btn-header-theme" aria-label="Toggle theme" title="Toggle theme">
-        <span class="htt-sun" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><circle cx="12" cy="12" r="4"/><g stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.9" y1="4.9" x2="6.3" y2="6.3"/><line x1="17.7" y1="17.7" x2="19.1" y2="19.1"/><line x1="4.9" y1="19.1" x2="6.3" y2="17.7"/><line x1="17.7" y1="6.3" x2="19.1" y2="4.9"/></g></svg>
-        </span>
-        <span class="htt-knob" aria-hidden="true"></span>
-        <span class="htt-moon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"/></svg>
-        </span>
-      </button>
+      <!-- Theme: moon · slider · sun · SYS (matches reference UI) -->
+      <div class="theme-toggle-wrap" id="header-theme-wrap">
+        <span class="theme-icon theme-icon-moon" aria-hidden="true">☾</span>
+        <label class="theme-switch" title="Toggle light / dark">
+          <input type="checkbox" id="theme-checkbox" aria-label="Toggle light or dark theme">
+          <span class="theme-track"></span>
+        </label>
+        <span class="theme-icon theme-icon-sun" aria-hidden="true">☀</span>
+        <button type="button" class="theme-mode-btn active-mode" id="sys-btn" title="Follow system preference">SYS</button>
+      </div>
+      <button type="button" class="donate-btn open-donate-btn header-donate-btn" aria-label="Donate">♡ DONATE</button>
       <div class="auth-bar" id="auth-bar">
         <button class="auth-btn" id="btn-login">Log In</button>
         <button class="auth-btn primary" id="btn-signup">Sign Up</button>
       </div>
-      <div class="analog-hq-wrap" id="analog-hq-wrap">
-        <button class="analog-pill" id="bgm-toggle-btn" type="button" aria-pressed="false" aria-haspopup="true" aria-expanded="false" aria-controls="analog-hq-panel" aria-label="Open Analog HQ music player" title="Analog HQ — background music">
-          <span class="analog-pill-dot" aria-hidden="true"></span>
-          <span class="analog-bars" aria-hidden="true"><i></i><i></i><i></i></span>
-          <span class="analog-pill-label">Analog HQ</span>
-        </button>
-        <div class="analog-hq-panel" id="analog-hq-panel" role="dialog" aria-label="Background music player" hidden>
-          <div class="ahq-head">
-            <span class="ahq-kicker">Analog HQ</span>
-            <button type="button" class="ahq-close" id="ahq-close" aria-label="Close">✕</button>
-          </div>
-          <div class="ahq-now">
-            <div class="ahq-now-label">Now playing</div>
-            <div class="ahq-now-row">
-              <div class="ahq-vinyl" id="ahq-vinyl" aria-hidden="true">
-                <span class="ahq-vinyl-disc"></span>
-                <span class="ahq-vinyl-label"></span>
-              </div>
-              <div class="ahq-now-text">
-                <div class="ahq-track-name" id="ahq-track-name">—</div>
-                <div class="ahq-status" id="ahq-status">Paused</div>
-              </div>
-            </div>
-          </div>
-          <div class="ahq-controls">
-            <button type="button" class="ahq-btn" id="ahq-prev" title="Previous track" aria-label="Previous track">⏮</button>
-            <button type="button" class="ahq-btn ahq-play" id="ahq-play" title="Play / Mute" aria-label="Play or mute">▶</button>
-            <button type="button" class="ahq-btn" id="ahq-next" title="Next track" aria-label="Next track">⏭</button>
-          </div>
-          <div class="ahq-list-label">Tracks</div>
-          <div class="ahq-track-list" id="ahq-track-list" role="listbox" aria-label="Background tracks"></div>
-        </div>
-      </div>
-      <button class="volume-pill" id="volume-pill" aria-label="Toggle background music" title="Toggle mute" style="display:none;">
-        <svg class="vp-icon vp-icon-on" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M4 9v6h4l5 5V4L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M19 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-        <svg class="vp-icon vp-icon-off" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M4 9v6h4l5 5V4L8 9H4z"/><path d="M15.5 8.5l5.5 7M21 8.5l-5.5 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-      </button>
-    </div>
-    <!-- Hidden legacy theme controls kept in the DOM for existing app.js logic;
-         the visible theme toggle is the sun/moon pill above, which just
-         clicks this checkbox so no JS logic needed to change. -->
-    <div class="theme-toggle-wrap" style="display:none;">
-      <label class="theme-switch">
-        <input type="checkbox" id="theme-checkbox">
-        <span class="theme-track"></span>
-      </label>
-      <button class="theme-mode-btn active-mode" id="sys-btn" title="Follow system preference">sys</button>
     </div>
   </div>
 </header>
@@ -756,6 +711,10 @@
       <div class="vinyl-widget">
         <div class="vinyl-disc-wrap">
           <div class="vinyl-outer" id="hero-vinyl" aria-hidden="true">
+            <span class="vinyl-ring vinyl-ring-1"></span>
+            <span class="vinyl-ring vinyl-ring-2"></span>
+            <span class="vinyl-ring vinyl-ring-3"></span>
+            <span class="vinyl-ring vinyl-ring-4"></span>
             <div class="vinyl-label">
               <div class="vinyl-label-text">After<br>Light</div>
               <div class="vinyl-hole"></div>
@@ -775,18 +734,6 @@
   <div class="hero-track-bar" aria-hidden="true">
     <div class="hero-track-progress"></div>
     <div class="hero-track-needle"></div>
-  </div>
-</section>
-
-<!-- QUOTE OF THE DAY (smooth marquee) -->
-<section class="quote-ticker" id="quote-ticker" aria-label="Quote of the day">
-  <div class="quote-ticker-inner">
-    <span class="quote-ticker-label">Quote of the day</span>
-    <div class="quote-ticker-track-wrap">
-      <div class="quote-ticker-track" id="quote-ticker-track">
-        <span class="quote-ticker-text" id="quote-ticker-text">Loading…</span>
-      </div>
-    </div>
   </div>
 </section>
 
@@ -2302,14 +2249,14 @@ serve(async (req) => {
 </div>
 
 <script src="config.js?v=20260831101554"></script>
-<script src="app.js?v=20260831170000"></script>
+<script src="app.js?v=20260831172000"></script>
 <script src="supabase.js?v=20260831101554"></script>
 <script src="songs.js?v=20260831101554"></script>
 <script src="auth.js?v=20260831101554"></script>
 <script src="chat.js?v=20260831101554"></script>
 <script src="profile.js?v=20260831101554"></script>
-<script src="admin.js?v=20260831170000"></script>
-<script src="bgmusic.js?v=20260831170000"></script>
+<script src="admin.js?v=20260831172000"></script>
+<script src="bgmusic.js?v=20260831172000"></script>
 <script>
 //  INIT
 // ═══════════════════════════════════════════════════════════════

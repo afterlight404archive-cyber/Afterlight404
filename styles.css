@@ -752,17 +752,38 @@
   .profile-chevron { display: none; }
 
   /* ── THEME TOGGLE ── */
-  .theme-toggle-wrap { display: flex; align-items: center; gap: 8px; }
+  .theme-toggle-wrap { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
   .theme-icon { font-size: 14px; color: var(--muted); user-select: none; line-height: 1; }
+  .theme-icon-moon { font-size: 15px; opacity: 0.85; }
+  .theme-icon-sun { font-size: 14px; opacity: 0.85; }
   .theme-switch { position: relative; width: 48px; height: 24px; flex-shrink: 0; }
-  .theme-switch input { opacity: 0; width: 0; height: 0; }
+  .theme-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
   .theme-track { position: absolute; inset: 0; background: var(--border2); border-radius: 12px; cursor: pointer; transition: background 0.2s, border-color 0.2s; border: 1px solid var(--border2); }
   .theme-track::before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: var(--text); border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.35); transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1); }
-  .theme-switch input:checked + .theme-track { background: var(--accent2); border-color: var(--accent2); }
-  .theme-switch input:checked + .theme-track::before { transform: translateX(24px); }
+  .theme-switch input:checked + .theme-track { background: #7c8cff; border-color: #7c8cff; }
+  .theme-switch input:checked + .theme-track::before { transform: translateX(24px); background: #fff; }
   .settings-toggle-row:hover .theme-track { border-color: var(--accent); }
-  .theme-mode-btn { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); background: transparent; border: 1px solid var(--border); padding: 3px 9px; cursor: pointer; border-radius: 100px; transition: all 0.15s; white-space: nowrap; }
+  .theme-mode-btn { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); background: transparent; border: 1px solid var(--border); padding: 4px 10px; cursor: pointer; border-radius: 8px; transition: all 0.15s; white-space: nowrap; }
   .theme-mode-btn:hover, .theme-mode-btn.active-mode { border-color: var(--accent2); color: var(--accent2); }
+  .header-donate-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: transparent;
+    border: 1px solid var(--accent);
+    padding: 7px 14px;
+    cursor: pointer;
+    border-radius: 10px;
+    transition: all 0.18s;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .header-donate-btn:hover { background: color-mix(in oklab, var(--accent) 12%, transparent); }
+  .header-icon-cluster { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 
   /* ── BACKGROUND MUSIC (Analog HQ pill + volume pill) ── */
   @keyframes bgmBar {
@@ -3900,33 +3921,33 @@ body.on-music-hub #page-friends .friends-page-header {
 .hero-deco-1 { width: 140px; height: 140px; top: 8%; right: 8%; }
 .hero-deco-2 { width: 90px; height: 90px; bottom: 12%; left: 6%; opacity: 0.14; }
 
-/* Background quote — large, faint, slowly scrolling */
+/* Background quote — visible, slowly scrolling */
 .hero-bg-quote {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 12%;
+  bottom: 10%;
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
-  mask-image: linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%);
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%);
-  opacity: 0.55;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 8%, #000 92%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 8%, #000 92%, transparent 100%);
+  opacity: 1;
 }
 .hero-bg-quote-track {
   display: inline-flex;
   width: max-content;
-  gap: 4rem;
-  animation: heroBgQuoteScroll 42s linear infinite;
+  gap: 5rem;
+  animation: heroBgQuoteScroll 38s linear infinite;
   will-change: transform;
 }
 .hero-bg-quote-text {
   font-family: var(--serif);
-  font-size: clamp(15px, 1.8vw, 20px);
+  font-size: clamp(17px, 2.2vw, 24px);
   font-style: italic;
-  font-weight: 700;
-  color: transparent;
-  -webkit-text-stroke: 1px color-mix(in oklab, var(--accent) 22%, transparent);
+  font-weight: 600;
+  color: color-mix(in oklab, var(--accent) 58%, transparent);
+  -webkit-text-stroke: 0;
   white-space: nowrap;
   letter-spacing: -0.01em;
   user-select: none;
@@ -4118,17 +4139,11 @@ body.on-music-hub #page-friends .friends-page-header {
   width: 220px;
   height: 220px;
   border-radius: 50%;
-  background:
-    repeating-conic-gradient(
-      from 0deg,
-      #1a1628 0deg 2deg,
-      #0f0d18 2deg 4deg
-    );
+  background: radial-gradient(circle at 50% 50%, #1a1528 0%, #0f0d18 55%, #0a0810 100%);
   box-shadow:
-    0 0 0 2px #2a2638,
-    0 0 0 4px #0f0d18,
-    0 8px 48px rgba(0,0,0,0.7),
-    0 0 60px rgba(123,111,160,0.15);
+    0 0 0 3px color-mix(in oklab, #5F4E7E 55%, #2a2638),
+    0 10px 40px rgba(0,0,0,0.55),
+    0 0 50px rgba(95,78,126,0.18);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4137,36 +4152,49 @@ body.on-music-hub #page-friends .friends-page-header {
   animation-play-state: paused;
 }
 .vinyl-outer.spinning { animation-play-state: running; }
-.vinyl-label {
-  width: 80px;
-  height: 80px;
+/* Logo-style concentric rings (matches AfterLight mark) */
+.vinyl-ring {
+  position: absolute;
   border-radius: 50%;
-  background: radial-gradient(circle at 40% 35%, #2a2240, #1a1528);
-  border: 1px solid #342F4A;
+  border: solid #5F4E7E;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+.vinyl-ring-1 { inset: 8%; border-width: 5.5px; opacity: 0.95; }
+.vinyl-ring-2 { inset: 18%; border-width: 5px; opacity: 0.85; }
+.vinyl-ring-3 { inset: 29%; border-width: 4px; opacity: 0.75; }
+.vinyl-ring-4 { inset: 40%; border-width: 5px; opacity: 0.7; }
+.vinyl-label {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #2a2240, #16121f);
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  box-shadow: inset 0 2px 8px rgba(0,0,0,0.5), 0 0 20px rgba(200,169,110,0.12);
+  box-shadow: none;
   position: relative;
   z-index: 2;
 }
 .vinyl-label-text {
   font-family: var(--serif);
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
   color: var(--accent);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-align: center;
-  line-height: 1.4;
+  line-height: 1.3;
 }
 .vinyl-hole {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: #08070D;
-  border: 1px solid #342F4A;
-  margin-top: 4px;
+  background: #D9861F;
+  border: none;
+  margin-top: 3px;
+  box-shadow: 0 0 8px rgba(217,134,31,0.45);
 }
 .vinyl-arm {
   position: absolute;
@@ -4294,21 +4322,17 @@ body.on-music-hub #page-friends .friends-page-header {
   .vinyl-arm { transition: none; }
 }
 [data-theme="light"] .vinyl-outer {
-  background:
-    repeating-conic-gradient(
-      from 0deg,
-      #2a2638 0deg 2deg,
-      #1a1628 2deg 4deg
-    );
+  background: radial-gradient(circle at 50% 50%, #2a2438 0%, #1a1628 55%, #12101a 100%);
   box-shadow:
-    0 0 0 2px #3a3648,
-    0 0 0 4px #1a1628,
-    0 8px 36px rgba(0,0,0,0.25),
-    0 0 40px rgba(200,169,110,0.12);
+    0 0 0 3px color-mix(in oklab, #5F4E7E 50%, #3a3648),
+    0 10px 36px rgba(0,0,0,0.22),
+    0 0 40px rgba(95,78,126,0.12);
 }
 [data-theme="light"] .vinyl-label {
   background: radial-gradient(circle at 40% 35%, #3a3250, #2a2438);
-  border-color: #4a4560;
+}
+[data-theme="light"] .vinyl-ring {
+  border-color: #6a5a8e;
 }
 
 .tt-deck {
@@ -4860,8 +4884,8 @@ body.on-music-hub #page-friends .friends-page-header {
     order: 2;
   }
   .vinyl-outer { width: 180px; height: 180px; }
-  .vinyl-label { width: 68px; height: 68px; }
-  .hero-bg-quote { bottom: 6%; opacity: 0.4; }
+  .vinyl-label { width: 56px; height: 56px; }
+  .hero-bg-quote { bottom: 6%; opacity: 0.9; }
   .hero-deco-1 { right: 5%; top: 4%; width: 80px; }
   .hero-deco-2 { display: none; }
 }
@@ -4892,7 +4916,8 @@ body.on-music-hub #page-friends .friends-page-header {
 }
 [data-theme="light"] .hero-deco { color: #b8955a; opacity: 0.22; }
 [data-theme="light"] .hero-bg-quote-text {
-  -webkit-text-stroke: 1px rgba(184, 149, 90, 0.28);
+  color: rgba(184, 149, 90, 0.55);
+  -webkit-text-stroke: 0;
 }
 
 

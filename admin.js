@@ -1316,8 +1316,19 @@ function applySiteSettings() {
   const raw = alGet('al-site-settings');
   if (!raw) return;
   const s = JSON.parse(raw);
-  if (s.heroTitle) document.getElementById('hero-title').innerHTML = escapeHtml(s.heroTitle).replace(/\\n|\n/g, '<br>');
-  if (s.heroSub) document.getElementById('hero-sub').textContent = s.heroSub;
+  if (s.heroTitle) {
+    const el = document.getElementById('hero-title');
+    if (el) {
+      el.innerHTML = escapeHtml(s.heroTitle)
+        .replace(/\\n|\n/g, '<br>')
+        .replace(/&lt;em&gt;/g, '<em>')
+        .replace(/&lt;\/em&gt;/g, '</em>');
+    }
+  }
+  if (s.heroSub) {
+    const sub = document.getElementById('hero-sub');
+    if (sub) sub.textContent = s.heroSub;
+  }
   if (s.aboutTitle) document.getElementById('about-title').innerHTML = escapeHtml(s.aboutTitle).replace(/\\n|\n/g, '<br>').replace(/&lt;em&gt;/g, '<em>').replace(/&lt;\/em&gt;/g, '</em>');
   if (s.aboutBody) document.getElementById('about-body').innerHTML = escapeHtml(s.aboutBody).replace(/\\n|\n/g, '<br>').replace(/&lt;em&gt;/g, '<em>').replace(/&lt;\/em&gt;/g, '</em>');
   if (s.archiveTitle) document.getElementById('archive-title').textContent = s.archiveTitle;
@@ -1326,6 +1337,9 @@ function applySiteSettings() {
   if (s.accent) document.documentElement.style.setProperty('--accent', s.accent);
   if (s.accent2) document.documentElement.style.setProperty('--accent2', s.accent2);
 }
+
+// Apply saved site copy/theme accents as soon as the page is ready
+document.addEventListener('DOMContentLoaded', applySiteSettings);
 
 function renderAdminSongs() {
   const list = document.getElementById('admin-songs-list');

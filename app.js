@@ -761,18 +761,18 @@ const htmlEl = document.documentElement;
 function applyTheme(mode) {
   if (mode === 'light') {
     htmlEl.setAttribute('data-theme', 'light');
-    themeCheckbox.checked = true;
-    sysBtn.classList.remove('active-mode');
+    if (themeCheckbox) themeCheckbox.checked = true;
+    if (sysBtn) sysBtn.classList.remove('active-mode');
   } else if (mode === 'dark') {
     htmlEl.removeAttribute('data-theme');
-    themeCheckbox.checked = false;
-    sysBtn.classList.remove('active-mode');
+    if (themeCheckbox) themeCheckbox.checked = false;
+    if (sysBtn) sysBtn.classList.remove('active-mode');
   } else {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     if (!prefersDark) htmlEl.setAttribute('data-theme', 'light');
     else htmlEl.removeAttribute('data-theme');
-    themeCheckbox.checked = !prefersDark;
-    sysBtn.classList.add('active-mode');
+    if (themeCheckbox) themeCheckbox.checked = !prefersDark;
+    if (sysBtn) sysBtn.classList.add('active-mode');
   }
   alSet('al-theme', mode);
 }
@@ -780,21 +780,17 @@ function applyTheme(mode) {
 const savedTheme = alGet('al-theme') || 'system';
 applyTheme(savedTheme);
 
-themeCheckbox.addEventListener('change', () => {
-  applyTheme(themeCheckbox.checked ? 'light' : 'dark');
-});
-sysBtn.addEventListener('click', () => { applyTheme('system'); });
+if (themeCheckbox) {
+  themeCheckbox.addEventListener('change', () => {
+    applyTheme(themeCheckbox.checked ? 'light' : 'dark');
+  });
+}
+if (sysBtn) {
+  sysBtn.addEventListener('click', () => { applyTheme('system'); });
+}
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
   if ((alGet('al-theme') || 'system') === 'system') applyTheme('system');
 });
-
-// Header moon-icon button just drives the (visually hidden) legacy theme
-// checkbox above, so the existing applyTheme()/localStorage logic doesn't
-// need to change at all.
-const btnHeaderTheme = document.getElementById('btn-header-theme');
-if (btnHeaderTheme) {
-  btnHeaderTheme.addEventListener('click', () => { themeCheckbox.click(); });
-}
 
 // ═══════════════════════════════════════════════════════════════
 //  APP ICON THEME + CUSTOMIZE PICKER (favicon + PWA manifest)
