@@ -33,7 +33,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=20260831101554">
+<link rel="stylesheet" href="styles.css?v=20260831163000">
 <style id="al-pending-verify-css">
   /* Hide main UI until scripts decide whether an OTP overlay is needed,
      so a mid-signup refresh never flashes the home page under the code screen. */
@@ -719,9 +719,17 @@
   <svg class="hero-deco hero-deco-1" viewBox="0 0 120 120" fill="none" aria-hidden="true"><circle cx="60" cy="60" r="48" stroke="currentColor" stroke-width="1.2"/><circle cx="60" cy="60" r="8" stroke="currentColor" stroke-width="1.2"/><path d="M60 12v10M108 60h-10M60 108v-10M12 60h10" stroke="currentColor" stroke-width="1"/><path d="M85 35l8-14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="96" cy="18" r="6" stroke="currentColor" stroke-width="1.2"/></svg>
   <svg class="hero-deco hero-deco-2" viewBox="0 0 100 100" fill="none" aria-hidden="true"><circle cx="50" cy="50" r="40" stroke="currentColor" stroke-width="1"/><circle cx="50" cy="50" r="6" stroke="currentColor" stroke-width="1"/><path d="M72 28l6-10" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
 
+  <!-- Background scrolling quote (mixed into the scene) -->
+  <div class="hero-bg-quote" aria-hidden="true">
+    <div class="hero-bg-quote-track" id="hero-bg-quote-track">
+      <span class="hero-bg-quote-text" id="hero-bg-quote-text">“Music is the silence between the notes.”</span>
+      <span class="hero-bg-quote-text" aria-hidden="true">“Music is the silence between the notes.”</span>
+    </div>
+  </div>
+
   <div class="hero-inner">
     <div class="hero-content">
-      <div class="hero-eyebrow">Personal Archive · Est. 2024</div>
+      <div class="hero-eyebrow">Soft. Deep.</div>
       <h1 id="hero-title">Songs that found me<br>in the <em>dark</em></h1>
       <div class="hero-sub-card">
         <p class="hero-sub" id="hero-sub">
@@ -731,15 +739,64 @@
       <div class="hero-meta">
         <div class="meta-item">
           <span class="meta-num" id="stat-songs">06</span>
-          <label>Songs archived</label>
+          <label>Archived</label>
         </div>
         <div class="meta-item">
           <span class="meta-num" id="stat-moods">07</span>
-          <label>Moods mapped</label>
+          <label>Moods</label>
         </div>
         <div class="meta-item">
           <span class="meta-num" id="stat-genres">03</span>
           <label>Genres</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right side: 3D vinyl + blended transport -->
+    <div class="hero-vinyl-side">
+      <div class="player-card tt-player" id="player-card" role="region" aria-label="Background music player">
+        <div class="tt-deck" aria-hidden="true">
+          <div class="tt-platter">
+            <div class="tt-platter-rim"></div>
+            <div class="tt-disc player-vinyl-disc">
+              <div class="tt-grooves"></div>
+              <div class="tt-label player-vinyl-label">
+                <div class="tt-label-ring"></div>
+                <div class="tt-label-core">
+                  <span class="tt-label-brand">AfterLight</span>
+                  <span class="tt-label-mark">404</span>
+                </div>
+              </div>
+              <div class="tt-spindle"></div>
+            </div>
+          </div>
+          <div class="tt-tonearm">
+            <div class="tt-pivot"></div>
+            <div class="tt-arm">
+              <div class="tt-headshell"><div class="tt-stylus"></div></div>
+            </div>
+          </div>
+          <div class="tt-start-stop"></div>
+          <div class="tt-logo-mark" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 100 100" fill="none"><circle cx="50" cy="50" r="38" stroke="currentColor" stroke-width="3.5"/><circle cx="50" cy="50" r="6" fill="currentColor"/></svg>
+          </div>
+          <div class="tt-knobs"><span class="tt-knob"></span><span class="tt-knob"></span></div>
+        </div>
+        <div class="hero-vinyl-meta">
+          <div class="hero-vinyl-track" id="player-track-title">Background music</div>
+          <div class="hero-vinyl-status"><span id="player-time-live"></span></div>
+        </div>
+        <div class="hero-vinyl-controls" role="group" aria-label="Playback controls">
+          <button type="button" class="hero-vinyl-btn" id="vinyl-prev-btn" onclick="vinylPrev()" aria-label="Previous track" title="Previous track">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z"/></svg>
+          </button>
+          <button type="button" class="hero-vinyl-btn hero-vinyl-play" id="vinyl-play-btn" onclick="toggleVinyl()" aria-label="Play background music" title="Play background music">
+            <svg class="player-icon-play" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7L8 5z"/></svg>
+            <svg class="player-icon-pause" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z"/></svg>
+          </button>
+          <button type="button" class="hero-vinyl-btn" id="vinyl-next-btn" onclick="vinylNext()" aria-label="Next track" title="Next track">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 6h2v12h-2V6zM5 18l8.5-6L5 6v12z"/></svg>
+          </button>
         </div>
       </div>
     </div>
@@ -2269,7 +2326,7 @@ serve(async (req) => {
 </div>
 
 <script src="config.js?v=20260831101554"></script>
-<script src="app.js?v=20260831101554"></script>
+<script src="app.js?v=20260831163000"></script>
 <script src="supabase.js?v=20260831101554"></script>
 <script src="songs.js?v=20260831101554"></script>
 <script src="auth.js?v=20260831101554"></script>

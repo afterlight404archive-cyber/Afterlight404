@@ -1321,13 +1321,29 @@ function renderQuoteTicker() {
   const track = document.getElementById('quote-ticker-track');
   const textEl = document.getElementById('quote-ticker-text');
   const section = document.getElementById('quote-ticker');
-  if (!track || !textEl) return;
 
   const q = getQuoteOfTheDay();
   const attrHtml = q.attr
     ? ' <span class="quote-attr">— ' + q.attr.replace(/</g, '&lt;') + '</span>'
     : '';
   const body = '“' + String(q.text).replace(/</g, '&lt;') + '”' + attrHtml;
+  const plain = '“' + String(q.text).replace(/</g, '&lt;') + '”';
+
+  // Hero background quote (large, faint, always scrolling)
+  const bgTrack = document.getElementById('hero-bg-quote-track');
+  if (bgTrack) {
+    const spans = bgTrack.querySelectorAll('.hero-bg-quote-text');
+    spans.forEach(s => { s.textContent = plain; });
+    if (spans.length < 2) {
+      const extra = document.createElement('span');
+      extra.className = 'hero-bg-quote-text';
+      extra.setAttribute('aria-hidden', 'true');
+      extra.textContent = plain;
+      bgTrack.appendChild(extra);
+    }
+  }
+
+  if (!track || !textEl) return;
 
   // Duplicate content so the marquee can loop seamlessly
   textEl.innerHTML = body;
