@@ -33,7 +33,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=20260831101554">
 <style id="al-pending-verify-css">
   /* Hide main UI until scripts decide whether an OTP overlay is needed,
      so a mid-signup refresh never flashes the home page under the code screen. */
@@ -2268,15 +2268,15 @@ serve(async (req) => {
   </div>
 </div>
 
-<script src="config.js"></script>
-<script src="app.js"></script>
-<script src="supabase.js"></script>
-<script src="songs.js"></script>
-<script src="auth.js"></script>
-<script src="chat.js"></script>
-<script src="profile.js"></script>
-<script src="admin.js"></script>
-<script src="bgmusic.js"></script>
+<script src="config.js?v=20260831101554"></script>
+<script src="app.js?v=20260831101554"></script>
+<script src="supabase.js?v=20260831101554"></script>
+<script src="songs.js?v=20260831101554"></script>
+<script src="auth.js?v=20260831101554"></script>
+<script src="chat.js?v=20260831101554"></script>
+<script src="profile.js?v=20260831101554"></script>
+<script src="admin.js?v=20260831101554"></script>
+<script src="bgmusic.js?v=20260831101554"></script>
 <script>
 //  INIT
 // ═══════════════════════════════════════════════════════════════
@@ -2319,13 +2319,25 @@ document.querySelectorAll('.waveform-deco span').forEach(s => {
 });
 // Reflects the real bg-music engine's current track/play state into the
 // player card (title, play icon, progress sweep) — see syncVinylToBGM in app.js.
-if (typeof syncVinylToBGM === 'function') syncVinylToBGM();
+try { if (typeof syncVinylToBGM === 'function') syncVinylToBGM(); } catch (e) { console.error('syncVinylToBGM failed on boot:', e); }
 
-if (isDbConnected()) {
-  pullSharedDataFromSupabase().then(() => {
-    renderMoodBar();
-    renderSongGrid();
-  });
+// This pull is what replaces the built-in demo songs/moods with the real
+// shared data from Supabase — it's wrapped defensively so that (a) an
+// unrelated error anywhere earlier in this boot script can never prevent it
+// from running, and (b) a failed/rejected pull (bad network, brief outage,
+// mobile connection drop) can never leave an unhandled promise rejection
+// sitting silently in the console. Without this, a single earlier throw —
+// or a rejected pull nobody caught — could leave a visitor stuck looking at
+// placeholder content indefinitely with no visible error.
+try {
+  if (isDbConnected()) {
+    pullSharedDataFromSupabase().then(() => {
+      renderMoodBar();
+      renderSongGrid();
+    }).catch(e => console.error('pullSharedDataFromSupabase failed on boot:', e));
+  }
+} catch (e) {
+  console.error('isDbConnected/pullSharedDataFromSupabase boot block failed:', e);
 }
 
 // ── ON-SCREEN KEYBOARD HANDLING (chat/DM/topic-chat input bars) ──
