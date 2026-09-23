@@ -105,13 +105,13 @@
       <img class="logo-img logo-img-dark-mark" src="icons/logo-header-dark.png" alt="" width="28" height="28" decoding="async" onerror="this.style.display='none'">
       <span class="logo-full">AfterLight<span class="colon">:</span><span class="four">404</span></span>
     </a>
-    <nav id="desktop-nav">
-      <a href="#home" class="active" data-nav="home" onclick="showPage('home');return false;">Home</a>
-      <a href="#about" data-nav="about" onclick="goToHomeSection('about');return false;">About</a>
-      <a href="#submit" data-nav="submit" onclick="showPage('submit');return false;">Submit</a>
-      <a href="#social" data-nav="social" onclick="showPage('social');return false;">Social</a>
-    </nav>
   </div>
+  <nav id="desktop-nav" class="header-center">
+    <a href="#home" class="active" data-nav="home" onclick="showPage('home');return false;">Home</a>
+    <a href="#about" data-nav="about" onclick="goToHomeSection('about');return false;">About</a>
+    <a href="#submit" data-nav="submit" onclick="showPage('submit');return false;">Submit</a>
+    <a href="#social" data-nav="social" onclick="showPage('social');return false;">Social</a>
+  </nav>
   <div class="header-right">
     <div class="notif-bell-wrap" id="notif-bell-wrap" style="display:none;">
       <button class="notif-bell-btn" onclick="toggleNotifDropdown(event)" aria-label="Notifications">
@@ -136,7 +136,6 @@
         <span class="theme-icon theme-icon-sun" aria-hidden="true">☀</span>
         <button type="button" class="theme-mode-btn active-mode" id="sys-btn" title="Follow system preference">SYS</button>
       </div>
-      <button type="button" class="donate-btn open-donate-btn header-donate-btn" aria-label="Donate">♡ DONATE</button>
       <div class="auth-bar" id="auth-bar">
         <button class="auth-btn" id="btn-login">Log In</button>
         <button class="auth-btn primary" id="btn-signup">Sign Up</button>
