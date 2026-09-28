@@ -33,7 +33,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=20260928211500">
+<link rel="stylesheet" href="styles.css?v=20260831172000">
 <style id="al-pending-verify-css">
   /* Hide main UI until scripts decide whether an OTP overlay is needed,
      so a mid-signup refresh never flashes the home page under the code screen. */
@@ -105,13 +105,13 @@
       <img class="logo-img logo-img-dark-mark" src="icons/logo-header-dark.png" alt="" width="28" height="28" decoding="async" onerror="this.style.display='none'">
       <span class="logo-full">AfterLight<span class="colon">:</span><span class="four">404</span></span>
     </a>
-    <nav id="desktop-nav">
-      <a href="#home" class="active" data-nav="home" onclick="showPage('home');return false;">Home</a>
-      <a href="#about" data-nav="about" onclick="goToHomeSection('about');return false;">About</a>
-      <a href="#submit" data-nav="submit" onclick="showPage('submit');return false;">Submit</a>
-      <a href="#social" data-nav="social" onclick="showPage('social');return false;">Social</a>
-    </nav>
   </div>
+  <nav id="desktop-nav" class="header-center">
+    <a href="#home" class="active" data-nav="home" onclick="showPage('home');return false;">Home</a>
+    <a href="#about" data-nav="about" onclick="goToHomeSection('about');return false;">About</a>
+    <a href="#submit" data-nav="submit" onclick="showPage('submit');return false;">Submit</a>
+    <a href="#social" data-nav="social" onclick="showPage('social');return false;">Social</a>
+  </nav>
   <div class="header-right">
     <div class="notif-bell-wrap" id="notif-bell-wrap" style="display:none;">
       <button class="notif-bell-btn" onclick="toggleNotifDropdown(event)" aria-label="Notifications">
@@ -136,7 +136,6 @@
         <span class="theme-icon theme-icon-sun" aria-hidden="true">☀</span>
         <button type="button" class="theme-mode-btn active-mode" id="sys-btn" title="Follow system preference">SYS</button>
       </div>
-      <button type="button" class="donate-btn open-donate-btn header-donate-btn" aria-label="Donate">♡ DONATE</button>
       <div class="auth-bar" id="auth-bar">
         <button class="auth-btn" id="btn-login">Log In</button>
         <button class="auth-btn primary" id="btn-signup">Sign Up</button>
@@ -708,24 +707,32 @@
     </div>
 
     <div class="hero-vinyl-side">
-      <div class="bgm-player-box" id="player-card" role="region" aria-label="Background music player">
-        <div class="bgm-player-label">Now playing</div>
-        <div class="bgm-player-title" id="player-track-title">Ambient Piano</div>
-        <div class="bgm-player-controls" role="group" aria-label="Background music controls">
-          <button type="button" class="bgm-ctrl" onclick="vinylPrev()" title="Previous track" aria-label="Previous track">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z"/></svg>
-          </button>
-          <button type="button" class="bgm-ctrl bgm-play" id="vinyl-play-btn" onclick="toggleVinyl()" title="Play / Pause" aria-label="Play background music">
-            <svg class="bgm-icon-play" width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7L8 5z"/></svg>
-            <svg class="bgm-icon-pause" width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z"/></svg>
-          </button>
-          <button type="button" class="bgm-ctrl" onclick="vinylNext()" title="Next track" aria-label="Next track">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 6h2v12h-2V6zM6 18l8.5-6L6 6v12z"/></svg>
-          </button>
+      <div class="vinyl-widget">
+        <div class="vinyl-disc-wrap">
+          <div class="vinyl-outer" id="hero-vinyl" aria-hidden="true">
+            <span class="vinyl-ring vinyl-ring-1"></span>
+            <span class="vinyl-ring vinyl-ring-2"></span>
+            <span class="vinyl-ring vinyl-ring-3"></span>
+            <span class="vinyl-ring vinyl-ring-4"></span>
+            <div class="vinyl-label">
+              <div class="vinyl-label-text">After<br>Light</div>
+              <div class="vinyl-hole"></div>
+            </div>
+          </div>
+          <div class="vinyl-arm" id="hero-vinyl-arm" aria-hidden="true"></div>
         </div>
-        <div class="bgm-player-status" id="vinyl-now-playing">Tap play to start</div>
+        <div class="vinyl-controls" role="group" aria-label="Background music controls">
+          <button type="button" class="vinyl-btn" onclick="vinylPrev()" title="Previous track" aria-label="Previous track">⏮</button>
+          <button type="button" class="vinyl-btn vinyl-play-btn" id="vinyl-play-btn" onclick="toggleVinyl()" title="Play / Pause" aria-label="Play background music">▶</button>
+          <button type="button" class="vinyl-btn" onclick="vinylNext()" title="Next track" aria-label="Next track">⏭</button>
+        </div>
+        <div class="vinyl-now-playing" id="vinyl-now-playing">— click play to spin —</div>
       </div>
     </div>
+  </div>
+  <div class="hero-track-bar" aria-hidden="true">
+    <div class="hero-track-progress"></div>
+    <div class="hero-track-needle"></div>
   </div>
 </section>
 
@@ -2241,14 +2248,14 @@ serve(async (req) => {
 </div>
 
 <script src="config.js?v=20260831101554"></script>
-<script src="app.js?v=20260928211500"></script>
+<script src="app.js?v=20260831172000"></script>
 <script src="supabase.js?v=20260831101554"></script>
 <script src="songs.js?v=20260831101554"></script>
 <script src="auth.js?v=20260831101554"></script>
 <script src="chat.js?v=20260831101554"></script>
 <script src="profile.js?v=20260831101554"></script>
 <script src="admin.js?v=20260831172000"></script>
-<script src="bgmusic.js?v=20260928211500"></script>
+<script src="bgmusic.js?v=20260831172000"></script>
 <script>
 //  INIT
 // ═══════════════════════════════════════════════════════════════
@@ -2389,31 +2396,17 @@ document.addEventListener('scroll', () => closeMsgActions(), true);
 (function () {
   let triedFullscreen = false;
   function goFullscreen() {
-    if (document.fullscreenElement || document.webkitFullscreenElement) return;
+    if (triedFullscreen) return;
+    triedFullscreen = true;
     const el = document.documentElement;
     const request = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
-    if (!request) return;
-    try {
-      const p = request.call(el);
-      if (p && typeof p.then === 'function') {
-        p.then(() => { triedFullscreen = true; }).catch(() => { triedFullscreen = false; });
-      } else {
-        triedFullscreen = true;
-      }
-    } catch (e) {
-      triedFullscreen = false;
+    if (request) {
+      try { request.call(el).catch(() => { triedFullscreen = false; }); }
+      catch (e) { triedFullscreen = false; }
     }
   }
-  // Best-effort on load (most browsers block until a gesture)
-  try { goFullscreen(); } catch (e) {}
-  // First real interaction — always attempt
-  ['pointerdown', 'touchend', 'click', 'keydown'].forEach(function (evt) {
-    document.addEventListener(evt, goFullscreen, { once: true, passive: true, capture: true });
-  });
-  // If user leaves and comes back, try again once
-  document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'visible' && !triedFullscreen) goFullscreen();
-  });
+  document.addEventListener('touchend', goFullscreen, { once: true, passive: true });
+  document.addEventListener('click', goFullscreen, { once: true });
 })();
 
 // ── ENTER KEY = SUBMIT ──
