@@ -1259,15 +1259,16 @@ function syncVinylToBGM() {
 
   if (playBtn) {
     playBtn.classList.toggle('is-playing', playing);
-    playBtn.textContent = playing ? '⏸' : '▶';
+    if (!playBtn.querySelector('.bgm-icon-play')) {
+      playBtn.textContent = playing ? '⏸' : '▶';
+    }
     playBtn.setAttribute('aria-label', playing ? 'Pause background music' : 'Play background music');
     playBtn.title = playing ? 'Pause background music' : 'Play background music';
   }
   if (vinyl) vinyl.classList.toggle('spinning', playing);
   if (nowPlaying) {
-    nowPlaying.innerHTML = playing && trackName
-      ? 'Now playing · <span>' + String(trackName).replace(/</g, '&lt;') + '</span>'
-      : (trackName ? String(trackName).replace(/</g, '&lt;') + ' — paused' : '— click play to spin —');
+    // status kept for a11y/sync but hidden in minimal UI
+    nowPlaying.textContent = playing ? 'playing' : 'paused';
   }
   if (waveform) waveform.querySelectorAll('span').forEach(s => s.style.animationPlayState = playing ? 'running' : 'paused');
   if (trackBar) trackBar.classList.toggle('playing', playing);

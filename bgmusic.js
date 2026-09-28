@@ -587,7 +587,7 @@
   }
 
   function playNeonBar() {
-    if (!playing || currentTrackIndex !== 3) return;
+    if (!playing || currentTrackIndex !== 2) return;
     const chord = NEON_PROGRESSION[neonBarIdx % NEON_PROGRESSION.length];
     const barStart = ctx.currentTime + 0.03;
 
