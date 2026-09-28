@@ -32,8 +32,19 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+// Fallback if jsDelivr is blocked on some mobile networks — without this the
+// whole app boots in "local-only" mode and looks offline (no shared songs/chat).
+(function () {
+  if (window.supabase) return;
+  var s = document.createElement('script');
+  s.src = 'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js';
+  s.async = false;
+  document.head.appendChild(s);
+})();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=20260928214500">
+<link rel="stylesheet" href="styles.css?v=20260928221500">
 <style id="al-pending-verify-css">
   /* Hide main UI until scripts decide whether an OTP overlay is needed,
      so a mid-signup refresh never flashes the home page under the code screen. */
@@ -706,39 +717,7 @@
       </div>
     </div>
 
-    <div class="hero-vinyl-side">
-      <div class="bgm-inline" id="player-card" role="region" aria-label="Background music">
-        <div class="bgm-inline-title" id="player-track-title">Ambient Piano</div>
-        <div class="bgm-inline-controls" role="group" aria-label="Background music controls">
-          <button type="button" class="bgm-inline-btn" onclick="vinylPrev()" title="Previous track" aria-label="Previous track">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z"/></svg>
-          </button>
-          <button type="button" class="bgm-inline-btn bgm-inline-play" id="vinyl-play-btn" onclick="toggleVinyl()" title="Play / Pause" aria-label="Play background music">
-            <svg class="bgm-icon-play" width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7L8 5z"/></svg>
-            <svg class="bgm-icon-pause" width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z"/></svg>
-          </button>
-          <button type="button" class="bgm-inline-btn" onclick="vinylNext()" title="Next track" aria-label="Next track">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 6h2v12h-2V6zM6 18l8.5-6L6 6v12z"/></svg>
-          </button>
-        </div>
-        <div class="bgm-inline-status" id="vinyl-now-playing" hidden></div>
-      </div>
-    </div>
   </div>
-</section>
-
-<!-- RECENTLY ADDED -->
-<section class="recently-added-section" id="recently-added" aria-label="Recently added songs">
-  <div class="recently-added-header">
-    <div>
-      <div class="section-label">// Fresh ink</div>
-      <h2 class="recently-added-title">Recently Added</h2>
-    </div>
-    <button type="button" class="recently-added-see-all" onclick="document.getElementById('archive')?.scrollIntoView({behavior:'smooth'});return false;">
-      Browse archive →
-    </button>
-  </div>
-  <div class="recently-added-grid" id="recently-added-grid"></div>
 </section>
 
 <!-- MOOD FILTER -->
@@ -2238,40 +2217,40 @@ serve(async (req) => {
   </div>
 </div>
 
-<script src="config.js?v=20260831101554"></script>
-<script src="app.js?v=20260928214500"></script>
-<script src="supabase.js?v=20260831101554"></script>
-<script src="songs.js?v=20260831101554"></script>
+<script src="config.js?v=20260928215500"></script>
+<script src="app.js?v=20260928220500"></script>
+<script src="supabase.js?v=20260928215500"></script>
+<script src="songs.js?v=20260928220500"></script>
 <script src="auth.js?v=20260831101554"></script>
 <script src="chat.js?v=20260831101554"></script>
 <script src="profile.js?v=20260831101554"></script>
 <script src="admin.js?v=20260831172000"></script>
-<script src="bgmusic.js?v=20260928214500"></script>
+<script src="bgmusic.js?v=20260928215500"></script>
 <script>
 //  INIT
 // ═══════════════════════════════════════════════════════════════
 
-loadData();
+try { loadData(); } catch (e) { console.error('loadData failed on boot:', e); }
 // Show OTP overlay ASAP if a signup is mid-verification — before the rest of
 // the UI paints — so the main site doesn't flash underneath.
-restorePendingSignup();
-migrateAdminSecrets();
-initSupabaseClient();
-initLivePresence();
-handleGoogleAuthCallback();
-renderMoodBar();
-renderSongGrid();
-updateAuthUI();
-updateCommentForm();
-updateSubmitForm();
-applySiteSettings();
-initDeviceMode();
-setBottomNavActive('home');
-applyChatEnabledState();
-updateSocialBadge();
-refreshModerationEnabledFromDb();
-refreshTurnstileEnabledFromDb();
-refreshEmailjsConfigFromDb();
+try { restorePendingSignup(); } catch (e) { console.error(e); }
+try { migrateAdminSecrets(); } catch (e) { console.error(e); }
+try { initSupabaseClient(); } catch (e) { console.error('initSupabaseClient failed:', e); }
+try { initLivePresence(); } catch (e) { console.error(e); }
+try { handleGoogleAuthCallback(); } catch (e) { console.error(e); }
+try { renderMoodBar(); } catch (e) { console.error(e); }
+try { renderSongGrid(); } catch (e) { console.error(e); }
+try { updateAuthUI(); } catch (e) { console.error(e); }
+try { updateCommentForm(); } catch (e) { console.error(e); }
+try { updateSubmitForm(); } catch (e) { console.error(e); }
+try { applySiteSettings(); } catch (e) { console.error(e); }
+try { initDeviceMode(); } catch (e) { console.error(e); }
+try { setBottomNavActive('home'); } catch (e) { console.error(e); }
+try { applyChatEnabledState(); } catch (e) { console.error(e); }
+try { updateSocialBadge(); } catch (e) { console.error(e); }
+try { refreshModerationEnabledFromDb(); } catch (e) { console.error(e); }
+try { refreshTurnstileEnabledFromDb(); } catch (e) { console.error(e); }
+try { refreshEmailjsConfigFromDb(); } catch (e) { console.error(e); }
 // Keep the person logged in across refresh / reopen. Restores the
 // single-device session listener and reuses any persisted Supabase Auth
 // session — does NOT wipe currentUser if the Auth session is gone.

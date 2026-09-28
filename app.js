@@ -625,20 +625,54 @@ function fallbackCopy(text, confirmEl) {
 }
 
 function loadData() {
-  const savedSongs = alGet('al-songs');
-  songs = savedSongs ? JSON.parse(savedSongs) : JSON.parse(JSON.stringify(DEFAULT_SONGS));
-  if (!savedSongs) saveSongs();
+  // Every JSON.parse is guarded — corrupt localStorage on a phone (Safari
+  // private mode, storage full, or a half-written write) used to throw here
+  // and abort the entire boot script, which left the site looking "offline"
+  // (no songs, no nav wiring, no DB pull). Recover by falling back to defaults.
+  try {
+    const savedSongs = alGet('al-songs');
+    if (savedSongs) {
+      try {
+        songs = JSON.parse(savedSongs);
+        if (!Array.isArray(songs)) throw new Error('songs not array');
+      } catch (e) {
+        console.warn('al-songs corrupt, resetting', e);
+        songs = JSON.parse(JSON.stringify(DEFAULT_SONGS));
+        try { saveSongs(); } catch (_) {}
+      }
+    } else {
+      songs = JSON.parse(JSON.stringify(DEFAULT_SONGS));
+      try { saveSongs(); } catch (_) {}
+    }
+  } catch (e) {
+    console.warn('loadData songs failed', e);
+    try { songs = JSON.parse(JSON.stringify(DEFAULT_SONGS)); } catch (_) { songs = []; }
+  }
 
-  submissions = JSON.parse(alGet('al-submissions') || '[]');
-  reports = JSON.parse(alGet('al-reports') || '[]');
+  try { submissions = JSON.parse(alGet('al-submissions') || '[]'); if (!Array.isArray(submissions)) submissions = []; }
+  catch (e) { submissions = []; }
+  try { reports = JSON.parse(alGet('al-reports') || '[]'); if (!Array.isArray(reports)) reports = []; }
+  catch (e) { reports = []; }
 
-  const savedUser = alGet('al-user');
-  if (savedUser) currentUser = JSON.parse(savedUser);
+  try {
+    const savedUser = alGet('al-user');
+    if (savedUser) currentUser = JSON.parse(savedUser);
+  } catch (e) {
+    console.warn('al-user corrupt, clearing', e);
+    currentUser = null;
+    try { alRemove('al-user'); } catch (_) {}
+  }
 
-  const savedAdmin = alGet('al-admin');
-  if (savedAdmin) currentAdmin = JSON.parse(savedAdmin);
+  try {
+    const savedAdmin = alGet('al-admin');
+    if (savedAdmin) currentAdmin = JSON.parse(savedAdmin);
+  } catch (e) {
+    console.warn('al-admin corrupt, clearing', e);
+    currentAdmin = null;
+    try { alRemove('al-admin'); } catch (_) {}
+  }
 
-  backfillFriendCodes();
+  try { backfillFriendCodes(); } catch (e) { console.warn('backfillFriendCodes failed', e); }
 }
 
 // Every account gets a unique #000-000 style code the first time we see it

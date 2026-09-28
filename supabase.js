@@ -13,14 +13,28 @@ let sb = null; // the active supabase client, or null if running local-only
 const DEFAULT_DB_CONFIG = (typeof window !== 'undefined' && window.AFTERLIGHT_DB_CONFIG) || null;
 
 function getDbConfig() {
-  const raw = alGet('al-db-config');
-  if (raw) return JSON.parse(raw);
+  try {
+    const raw = alGet('al-db-config');
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.url && parsed.key) return parsed;
+      } catch (e) {
+        // Corrupt localStorage entry — clear it so the site can recover
+        try { alRemove('al-db-config'); } catch (_) {}
+      }
+    }
+  } catch (e) { /* ignore */ }
   if (DEFAULT_DB_CONFIG && DEFAULT_DB_CONFIG.url && DEFAULT_DB_CONFIG.key) return DEFAULT_DB_CONFIG;
   return null;
 }
 
 function isDbConnected() {
-  return !!getDbConfig() && !!sb;
+  try {
+    return !!getDbConfig() && !!sb;
+  } catch (e) {
+    return false;
+  }
 }
 
 // Supabase's client library persists your login session (the actual thing
